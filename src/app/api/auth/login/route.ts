@@ -1,0 +1,110 @@
+// app/api/auth/login/route.ts
+import { NextRequest, NextResponse } from "next/server";
+import { loginSchema } from "@/lib/schemas";
+import { createSession, type AppUser } from "@/lib/auth";
+import { ZodError } from "zod";
+
+const API_BASE_URL = "https://api-pos.masivaguna.com/api";
+
+export async function POST(request: NextRequest) {
+  try {
+    // Parse and validate request body
+    const body = await request.json();
+    const validatedData = loginSchema.parse(body);
+
+    // Call external API
+    const response = await fetch(`${API_BASE_URL}/login`, {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        "Accept": "application/json",
+      },
+      body: JSON.stringify(validatedData),
+    });
+
+    const responseData = await response.json();
+    console.log("API Response:", responseData); // Debug log
+
+    // Handle API response based on actual structure
+    if (!response.ok) {
+      return NextResponse.json(
+        {
+          success: false,
+          message: responseData.message || "Login failed",
+          errors: responseData.errors,
+        },
+        { status: response.status }
+      );
+    }
+
+    // Check if login was successful based on message
+    if (responseData.message !== "Login successful" || !responseData.data) {
+      return NextResponse.json(
+        {
+          success: false,
+          message: responseData.message || "Login failed",
+        },
+        { status: 400 }
+      );
+    }
+
+    // Create session using Lucia
+    const apiUser = responseData.data.user;
+    const userData: AppUser = {
+      id: apiUser.id.toString(), // Convert number to string for Lucia
+      username: apiUser.username,
+      name: apiUser.fullname,
+      role: apiUser.role_id?.toString(),
+      email: apiUser.email,
+    };
+    
+    const session = await createSession(userData.id, userData);
+
+    // Return success response
+    return NextResponse.json({
+      success: true,
+      message: "Login successful",
+      data: {
+        user: userData,
+        sessionId: session.id,
+        expiresAt: session.expiresAt,
+        token: responseData.data.token,
+      },
+    });
+
+  } catch (error) {
+    console.error("Login error:", error);
+
+    // Handle Zod validation errors
+    if (error instanceof ZodError) {
+      return NextResponse.json(
+        {
+          success: false,
+          message: "Validation failed",
+          errors: error.flatten().fieldErrors,
+        },
+        { status: 400 }
+      );
+    }
+
+    // Handle fetch errors
+    if (error instanceof TypeError && error.message.includes("fetch")) {
+      return NextResponse.json(
+        {
+          success: false,
+          message: "Unable to connect to authentication server",
+        },
+        { status: 503 }
+      );
+    }
+
+    // Handle other errors
+    return NextResponse.json(
+      {
+        success: false,
+        message: "An unexpected error occurred",
+      },
+      { status: 500 }
+    );
+  }
+}
