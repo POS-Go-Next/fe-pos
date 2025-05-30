@@ -4,7 +4,7 @@ import { loginSchema } from "@/lib/schemas";
 import { createSession, type AppUser } from "@/lib/auth";
 import { ZodError } from "zod";
 
-const API_BASE_URL = "https://api-pos.masivaguna.com/api";
+const API_BASE_URL = process.env.API_BASE_URL;
 
 export async function POST(request: NextRequest) {
   try {
