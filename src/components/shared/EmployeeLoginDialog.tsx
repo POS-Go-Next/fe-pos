@@ -1,10 +1,11 @@
+// components/shared/EmployeeLoginDialog.tsx
 "use client";
 
 import { FC, useState } from "react";
 import { X, Loader2, Eye, EyeOff } from "lucide-react";
 import { useAuth } from "@/hooks/useAuth";
 import { loginSchema } from "@/lib/schemas";
-import { ZodError } from "zod";
+import { z } from "zod";
 
 interface EmployeeLoginDialogProps {
   isOpen: boolean;
@@ -56,8 +57,8 @@ const EmployeeLoginDialog: FC<EmployeeLoginDialogProps> = ({
           setValidationErrors(fieldErrors);
         }
       }
-    } catch (err) {
-      if (err instanceof ZodError) {
+    } catch (err: unknown) {
+      if (err instanceof z.ZodError) {
         // Handle Zod validation errors (no popup, just field errors)
         const fieldErrors: Record<string, string> = {};
         err.errors.forEach((error) => {

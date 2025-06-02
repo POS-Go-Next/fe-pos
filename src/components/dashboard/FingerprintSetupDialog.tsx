@@ -1,9 +1,21 @@
+// components/dashboard/FingerprintSetupDialog.tsx (Replace existing file)
 "use client";
 
 import { FC, useState } from "react";
 import { X, ChevronDown } from "lucide-react";
 import { Button } from "@/components/ui/button";
-import Image from "next/image";
+import EmployeeLoginDialog from "../shared/EmployeeLoginDialog";
+import FingerprintScanningDialog from "../shared/FingerprintScanningDialog";
+
+interface Employee {
+  id: string;
+  name: string;
+}
+
+interface FingerprintOption {
+  id: string;
+  name: string;
+}
 
 interface FingerprintSetupDialogProps {
   isOpen: boolean;
@@ -11,112 +23,351 @@ interface FingerprintSetupDialogProps {
   onRegister: () => void;
 }
 
+// Mock data - nanti akan diganti dengan API
+const employees: Employee[] = [
+  { id: '1', name: 'Lamin Camavinga' },
+  { id: '2', name: 'Yamal Americano' },
+  { id: '3', name: 'Levi Rose Walujo' },
+  { id: '4', name: 'Ahmad Lowell Reid' },
+  { id: '5', name: 'Lebron Daisy Hale' }
+];
+
+const fingerprintOptions: FingerprintOption[] = [
+  { id: '1', name: 'Finger - 1' },
+  { id: '2', name: 'Finger - 2' },
+  { id: '3', name: 'Finger - 3' },
+  { id: '4', name: 'Finger - 4' },
+  { id: '5', name: 'Finger - 5' }
+];
+
 const FingerprintSetupDialog: FC<FingerprintSetupDialogProps> = ({
   isOpen,
   onClose,
   onRegister,
 }) => {
-  const [selectedUser, setSelectedUser] = useState<string>("");
+  // Authentication states
+  const [isLoggedIn, setIsLoggedIn] = useState(false);
+  const [isLoginDialogOpen, setIsLoginDialogOpen] = useState(false);
+
+  // Fingerprint setup states
+  const [selectedEmployee, setSelectedEmployee] = useState<string>("");
+  const [selectedFingerprint, setSelectedFingerprint] = useState<string>("");
+  const [showEmployeeDropdown, setShowEmployeeDropdown] = useState(false);
+  const [showFingerprintDropdown, setShowFingerprintDropdown] = useState(false);
   
-  if (!isOpen) return null;
+  // Scanning states
+  const [isScanningDialogOpen, setIsScanningDialogOpen] = useState(false);
+  const [scanningType, setScanningType] = useState<'scan' | 'rescan' | ''>('');
+  const [firstScanCompleted, setFirstScanCompleted] = useState(false);
+  const [rescanCompleted, setRescanCompleted] = useState(false);
+
+  // Check login status when dialog opens
+  useState(() => {
+    if (isOpen && !isLoggedIn) {
+      setIsLoginDialogOpen(true);
+    }
+  });
+
+  // Handle successful login
+  const handleLoginSuccess = (userData: any) => {
+    setIsLoggedIn(true);
+    setIsLoginDialogOpen(false);
+    console.log("Login successful:", userData);
+  };
+
+  // Handle employee selection
+  const handleEmployeeSelect = (employee: Employee) => {
+    setSelectedEmployee(employee.name);
+    setShowEmployeeDropdown(false);
+    // Reset fingerprint selection and scan states when employee changes
+    setSelectedFingerprint("");
+    setFirstScanCompleted(false);
+    setRescanCompleted(false);
+  };
+
+  // Handle fingerprint selection
+  const handleFingerprintSelect = (fingerprint: FingerprintOption) => {
+    setSelectedFingerprint(fingerprint.name);
+    setShowFingerprintDropdown(false);
+    // Reset scan states when fingerprint changes
+    setFirstScanCompleted(false);
+    setRescanCompleted(false);
+  };
+
+  // Handle start scanning
+  const handleStartScanning = (type: 'scan' | 'rescan') => {
+    setScanningType(type);
+    setIsScanningDialogOpen(true);
+  };
+
+  // Handle scan completion
+  const handleScanComplete = () => {
+    if (scanningType === 'scan') {
+      setFirstScanCompleted(true);
+    } else if (scanningType === 'rescan') {
+      setRescanCompleted(true);
+    }
+    setIsScanningDialogOpen(false);
+    setScanningType('');
+  };
+
+  // Handle save
+  const handleSave = async () => {
+    try {
+      // TODO: API call to save fingerprint data
+      const fingerprintData = {
+        employee: selectedEmployee,
+        fingerprint: selectedFingerprint,
+        firstScan: firstScanCompleted,
+        rescan: rescanCompleted
+      };
+      
+      console.log('Saving fingerprint data:', fingerprintData);
+      
+      // Reset states and close dialog
+      handleReset();
+      onRegister(); // Call parent callback
+      onClose();
+    } catch (error) {
+      console.error('Error saving fingerprint:', error);
+      // TODO: Show error message to user
+    }
+  };
+
+  // Handle reset
+  const handleReset = () => {
+    setSelectedEmployee("");
+    setSelectedFingerprint("");
+    setFirstScanCompleted(false);
+    setRescanCompleted(false);
+  };
+
+  // Handle close dialog
+  const handleCloseDialog = () => {
+    handleReset();
+    setIsLoggedIn(false); // Reset login state
+    onClose();
+  };
+
+  // Don't render main dialog if not logged in
+  if (!isOpen || (!isLoggedIn && isLoginDialogOpen)) {
+    return (
+      <>
+        {/* Login Dialog */}
+        <EmployeeLoginDialog
+          isOpen={isLoginDialogOpen}
+          onClose={() => {
+            setIsLoginDialogOpen(false);
+            onClose(); // Close parent dialog if login is cancelled
+          }}
+          onLogin={handleLoginSuccess}
+        />
+      </>
+    );
+  }
 
   return (
-    <div className="fixed inset-0 flex items-center justify-center z-50">
-      {/* Overlay */}
-      <div className="absolute inset-0 bg-black/50" onClick={onClose}></div>
+    <>
+      <div className="fixed inset-0 flex items-center justify-center z-50">
+        {/* Overlay */}
+        <div className="absolute inset-0 bg-black/50" onClick={handleCloseDialog}></div>
 
-      {/* Dialog */}
-      <div className="bg-white rounded-lg w-full max-w-3xl relative z-10">
-        <div className="flex justify-between items-center p-4 border-b">
-          <h2 className="text-xl font-semibold text-[#202325]">
-            Fingerprint Setup
-          </h2>
-          <button onClick={onClose}>
-            <X className="h-5 w-5 text-gray-600" />
-          </button>
-        </div>
-
-        <div className="p-6">
-          {/* Username Selection */}
-          <div className="mb-6">
-            <label className="block text-gray-800 mb-2 font-medium">
-              Username
-            </label>
-            <div className="relative">
-              <button
-                className="w-full flex justify-between items-center bg-[#F5F5F5] text-left rounded-md py-4 px-4"
-              >
-                <span>{selectedUser || "Select User"}</span>
-                <ChevronDown className="h-5 w-5 text-gray-500" />
-              </button>
-            </div>
+        {/* Dialog */}
+        <div className="bg-white rounded-lg w-full max-w-2xl relative z-10">
+          <div className="flex justify-between items-center p-6 border-b">
+            <h2 className="text-xl font-semibold text-[#202325]">
+              Fingerprint Setup
+            </h2>
+            <button onClick={handleCloseDialog}>
+              <X className="h-5 w-5 text-gray-600" />
+            </button>
           </div>
 
-          {/* Fingerprint Registration Area */}
-          <div className="grid grid-cols-2 gap-6">
-            {/* Register Fingerprint 1 */}
-            <div className="bg-white rounded-lg border p-6 flex flex-col items-center">
-              <h3 className="text-lg font-medium mb-3 text-center">Register Fingerprint 1</h3>
-              <p className="text-gray-600 text-center mb-6">
-                Place your first finger on the sensor to capture its template.
-              </p>
-              
-              <div className="w-32 h-32 mb-6 relative">
-                <div className="w-full h-full rounded-full bg-red-100 flex items-center justify-center">
-                  <Image
-                    src="/icons/fingerprint-icon.svg"
-                    alt="Fingerprint"
-                    width={80}
-                    height={80}
-                    // Fallback jika gambar tidak tersedia
-                    onError={(e) => {
-                      e.currentTarget.src = "data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 80 80'%3E%3Ccircle cx='40' cy='40' r='38' fill='%23FECACA' stroke='%23EF4444' stroke-width='2'/%3E%3Cpath d='M40,15 C30,15 22,23 22,35 C22,45 27,55 40,65 C53,55 58,45 58,35 C58,23 50,15 40,15 Z' fill='none' stroke='%23EF4444' stroke-width='2'/%3E%3C/svg%3E";
-                    }}
-                  />
+          <div className="p-6">
+            {/* Employee and Fingerprint Selection */}
+            <div className="grid grid-cols-2 gap-6 mb-6">
+              {/* Employee Name Dropdown */}
+              <div>
+                <label className="block text-gray-800 mb-2 font-medium">
+                  Employee Name
+                </label>
+                <div className="relative">
+                  <button
+                    onClick={() => setShowEmployeeDropdown(!showEmployeeDropdown)}
+                    className="w-full flex justify-between items-center bg-[#F5F5F5] text-left rounded-md py-4 px-4 hover:bg-gray-200 transition-colors"
+                  >
+                    <span className={selectedEmployee ? "text-gray-800" : "text-gray-500"}>
+                      {selectedEmployee || "Select User"}
+                    </span>
+                    <ChevronDown className="h-5 w-5 text-gray-500" />
+                  </button>
+                  
+                  {showEmployeeDropdown && (
+                    <div className="absolute top-full left-0 w-full bg-white border border-gray-200 rounded-md shadow-lg z-20 max-h-48 overflow-y-auto mt-1">
+                      {employees.map((employee) => (
+                        <button
+                          key={employee.id}
+                          onClick={() => handleEmployeeSelect(employee)}
+                          className="w-full text-left px-4 py-3 hover:bg-gray-100 border-b last:border-b-0 transition-colors"
+                        >
+                          {employee.name}
+                        </button>
+                      ))}
+                    </div>
+                  )}
                 </div>
               </div>
-              
-              <Button 
-                onClick={() => console.log("Scan Register 1")}
-                className="w-full bg-blue-600"
-              >
-                Scan Register 1
-              </Button>
+
+              {/* Fingerprint Dropdown */}
+              <div>
+                <label className="block text-gray-800 mb-2 font-medium">
+                  Fingerprint
+                </label>
+                <div className="relative">
+                  <button
+                    onClick={() => selectedEmployee && setShowFingerprintDropdown(!showFingerprintDropdown)}
+                    disabled={!selectedEmployee}
+                    className={`w-full flex justify-between items-center text-left rounded-md py-4 px-4 transition-colors ${
+                      selectedEmployee 
+                        ? 'bg-[#F5F5F5] hover:bg-gray-200' 
+                        : 'bg-gray-50 text-gray-400 cursor-not-allowed'
+                    }`}
+                  >
+                    <span className={selectedFingerprint ? "text-gray-800" : "text-gray-500"}>
+                      {selectedFingerprint || "Finger - 1"}
+                    </span>
+                    <ChevronDown className="h-5 w-5 text-gray-500" />
+                  </button>
+                  
+                  {showFingerprintDropdown && selectedEmployee && (
+                    <div className="absolute top-full left-0 w-full bg-white border border-gray-200 rounded-md shadow-lg z-20 mt-1">
+                      {fingerprintOptions.map((fingerprint) => (
+                        <button
+                          key={fingerprint.id}
+                          onClick={() => handleFingerprintSelect(fingerprint)}
+                          className="w-full text-left px-4 py-3 hover:bg-gray-100 border-b last:border-b-0 transition-colors"
+                        >
+                          {fingerprint.name}
+                        </button>
+                      ))}
+                    </div>
+                  )}
+                </div>
+              </div>
             </div>
-            
-            {/* Register Finger 2 */}
-            <div className="bg-white rounded-lg border p-6 flex flex-col items-center">
-              <h3 className="text-lg font-medium mb-3 text-center">Register Finger 2</h3>
-              <p className="text-gray-600 text-center mb-6">
-                Use a different finger to add a backup fingerprint.
-              </p>
-              
-              <div className="w-32 h-32 mb-6 relative">
-                <div className="w-full h-full rounded-full bg-red-100 flex items-center justify-center">
-                  <Image
-                    src="/icons/fingerprint-icon.svg"
-                    alt="Fingerprint"
-                    width={80}
-                    height={80}
-                    // Fallback jika gambar tidak tersedia
-                    onError={(e) => {
-                      e.currentTarget.src = "data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 80 80'%3E%3Ccircle cx='40' cy='40' r='38' fill='%23FECACA' stroke='%23EF4444' stroke-width='2'/%3E%3Cpath d='M40,15 C30,15 22,23 22,35 C22,45 27,55 40,65 C53,55 58,45 58,35 C58,23 50,15 40,15 Z' fill='none' stroke='%23EF4444' stroke-width='2'/%3E%3C/svg%3E";
-                    }}
-                  />
+
+            {/* Fingerprint Registration Areas */}
+            <div className="grid grid-cols-2 gap-6 mb-6">
+              {/* Scan Fingerprint */}
+              <div className="bg-white rounded-lg border p-6 flex flex-col items-center">
+                <div className="w-16 h-16 bg-blue-100 rounded-xl flex items-center justify-center mb-4">
+                  <svg
+                    xmlns="http://www.w3.org/2000/svg"
+                    className="h-8 w-8 text-blue-600"
+                    fill="none"
+                    viewBox="0 0 24 24"
+                    stroke="currentColor"
+                  >
+                    <path
+                      strokeLinecap="round"
+                      strokeLinejoin="round"
+                      strokeWidth={2}
+                      d="M12 11c0 3.517-1.009 6.799-2.753 9.571m-3.44-2.04l.054-.09A13.916 13.916 0 008 11a4 4 0 118 0c0 1.017-.07 2.019-.203 3m-2.118 6.844A21.88 21.88 0 0015.171 17m3.839 1.132c.645-2.266.99-4.659.99-7.132A8 8 0 008 4.07M3 15.364c.64-1.319 1-2.8 1-4.364 0-1.457.39-2.823 1.07-4"
+                    />
+                  </svg>
                 </div>
+                <h3 className="text-lg font-medium mb-3 text-center">Scan Fingerprint</h3>
+                <p className="text-gray-600 text-center mb-6 text-sm">
+                  Place your finger on the scanner to start registration.
+                </p>
+                
+                <Button 
+                  onClick={() => handleStartScanning('scan')}
+                  disabled={!selectedEmployee || !selectedFingerprint}
+                  className={`w-full transition-all duration-200 ${
+                    firstScanCompleted
+                      ? 'bg-green-500 hover:bg-green-600'
+                      : selectedEmployee && selectedFingerprint
+                      ? 'bg-blue-600 hover:bg-blue-700'
+                      : 'bg-gray-300 text-gray-500 cursor-not-allowed'
+                  }`}
+                >
+                  {firstScanCompleted ? 'Success Added' : 'Start Scanning'}
+                </Button>
               </div>
               
-              <Button 
-                onClick={() => console.log("Scan Register 2")}
-                className="w-full bg-blue-600"
+              {/* Rescan Fingerprint */}
+              <div className="bg-white rounded-lg border p-6 flex flex-col items-center">
+                <div className="w-16 h-16 bg-blue-100 rounded-xl flex items-center justify-center mb-4">
+                  <svg
+                    xmlns="http://www.w3.org/2000/svg"
+                    className="h-8 w-8 text-blue-600"
+                    fill="none"
+                    viewBox="0 0 24 24"
+                    stroke="currentColor"
+                  >
+                    <path
+                      strokeLinecap="round"
+                      strokeLinejoin="round"
+                      strokeWidth={2}
+                      d="M12 11c0 3.517-1.009 6.799-2.753 9.571m-3.44-2.04l.054-.09A13.916 13.916 0 008 11a4 4 0 118 0c0 1.017-.07 2.019-.203 3m-2.118 6.844A21.88 21.88 0 0015.171 17m3.839 1.132c.645-2.266.99-4.659.99-7.132A8 8 0 008 4.07M3 15.364c.64-1.319 1-2.8 1-4.364 0-1.457.39-2.823 1.07-4"
+                    />
+                  </svg>
+                </div>
+                <h3 className="text-lg font-medium mb-3 text-center">Rescan Fingerprint</h3>
+                <p className="text-gray-600 text-center mb-6 text-sm">
+                  Please scan your finger again to confirm your identity.
+                </p>
+                
+                <Button 
+                  onClick={() => handleStartScanning('rescan')}
+                  disabled={!firstScanCompleted}
+                  className={`w-full transition-all duration-200 ${
+                    rescanCompleted
+                      ? 'bg-green-500 hover:bg-green-600'
+                      : firstScanCompleted
+                      ? 'bg-blue-600 hover:bg-blue-700'
+                      : 'bg-gray-300 text-gray-500 cursor-not-allowed'
+                  }`}
+                >
+                  {rescanCompleted ? 'Success Added' : 'Start Scanning'}
+                </Button>
+              </div>
+            </div>
+
+            {/* Action Buttons */}
+            <div className="flex gap-4 justify-end">
+              <Button
+                variant="outline"
+                onClick={handleReset}
+                className="px-8 border-blue-600 text-blue-600 hover:bg-blue-50"
               >
-                Scan Register 2
+                Reset
+              </Button>
+              <Button
+                onClick={handleSave}
+                disabled={!firstScanCompleted || !rescanCompleted}
+                className={`px-8 transition-all duration-200 ${
+                  firstScanCompleted && rescanCompleted
+                    ? 'bg-blue-600 hover:bg-blue-700'
+                    : 'bg-gray-300 text-gray-500 cursor-not-allowed'
+                }`}
+              >
+                Save
               </Button>
             </div>
           </div>
         </div>
       </div>
-    </div>
+
+      {/* Scanning Dialog */}
+      <FingerprintScanningDialog
+        isOpen={isScanningDialogOpen}
+        onClose={() => setIsScanningDialogOpen(false)}
+        onComplete={handleScanComplete}
+        scanningType={scanningType}
+      />
+    </>
   );
 };
 

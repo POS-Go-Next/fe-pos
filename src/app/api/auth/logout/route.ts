@@ -1,16 +1,22 @@
 // app/api/auth/logout/route.ts
 import { NextRequest, NextResponse } from "next/server";
 import { invalidateSession } from "@/lib/auth";
+import { cookies } from "next/headers";
 
 export async function POST(request: NextRequest) {
   try {
     // Invalidate the session
     await invalidateSession();
-
+    
+    // Clear the auth token cookie
+    const cookieStore = cookies();
+    cookieStore.delete('auth-token');
+    
     return NextResponse.json({
       success: true,
-      message: "Logged out successfully",
+      message: "Logout successful",
     });
+
   } catch (error) {
     console.error("Logout error:", error);
     

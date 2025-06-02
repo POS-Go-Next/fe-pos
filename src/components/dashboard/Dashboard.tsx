@@ -1,3 +1,4 @@
+// components/dashboard/Dashboard.tsx (Replace existing file)
 "use client";
 
 import { FC, useState } from "react";
@@ -5,11 +6,12 @@ import { DollarSign, Clock, RefreshCw, Settings } from "lucide-react";
 import ActionCard from "./ActionCard";
 import TimeDisplay from "./TimeDisplay";
 import Image from "next/image";
-import EmployeeLoginDialog from "../login/EmployeeLoginDialog";
 import CloseCashierDialog from "./CloseCashierDialog";
 import ReCloseCashierDialog from "./ReCloseCashierDialog";
 import KassaSetupDialog from "./KassaSetupDialog";
 import FingerprintSetupDialog from "./FingerprintSetupDialog";
+import ParameterSettingsDialog from "./ParameterSettingsDialog";
+import EmployeeLoginDialog from "../shared/EmployeeLoginDialog";
 
 const Dashboard: FC = () => {
   const [isLoginDialogOpen, setIsLoginDialogOpen] = useState(false);
@@ -17,6 +19,7 @@ const Dashboard: FC = () => {
   const [isReCloseCashierDialogOpen, setIsReCloseCashierDialogOpen] = useState(false);
   const [isKassaSetupDialogOpen, setIsKassaSetupDialogOpen] = useState(false);
   const [isFingerprintDialogOpen, setIsFingerprintDialogOpen] = useState(false);
+  const [isParameterDialogOpen, setIsParameterDialogOpen] = useState(false);
 
   const handleStartSelling = () => {
     setIsLoginDialogOpen(true);
@@ -34,20 +37,30 @@ const Dashboard: FC = () => {
     window.location.href = "/create-order/choose-menu";
   };
 
-  const handleRegister = () => {
+  // Enhanced fingerprint setup handler
+  const handleFingerprintRegister = () => {
     setIsFingerprintDialogOpen(true);
   };
 
-  const handleCloseFingerprintDialog = () => {
+  const handleFingerprintComplete = () => {
+    console.log("Fingerprint setup completed successfully");
     setIsFingerprintDialogOpen(false);
   };
 
-  const handleRegisterFingerprint = () => {
-    console.log("Fingerprint registered");
-    setIsFingerprintDialogOpen(false);
+  const handleParameterConfigure = () => {
+    setIsParameterDialogOpen(true);
   };
 
-  const handleConfigure = () => {
+  const handleParameterClose = () => {
+    setIsParameterDialogOpen(false);
+  };
+
+  const handleParameterSubmit = (data: any) => {
+    console.log("Parameter settings saved:", data);
+    setIsParameterDialogOpen(false);
+  };
+
+  const handleKassaConfigure = () => {
     setIsKassaSetupDialogOpen(true);
   };
 
@@ -190,10 +203,10 @@ const Dashboard: FC = () => {
                   title="Parameter Settings"
                   description="Manage shifts, doctor fees, outlet settings, and receipt layout all in one place."
                   buttonText="Configure"
-                  onClick={handleConfigure}
+                  onClick={handleParameterConfigure}
                 />
 
-                {/* Fingerprint Setup (Bottom) */}
+                {/* Fingerprint Setup (Bottom) - Enhanced */}
                 <ActionCard
                   variant="primary"
                   icon={<FingerprintIcon />}
@@ -202,7 +215,7 @@ const Dashboard: FC = () => {
                   title="Fingerprint Setup"
                   description="Register your fingerprint to unlock, approval and access the POS system."
                   buttonText="Register"
-                  onClick={handleRegister}
+                  onClick={handleFingerprintRegister}
                 />
               </div>
             </div>
@@ -219,7 +232,7 @@ const Dashboard: FC = () => {
                 title="Kassa Setup"
                 description="Set terminal details like MAC address, queue, and POS type."
                 buttonText="Configure"
-                onClick={handleConfigure}
+                onClick={handleKassaConfigure}
               />
 
               {/* Close Cashier */}
@@ -251,34 +264,47 @@ const Dashboard: FC = () => {
       </div>
 
       {/* All Dialog Components */}
+      
+      {/* Employee Login Dialog for Sales Transaction */}
       <EmployeeLoginDialog
         isOpen={isLoginDialogOpen}
         onClose={handleCloseDialog}
         onLogin={handleLogin}
       />
 
+      {/* Enhanced Fingerprint Setup Dialog with Login Flow */}
+      <FingerprintSetupDialog
+        isOpen={isFingerprintDialogOpen}
+        onClose={() => setIsFingerprintDialogOpen(false)}
+        onRegister={handleFingerprintComplete}
+      />
+
+      {/* Parameter Settings Dialog */}
+      <ParameterSettingsDialog
+        isOpen={isParameterDialogOpen}
+        onClose={handleParameterClose}
+        onSubmit={handleParameterSubmit}
+      />
+
+      {/* Close Cashier Dialog */}
       <CloseCashierDialog
         isOpen={isCloseCashierDialogOpen}
         onClose={handleCloseShiftDialog}
         onSubmit={handleSubmitShift}
       />
       
+      {/* Re-Close Cashier Dialog */}
       <ReCloseCashierDialog
         isOpen={isReCloseCashierDialogOpen}
         onClose={handleCloseReShiftDialog}
         onSubmit={handleSubmitReShift}
       />
       
+      {/* Kassa Setup Dialog */}
       <KassaSetupDialog
         isOpen={isKassaSetupDialogOpen}
         onClose={handleCloseKassaDialog}
         onSubmit={handleSubmitKassa}
-      />
-      
-      <FingerprintSetupDialog
-        isOpen={isFingerprintDialogOpen}
-        onClose={handleCloseFingerprintDialog}
-        onRegister={handleRegisterFingerprint}
       />
     </>
   );

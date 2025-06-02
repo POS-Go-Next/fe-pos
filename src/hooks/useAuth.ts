@@ -1,4 +1,6 @@
 // hooks/useAuth.ts
+'use client';
+
 import { useState } from "react";
 import { LoginData } from "@/lib/schemas";
 import { showSuccessAlert, showErrorAlert, showConfirmAlert } from "@/lib/swal";

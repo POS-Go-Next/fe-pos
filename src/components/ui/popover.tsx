@@ -1,33 +1,152 @@
-"use client"
+// components/ui/popover.tsx
+"use client";
 
-import * as React from "react"
-import * as PopoverPrimitive from "@radix-ui/react-popover"
+import * as React from "react";
+import { cn } from "@/lib/utils";
 
-import { cn } from "@/lib/utils"
+// Simple Popover Context
+interface PopoverContextType {
+  open: boolean;
+  onOpenChange: (open: boolean) => void;
+}
 
-const Popover = PopoverPrimitive.Root
+const PopoverContext = React.createContext<PopoverContextType | undefined>(undefined);
 
-const PopoverTrigger = PopoverPrimitive.Trigger
+const usePopover = () => {
+  const context = React.useContext(PopoverContext);
+  if (!context) {
+    throw new Error("usePopover must be used within a Popover");
+  }
+  return context;
+};
 
-const PopoverAnchor = PopoverPrimitive.Anchor
+// Popover Root
+interface PopoverProps {
+  open?: boolean;
+  onOpenChange?: (open: boolean) => void;
+  children: React.ReactNode;
+}
 
-const PopoverContent = React.forwardRef<
-  React.ElementRef<typeof PopoverPrimitive.Content>,
-  React.ComponentPropsWithoutRef<typeof PopoverPrimitive.Content>
->(({ className, align = "center", sideOffset = 4, ...props }, ref) => (
-  <PopoverPrimitive.Portal>
-    <PopoverPrimitive.Content
-      ref={ref}
-      align={align}
-      sideOffset={sideOffset}
+const Popover = ({ open = false, onOpenChange, children }: PopoverProps) => {
+  const [isOpen, setIsOpen] = React.useState(open);
+
+  React.useEffect(() => {
+    setIsOpen(open);
+  }, [open]);
+
+  const handleOpenChange = (newOpen: boolean) => {
+    setIsOpen(newOpen);
+    onOpenChange?.(newOpen);
+  };
+
+  return (
+    <PopoverContext.Provider value={{ open: isOpen, onOpenChange: handleOpenChange }}>
+      <div className="relative">{children}</div>
+    </PopoverContext.Provider>
+  );
+};
+
+// Popover Trigger
+interface PopoverTriggerProps extends React.HTMLAttributes<HTMLElement> {
+  asChild?: boolean;
+  children: React.ReactNode;
+}
+
+const PopoverTrigger = ({ className, children, asChild, ...props }: PopoverTriggerProps) => {
+  const { open, onOpenChange } = usePopover();
+
+  const handleClick = (e: React.MouseEvent) => {
+    e.preventDefault();
+    onOpenChange(!open);
+  };
+
+  if (asChild && React.isValidElement(children)) {
+    return React.cloneElement(children as React.ReactElement<any>, {
+      ...props,
+      onClick: handleClick,
+      className: cn(className, children.props.className),
+    });
+  }
+
+  return (
+    <button
+      className={className}
+      onClick={handleClick}
+      {...props}
+    >
+      {children}
+    </button>
+  );
+};
+PopoverTrigger.displayName = "PopoverTrigger";
+
+// Popover Content
+interface PopoverContentProps extends React.HTMLAttributes<HTMLDivElement> {
+  align?: "start" | "center" | "end";
+  sideOffset?: number;
+}
+
+const PopoverContent = ({ 
+  className, 
+  align = "center", 
+  sideOffset = 4, 
+  children, 
+  ...props 
+}: PopoverContentProps) => {
+  const { open, onOpenChange } = usePopover();
+  const contentRef = React.useRef<HTMLDivElement>(null);
+
+  // Close popover when clicking outside
+  React.useEffect(() => {
+    const handleClickOutside = (event: MouseEvent) => {
+      if (contentRef.current && !contentRef.current.contains(event.target as Node)) {
+        onOpenChange(false);
+      }
+    };
+
+    if (open) {
+      document.addEventListener("mousedown", handleClickOutside);
+      return () => document.removeEventListener("mousedown", handleClickOutside);
+    }
+  }, [open, onOpenChange]);
+
+  // Close popover on Escape key
+  React.useEffect(() => {
+    const handleEscape = (event: KeyboardEvent) => {
+      if (event.key === "Escape") {
+        onOpenChange(false);
+      }
+    };
+
+    if (open) {
+      document.addEventListener("keydown", handleEscape);
+      return () => document.removeEventListener("keydown", handleEscape);
+    }
+  }, [open, onOpenChange]);
+
+  if (!open) return null;
+
+  const alignmentClasses = {
+    start: "left-0",
+    center: "left-1/2 transform -translate-x-1/2",
+    end: "right-0",
+  };
+
+  return (
+    <div
+      ref={contentRef}
       className={cn(
-        "z-50 w-72 rounded-md border bg-popover p-4 text-popover-foreground shadow-md outline-none data-[state=open]:animate-in data-[state=closed]:animate-out data-[state=closed]:fade-out-0 data-[state=open]:fade-in-0 data-[state=closed]:zoom-out-95 data-[state=open]:zoom-in-95 data-[side=bottom]:slide-in-from-top-2 data-[side=left]:slide-in-from-right-2 data-[side=right]:slide-in-from-left-2 data-[side=top]:slide-in-from-bottom-2 origin-[--radix-popover-content-transform-origin]",
+        "absolute z-50 mt-1 min-w-[200px] max-w-[400px] overflow-hidden rounded-md border bg-white p-1 shadow-lg animate-in fade-in-0 zoom-in-95",
+        alignmentClasses[align],
         className
       )}
+      style={{ marginTop: sideOffset }}
       {...props}
-    />
-  </PopoverPrimitive.Portal>
-))
-PopoverContent.displayName = PopoverPrimitive.Content.displayName
+    >
+      {children}
+    </div>
+  );
+};
+PopoverContent.displayName = "PopoverContent";
 
-export { Popover, PopoverTrigger, PopoverContent, PopoverAnchor }
+export { Popover, PopoverTrigger, PopoverContent };

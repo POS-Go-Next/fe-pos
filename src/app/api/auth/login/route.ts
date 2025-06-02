@@ -3,8 +3,9 @@ import { NextRequest, NextResponse } from "next/server";
 import { loginSchema } from "@/lib/schemas";
 import { createSession, type AppUser } from "@/lib/auth";
 import { ZodError } from "zod";
+import { cookies } from "next/headers";
 
-const API_BASE_URL = process.env.API_BASE_URL;
+const API_BASE_URL = "https://api-pos.masivaguna.com/api";
 
 export async function POST(request: NextRequest) {
   try {
@@ -59,6 +60,18 @@ export async function POST(request: NextRequest) {
     };
     
     const session = await createSession(userData.id, userData);
+
+    // Store auth token in HTTP-only cookie for subsequent API calls
+    const cookieStore = cookies();
+    if (responseData.data.token) {
+      cookieStore.set('auth-token', responseData.data.token, {
+        httpOnly: true,
+        secure: process.env.NODE_ENV === 'production',
+        sameSite: 'lax',
+        maxAge: 60 * 60 * 24 * 7, // 7 days
+        path: '/'
+      });
+    }
 
     // Return success response
     return NextResponse.json({
