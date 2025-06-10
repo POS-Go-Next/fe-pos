@@ -1,21 +1,14 @@
-// components/dashboard/FingerprintSetupDialog.tsx (Replace existing file)
+// components/dashboard/FingerprintSetupDialog.tsx - COMPLETE WITH API INTEGRATION
 "use client";
 
-import { FC, useState } from "react";
-import { X, ChevronDown } from "lucide-react";
+import { FC, useState, useEffect } from "react";
+import { X, ChevronDown, Loader2, AlertCircle } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import EmployeeLoginDialog from "../shared/EmployeeLoginDialog";
 import FingerprintScanningDialog from "../shared/FingerprintScanningDialog";
-
-interface Employee {
-  id: string;
-  name: string;
-}
-
-interface FingerprintOption {
-  id: string;
-  name: string;
-}
+import { useUser } from "@/hooks/useUser";
+import { UserData, FingerprintSetupData, FingerprintOption } from "@/types/user";
+import { showSuccessAlert, showErrorAlert } from "@/lib/swal";
 
 interface FingerprintSetupDialogProps {
   isOpen: boolean;
@@ -23,21 +16,10 @@ interface FingerprintSetupDialogProps {
   onRegister: () => void;
 }
 
-// Mock data - nanti akan diganti dengan API
-const employees: Employee[] = [
-  { id: '1', name: 'Lamin Camavinga' },
-  { id: '2', name: 'Yamal Americano' },
-  { id: '3', name: 'Levi Rose Walujo' },
-  { id: '4', name: 'Ahmad Lowell Reid' },
-  { id: '5', name: 'Lebron Daisy Hale' }
-];
-
+// Hardcoded fingerprint options
 const fingerprintOptions: FingerprintOption[] = [
-  { id: '1', name: 'Finger - 1' },
-  { id: '2', name: 'Finger - 2' },
-  { id: '3', name: 'Finger - 3' },
-  { id: '4', name: 'Finger - 4' },
-  { id: '5', name: 'Finger - 5' }
+  { id: 1, name: 'Finger 1' },
+  { id: 2, name: 'Finger 2' }
 ];
 
 const FingerprintSetupDialog: FC<FingerprintSetupDialogProps> = ({
@@ -49,9 +31,17 @@ const FingerprintSetupDialog: FC<FingerprintSetupDialogProps> = ({
   const [isLoggedIn, setIsLoggedIn] = useState(false);
   const [isLoginDialogOpen, setIsLoginDialogOpen] = useState(false);
 
+  // Use custom hook for user data
+  const { userList: employees, isLoading: isLoadingEmployees, error: employeeError, refetch: refetchEmployees } = useUser({
+    limit: 50,
+    offset: 0
+  });
+
   // Fingerprint setup states
-  const [selectedEmployee, setSelectedEmployee] = useState<string>("");
-  const [selectedFingerprint, setSelectedFingerprint] = useState<string>("");
+  const [selectedEmployeeId, setSelectedEmployeeId] = useState<number | null>(null);
+  const [selectedEmployeeName, setSelectedEmployeeName] = useState<string>("");
+  const [selectedFingerprintId, setSelectedFingerprintId] = useState<1 | 2 | null>(null);
+  const [selectedFingerprintName, setSelectedFingerprintName] = useState<string>("");
   const [showEmployeeDropdown, setShowEmployeeDropdown] = useState(false);
   const [showFingerprintDropdown, setShowFingerprintDropdown] = useState(false);
   
@@ -62,33 +52,40 @@ const FingerprintSetupDialog: FC<FingerprintSetupDialogProps> = ({
   const [rescanCompleted, setRescanCompleted] = useState(false);
 
   // Check login status when dialog opens
-  useState(() => {
+  useEffect(() => {
     if (isOpen && !isLoggedIn) {
       setIsLoginDialogOpen(true);
     }
-  });
+  }, [isOpen, isLoggedIn]);
 
   // Handle successful login
   const handleLoginSuccess = (userData: any) => {
     setIsLoggedIn(true);
     setIsLoginDialogOpen(false);
     console.log("Login successful:", userData);
+    // Refetch employees data after login
+    refetchEmployees();
   };
 
   // Handle employee selection
-  const handleEmployeeSelect = (employee: Employee) => {
-    setSelectedEmployee(employee.name);
+  const handleEmployeeSelect = (employee: UserData) => {
+    setSelectedEmployeeId(employee.id);
+    setSelectedEmployeeName(employee.fullname);
     setShowEmployeeDropdown(false);
+    
     // Reset fingerprint selection and scan states when employee changes
-    setSelectedFingerprint("");
+    setSelectedFingerprintId(null);
+    setSelectedFingerprintName("");
     setFirstScanCompleted(false);
     setRescanCompleted(false);
   };
 
   // Handle fingerprint selection
   const handleFingerprintSelect = (fingerprint: FingerprintOption) => {
-    setSelectedFingerprint(fingerprint.name);
+    setSelectedFingerprintId(fingerprint.id);
+    setSelectedFingerprintName(fingerprint.name);
     setShowFingerprintDropdown(false);
+    
     // Reset scan states when fingerprint changes
     setFirstScanCompleted(false);
     setRescanCompleted(false);
@@ -113,16 +110,57 @@ const FingerprintSetupDialog: FC<FingerprintSetupDialogProps> = ({
 
   // Handle save
   const handleSave = async () => {
+    if (!selectedEmployeeId || !selectedFingerprintId) {
+      await showErrorAlert(
+        'Validation Error',
+        'Please select employee and fingerprint before saving.',
+        'OK'
+      );
+      return;
+    }
+
+    if (!firstScanCompleted || !rescanCompleted) {
+      await showErrorAlert(
+        'Incomplete Setup',
+        'Please complete both fingerprint scans before saving.',
+        'OK'
+      );
+      return;
+    }
+
     try {
-      // TODO: API call to save fingerprint data
-      const fingerprintData = {
-        employee: selectedEmployee,
-        fingerprint: selectedFingerprint,
-        firstScan: firstScanCompleted,
-        rescan: rescanCompleted
+      // Prepare fingerprint data for API
+      const fingerprintData: FingerprintSetupData = {
+        user_id: selectedEmployeeId,
+        mac_address: "80:30:49:62:79:89", // Hardcoded as requested
+        number_of_fingerprint: selectedFingerprintId
       };
       
       console.log('Saving fingerprint data:', fingerprintData);
+      
+      // Call API to save fingerprint setup
+      const response = await fetch('/api/fingerprint/setup', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify(fingerprintData),
+      });
+
+      const result = await response.json();
+      
+      if (!response.ok) {
+        throw new Error(result.message || 'Failed to save fingerprint data');
+      }
+
+      console.log('Fingerprint setup successful:', result);
+      
+      // Show success message
+      await showSuccessAlert(
+        'Success!',
+        'Fingerprint setup completed successfully',
+        1500
+      );
       
       // Reset states and close dialog
       handleReset();
@@ -130,14 +168,22 @@ const FingerprintSetupDialog: FC<FingerprintSetupDialogProps> = ({
       onClose();
     } catch (error) {
       console.error('Error saving fingerprint:', error);
-      // TODO: Show error message to user
+      
+      // Show error message with SweetAlert
+      await showErrorAlert(
+        'Setup Failed',
+        error instanceof Error ? error.message : 'Failed to save fingerprint data. Please try again.',
+        'OK'
+      );
     }
   };
 
   // Handle reset
   const handleReset = () => {
-    setSelectedEmployee("");
-    setSelectedFingerprint("");
+    setSelectedEmployeeId(null);
+    setSelectedEmployeeName("");
+    setSelectedFingerprintId(null);
+    setSelectedFingerprintName("");
     setFirstScanCompleted(false);
     setRescanCompleted(false);
   };
@@ -193,26 +239,64 @@ const FingerprintSetupDialog: FC<FingerprintSetupDialogProps> = ({
                 </label>
                 <div className="relative">
                   <button
-                    onClick={() => setShowEmployeeDropdown(!showEmployeeDropdown)}
-                    className="w-full flex justify-between items-center bg-[#F5F5F5] text-left rounded-md py-4 px-4 hover:bg-gray-200 transition-colors"
+                    onClick={() => !isLoadingEmployees && setShowEmployeeDropdown(!showEmployeeDropdown)}
+                    disabled={isLoadingEmployees}
+                    className={`w-full flex justify-between items-center text-left rounded-md py-4 px-4 transition-colors ${
+                      isLoadingEmployees 
+                        ? 'bg-gray-100 cursor-not-allowed'
+                        : 'bg-[#F5F5F5] hover:bg-gray-200'
+                    }`}
                   >
-                    <span className={selectedEmployee ? "text-gray-800" : "text-gray-500"}>
-                      {selectedEmployee || "Select User"}
+                    <span className={selectedEmployeeName ? "text-gray-800" : "text-gray-500"}>
+                      {isLoadingEmployees ? (
+                        <div className="flex items-center gap-2">
+                          <Loader2 className="h-4 w-4 animate-spin" />
+                          Loading employees...
+                        </div>
+                      ) : employeeError ? (
+                        <div className="flex items-center gap-2 text-red-500">
+                          <AlertCircle className="h-4 w-4" />
+                          Error loading data
+                        </div>
+                      ) : (
+                        selectedEmployeeName || "Select User"
+                      )}
                     </span>
                     <ChevronDown className="h-5 w-5 text-gray-500" />
                   </button>
                   
-                  {showEmployeeDropdown && (
+                  {showEmployeeDropdown && !isLoadingEmployees && !employeeError && (
                     <div className="absolute top-full left-0 w-full bg-white border border-gray-200 rounded-md shadow-lg z-20 max-h-48 overflow-y-auto mt-1">
-                      {employees.map((employee) => (
-                        <button
-                          key={employee.id}
-                          onClick={() => handleEmployeeSelect(employee)}
-                          className="w-full text-left px-4 py-3 hover:bg-gray-100 border-b last:border-b-0 transition-colors"
-                        >
-                          {employee.name}
-                        </button>
-                      ))}
+                      {employees.length > 0 ? (
+                        employees.map((employee) => (
+                          <button
+                            key={employee.id}
+                            onClick={() => handleEmployeeSelect(employee)}
+                            className="w-full text-left px-4 py-3 hover:bg-gray-100 border-b last:border-b-0 transition-colors"
+                          >
+                            <div className="font-medium">{employee.fullname}</div>
+                            <div className="text-sm text-gray-500">@{employee.username}</div>
+                          </button>
+                        ))
+                      ) : (
+                        <div className="px-4 py-3 text-gray-500 text-center">
+                          No employees found
+                        </div>
+                      )}
+                    </div>
+                  )}
+
+                  {employeeError && (
+                    <div className="mt-2 flex items-center gap-2">
+                      <p className="text-red-500 text-xs flex-1">{employeeError}</p>
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        onClick={refetchEmployees}
+                        className="text-xs h-7 px-2"
+                      >
+                        Retry
+                      </Button>
                     </div>
                   )}
                 </div>
@@ -225,21 +309,21 @@ const FingerprintSetupDialog: FC<FingerprintSetupDialogProps> = ({
                 </label>
                 <div className="relative">
                   <button
-                    onClick={() => selectedEmployee && setShowFingerprintDropdown(!showFingerprintDropdown)}
-                    disabled={!selectedEmployee}
+                    onClick={() => selectedEmployeeId && setShowFingerprintDropdown(!showFingerprintDropdown)}
+                    disabled={!selectedEmployeeId}
                     className={`w-full flex justify-between items-center text-left rounded-md py-4 px-4 transition-colors ${
-                      selectedEmployee 
+                      selectedEmployeeId 
                         ? 'bg-[#F5F5F5] hover:bg-gray-200' 
                         : 'bg-gray-50 text-gray-400 cursor-not-allowed'
                     }`}
                   >
-                    <span className={selectedFingerprint ? "text-gray-800" : "text-gray-500"}>
-                      {selectedFingerprint || "Finger - 1"}
+                    <span className={selectedFingerprintName ? "text-gray-800" : "text-gray-500"}>
+                      {selectedFingerprintName || "Select Finger"}
                     </span>
                     <ChevronDown className="h-5 w-5 text-gray-500" />
                   </button>
                   
-                  {showFingerprintDropdown && selectedEmployee && (
+                  {showFingerprintDropdown && selectedEmployeeId && (
                     <div className="absolute top-full left-0 w-full bg-white border border-gray-200 rounded-md shadow-lg z-20 mt-1">
                       {fingerprintOptions.map((fingerprint) => (
                         <button
@@ -283,11 +367,11 @@ const FingerprintSetupDialog: FC<FingerprintSetupDialogProps> = ({
                 
                 <Button 
                   onClick={() => handleStartScanning('scan')}
-                  disabled={!selectedEmployee || !selectedFingerprint}
+                  disabled={!selectedEmployeeId || !selectedFingerprintId}
                   className={`w-full transition-all duration-200 ${
                     firstScanCompleted
                       ? 'bg-green-500 hover:bg-green-600'
-                      : selectedEmployee && selectedFingerprint
+                      : selectedEmployeeId && selectedFingerprintId
                       ? 'bg-blue-600 hover:bg-blue-700'
                       : 'bg-gray-300 text-gray-500 cursor-not-allowed'
                   }`}
