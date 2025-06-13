@@ -1,4 +1,4 @@
-// components/dashboard/FingerprintSetupDialog.tsx - COMPLETE WITH API INTEGRATION
+// components/dashboard/FingerprintSetupDialog.tsx - ENHANCED WITH CONSISTENT TOKEN FLOW
 "use client";
 
 import { FC, useState, useEffect } from "react";
@@ -9,6 +9,7 @@ import FingerprintScanningDialog from "../shared/FingerprintScanningDialog";
 import { useUser } from "@/hooks/useUser";
 import { UserData, FingerprintSetupData, FingerprintOption } from "@/types/user";
 import { showSuccessAlert, showErrorAlert } from "@/lib/swal";
+import Swal from 'sweetalert2';
 
 interface FingerprintSetupDialogProps {
   isOpen: boolean;
@@ -27,9 +28,10 @@ const FingerprintSetupDialog: FC<FingerprintSetupDialogProps> = ({
   onClose,
   onRegister,
 }) => {
-  // Authentication states
-  const [isLoggedIn, setIsLoggedIn] = useState(false);
+  // Authentication states - ENHANCED PATTERN
+  const [hasValidToken, setHasValidToken] = useState(false);
   const [isLoginDialogOpen, setIsLoginDialogOpen] = useState(false);
+  const [isCheckingAuth, setIsCheckingAuth] = useState(true);
 
   // Use custom hook for user data
   const { userList: employees, isLoading: isLoadingEmployees, error: employeeError, refetch: refetchEmployees } = useUser({
@@ -51,20 +53,149 @@ const FingerprintSetupDialog: FC<FingerprintSetupDialogProps> = ({
   const [firstScanCompleted, setFirstScanCompleted] = useState(false);
   const [rescanCompleted, setRescanCompleted] = useState(false);
 
-  // Check login status when dialog opens
+  // ENHANCED: Check authentication when dialog opens
   useEffect(() => {
-    if (isOpen && !isLoggedIn) {
-      setIsLoginDialogOpen(true);
+    if (isOpen) {
+      checkAuthenticationStatus();
     }
-  }, [isOpen, isLoggedIn]);
+  }, [isOpen]);
 
-  // Handle successful login
+  // ENHANCED: API-based authentication check with better debugging
+  const checkAuthenticationStatus = async () => {
+    console.log('🔍 FINGERPRINT SETUP - CHECKING AUTHENTICATION STATUS...');
+    setIsCheckingAuth(true);
+    
+    // Debug: Check all cookies
+    console.log('🍪 All document.cookie:', document.cookie);
+    console.log('🍪 Cookie length:', document.cookie.length);
+    
+    try {
+      // Test authentication with API call - with explicit credentials
+      const response = await fetch('/api/user?limit=1&offset=0', {
+        method: 'GET',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        credentials: 'include', // IMPORTANT: Include cookies in request
+      });
+
+      console.log('🔍 Fingerprint Auth API Test Response status:', response.status);
+      console.log('🔍 Response headers:', Object.fromEntries(Array.from(response.headers.entries())));
+      
+      if (response.ok) {
+        // API call successful = user is authenticated
+        const data = await response.json();
+        console.log('✅ FINGERPRINT API CALL SUCCESS: User is authenticated', data);
+        setHasValidToken(true);
+        setIsCheckingAuth(false);
+        
+        // Fetch employees data after successful auth
+        setTimeout(() => {
+          refetchEmployees();
+        }, 500);
+      } else if (response.status === 401) {
+        // 401 = Not authenticated
+        console.log('❌ FINGERPRINT API CALL 401: Not authenticated');
+        const errorData = await response.text();
+        console.log('❌ Error response:', errorData);
+        setHasValidToken(false);
+        setIsCheckingAuth(false);
+        showSessionExpiredPopup();
+      } else {
+        // Other error - assume need login for safety
+        console.log('⚠️ FINGERPRINT API CALL ERROR:', response.status);
+        setHasValidToken(false);
+        setIsCheckingAuth(false);
+        showSessionExpiredPopup();
+      }
+    } catch (error) {
+      console.log('❌ FINGERPRINT API CALL FAILED:', error);
+      // Network error - assume need login
+      setHasValidToken(false);
+      setIsCheckingAuth(false);
+      showSessionExpiredPopup();
+    }
+  };
+
+  // ENHANCED: Session expired popup that flows to login
+  const showSessionExpiredPopup = () => {
+    console.log('⚠️ Fingerprint Setup - Showing session expired popup');
+    
+    let timerInterval: NodeJS.Timeout;
+    
+    Swal.fire({
+      icon: 'warning',
+      title: 'Session Expired',
+      html: `
+        <div class="text-sm text-gray-600 mb-4">
+          Your session has expired. Please login again to continue with fingerprint setup.
+        </div>
+        <div class="text-xs text-gray-500">
+          This popup will close automatically in <strong id="timer">3</strong> seconds
+        </div>
+      `,
+      timer: 3000,
+      timerProgressBar: true,
+      showConfirmButton: true,
+      confirmButtonText: 'Login Now',
+      confirmButtonColor: '#025CCA',
+      allowOutsideClick: false,
+      allowEscapeKey: false,
+      customClass: {
+        popup: 'rounded-xl shadow-2xl',
+        confirmButton: 'rounded-lg px-6 py-2 font-medium',
+        title: 'text-lg font-bold text-red-600',
+        htmlContainer: 'text-sm',
+      },
+      background: '#ffffff',
+      color: '#1f2937',
+      didOpen: () => {
+        const timer = Swal.getPopup()?.querySelector('#timer');
+        let remainingTime = 3;
+        
+        timerInterval = setInterval(() => {
+          remainingTime--;
+          if (timer) {
+            timer.textContent = remainingTime.toString();
+          }
+          
+          if (remainingTime <= 0) {
+            clearInterval(timerInterval);
+          }
+        }, 1000);
+      },
+      willClose: () => {
+        clearInterval(timerInterval);
+      }
+    }).then((result) => {
+      console.log('🔄 Fingerprint session expired popup result:', result);
+      
+      // Both timer end and button click should open login dialog
+      if (result.isConfirmed || result.dismiss === Swal.DismissReason.timer) {
+        console.log('➡️ Opening login dialog for fingerprint setup');
+        setIsLoginDialogOpen(true);
+      }
+    });
+  };
+
+  // ENHANCED: Handle successful login - refresh data
   const handleLoginSuccess = (userData: any) => {
-    setIsLoggedIn(true);
+    console.log('✅ Fingerprint Setup - Login successful:', userData);
+    setHasValidToken(true);
     setIsLoginDialogOpen(false);
-    console.log("Login successful:", userData);
-    // Refetch employees data after login
-    refetchEmployees();
+    
+    // Refresh all data after login
+    setTimeout(() => {
+      refetchEmployees();
+    }, 1000);
+  };
+
+  // ENHANCED: Handle login dialog close
+  const handleLoginClose = () => {
+    console.log('❌ Fingerprint Setup - Login dialog closed without login');
+    setIsLoginDialogOpen(false);
+    // Close parent dialog if login is cancelled
+    onClose();
   };
 
   // Handle employee selection
@@ -108,7 +239,7 @@ const FingerprintSetupDialog: FC<FingerprintSetupDialogProps> = ({
     setScanningType('');
   };
 
-  // Handle save
+  // ENHANCED: Handle save with token validation
   const handleSave = async () => {
     if (!selectedEmployeeId || !selectedFingerprintId) {
       await showErrorAlert(
@@ -129,6 +260,15 @@ const FingerprintSetupDialog: FC<FingerprintSetupDialogProps> = ({
     }
 
     try {
+      console.log('🚀 Fingerprint Setup - Starting save process...');
+
+      // Double check token before submission
+      if (!hasValidToken) {
+        console.log('🔄 Token invalid during submission, showing session expired popup');
+        showSessionExpiredPopup();
+        return;
+      }
+
       // Prepare fingerprint data for API
       const fingerprintData: FingerprintSetupData = {
         user_id: selectedEmployeeId,
@@ -136,7 +276,7 @@ const FingerprintSetupDialog: FC<FingerprintSetupDialogProps> = ({
         number_of_fingerprint: selectedFingerprintId
       };
       
-      console.log('Saving fingerprint data:', fingerprintData);
+      console.log('📤 Saving fingerprint data:', fingerprintData);
       
       // Call API to save fingerprint setup
       const response = await fetch('/api/fingerprint/setup', {
@@ -144,16 +284,25 @@ const FingerprintSetupDialog: FC<FingerprintSetupDialogProps> = ({
         headers: {
           'Content-Type': 'application/json',
         },
+        credentials: 'include', // Include credentials
         body: JSON.stringify(fingerprintData),
       });
 
       const result = await response.json();
       
       if (!response.ok) {
+        // Handle session expired during submission
+        if (response.status === 401) {
+          console.log('🔄 Fingerprint Setup - Session expired during submission');
+          setHasValidToken(false);
+          showSessionExpiredPopup();
+          return;
+        }
+        
         throw new Error(result.message || 'Failed to save fingerprint data');
       }
 
-      console.log('Fingerprint setup successful:', result);
+      console.log('✅ Fingerprint setup successful:', result);
       
       // Show success message
       await showSuccessAlert(
@@ -167,14 +316,22 @@ const FingerprintSetupDialog: FC<FingerprintSetupDialogProps> = ({
       onRegister(); // Call parent callback
       onClose();
     } catch (error) {
-      console.error('Error saving fingerprint:', error);
+      console.error('❌ Error saving fingerprint:', error);
       
-      // Show error message with SweetAlert
-      await showErrorAlert(
-        'Setup Failed',
-        error instanceof Error ? error.message : 'Failed to save fingerprint data. Please try again.',
-        'OK'
-      );
+      // Handle network errors
+      if (error instanceof TypeError && error.message.includes('fetch')) {
+        await showErrorAlert(
+          'Network Error',
+          'Unable to connect to server. Please check your connection.',
+          'OK'
+        );
+      } else {
+        await showErrorAlert(
+          'Setup Failed',
+          error instanceof Error ? error.message : 'Failed to save fingerprint data. Please try again.',
+          'OK'
+        );
+      }
     }
   };
 
@@ -188,27 +345,39 @@ const FingerprintSetupDialog: FC<FingerprintSetupDialogProps> = ({
     setRescanCompleted(false);
   };
 
-  // Handle close dialog
+  // ENHANCED: Handle close dialog
   const handleCloseDialog = () => {
     handleReset();
-    setIsLoggedIn(false); // Reset login state
+    setHasValidToken(false); // Reset auth state
+    setIsCheckingAuth(true); // Reset checking state
     onClose();
   };
 
-  // Don't render main dialog if not logged in
-  if (!isOpen || (!isLoggedIn && isLoginDialogOpen)) {
+  if (!isOpen) return null;
+
+  // ENHANCED: Show loading while checking authentication
+  if (isCheckingAuth) {
     return (
-      <>
-        {/* Login Dialog */}
-        <EmployeeLoginDialog
-          isOpen={isLoginDialogOpen}
-          onClose={() => {
-            setIsLoginDialogOpen(false);
-            onClose(); // Close parent dialog if login is cancelled
-          }}
-          onLogin={handleLoginSuccess}
-        />
-      </>
+      <div className="fixed inset-0 flex items-center justify-center z-50">
+        <div className="absolute inset-0 bg-black/50"></div>
+        <div className="bg-white rounded-lg p-8 relative z-10">
+          <div className="flex items-center gap-3">
+            <Loader2 className="h-6 w-6 animate-spin text-blue-600" />
+            <span>Checking authentication for fingerprint setup...</span>
+          </div>
+        </div>
+      </div>
+    );
+  }
+
+  // ENHANCED: Show login dialog if no valid token
+  if (!hasValidToken) {
+    return (
+      <EmployeeLoginDialog
+        isOpen={isLoginDialogOpen}
+        onClose={handleLoginClose}
+        onLogin={handleLoginSuccess}
+      />
     );
   }
 
@@ -288,7 +457,12 @@ const FingerprintSetupDialog: FC<FingerprintSetupDialogProps> = ({
 
                   {employeeError && (
                     <div className="mt-2 flex items-center gap-2">
-                      <p className="text-red-500 text-xs flex-1">{employeeError}</p>
+                      <p className="text-red-500 text-xs flex-1">
+                        {employeeError.includes('Session expired') 
+                          ? 'Authentication required. Please login again.' 
+                          : 'Failed to load employee data. Please try again.'
+                        }
+                      </p>
                       <Button
                         variant="outline"
                         size="sm"
@@ -297,6 +471,18 @@ const FingerprintSetupDialog: FC<FingerprintSetupDialogProps> = ({
                       >
                         Retry
                       </Button>
+                      {employeeError.includes('Session expired') && (
+                        <Button
+                          size="sm"
+                          onClick={() => {
+                            setHasValidToken(false);
+                            showSessionExpiredPopup();
+                          }}
+                          className="text-xs h-7 px-2 bg-blue-600 hover:bg-blue-700"
+                        >
+                          Login
+                        </Button>
+                      )}
                     </div>
                   )}
                 </div>

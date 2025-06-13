@@ -1,8 +1,8 @@
-// hooks/useKassa.ts
+// hooks/useKassa.ts - FIXED VERSION
 'use client';
 
 import { useState } from 'react';
-import { showSessionExpiredAlert, handleApiError, isSessionExpired } from '@/lib/sessionHandler';
+import { isSessionExpired } from '@/lib/sessionHandler';
 
 interface KassaSetupData {
   antrian: boolean;
@@ -41,7 +41,11 @@ interface KassaApiResponse {
 }
 
 interface UseKassaReturn {
-  updateKassa: (macAddress: string, data: KassaSetupData) => Promise<boolean>;
+  updateKassa: (
+    macAddress: string, 
+    data: KassaSetupData,
+    customSessionHandler?: () => Promise<void>
+  ) => Promise<{ success: boolean; isSessionExpired: boolean; error?: string }>;
   isLoading: boolean;
   error: string | null;
   lastResponse: KassaResponse | null;
@@ -52,7 +56,11 @@ export const useKassa = (): UseKassaReturn => {
   const [error, setError] = useState<string | null>(null);
   const [lastResponse, setLastResponse] = useState<KassaResponse | null>(null);
 
-  const updateKassa = async (macAddress: string, data: KassaSetupData): Promise<boolean> => {
+  const updateKassa = async (
+    macAddress: string, 
+    data: KassaSetupData,
+    customSessionHandler?: () => Promise<void>
+  ): Promise<{ success: boolean; isSessionExpired: boolean; error?: string }> => {
     setIsLoading(true);
     setError(null);
 
@@ -72,33 +80,41 @@ export const useKassa = (): UseKassaReturn => {
       if (!response.ok) {
         // Check if session expired
         if (isSessionExpired(response, result)) {
-          await showSessionExpiredAlert();
-          return false;
+          if (customSessionHandler) {
+            await customSessionHandler();
+          }
+          return { success: false, isSessionExpired: true };
         }
         
         // Handle other API errors
-        await handleApiError(response, result);
-        return false;
+        const errorMessage = result.message || 'Failed to update kassa setup';
+        setError(errorMessage);
+        return { success: false, isSessionExpired: false, error: errorMessage };
       }
 
       if (result.success && result.data) {
         setLastResponse(result.data);
         console.log('✅ Kassa setup updated successfully:', result.data);
-        return true;
+        return { success: true, isSessionExpired: false };
       } else {
-        throw new Error(result.message || 'Invalid response from server');
+        const errorMessage = result.message || 'Invalid response from server';
+        setError(errorMessage);
+        return { success: false, isSessionExpired: false, error: errorMessage };
       }
     } catch (err) {
       console.error('❌ Error updating kassa:', err);
       
+      let errorMessage = 'Failed to update kassa setup';
+      
       // Handle network errors
       if (err instanceof TypeError && err.message.includes('fetch')) {
-        setError('Network error. Please check your connection.');
-      } else {
-        setError(err instanceof Error ? err.message : 'Failed to update kassa setup');
+        errorMessage = 'Network error. Please check your connection.';
+      } else if (err instanceof Error) {
+        errorMessage = err.message;
       }
       
-      return false;
+      setError(errorMessage);
+      return { success: false, isSessionExpired: false, error: errorMessage };
     } finally {
       setIsLoading(false);
     }

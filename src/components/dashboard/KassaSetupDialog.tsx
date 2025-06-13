@@ -1,7 +1,7 @@
-// components/dashboard/KassaSetupDialog.tsx - FIXED VERSION
+// components/dashboard/KassaSetupDialog.tsx - FIXED TOKEN CHECKING
 "use client";
 
-import { FC, useState } from "react";
+import { FC, useState, useEffect } from "react";
 import { X, Router, Wifi, Fingerprint, Printer } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -14,6 +14,8 @@ import {
 } from "@/components/ui/select";
 import { showSuccessAlert, showErrorAlert } from "@/lib/swal";
 import { useKassa } from "@/hooks/useKassa";
+import EmployeeLoginDialog from "@/components/shared/EmployeeLoginDialog";
+import Swal from 'sweetalert2';
 
 interface KassaSetupDialogProps {
   isOpen: boolean;
@@ -39,12 +41,17 @@ const KassaSetupDialog: FC<KassaSetupDialogProps> = ({
   onClose,
   onSubmit,
 }) => {
+  // Authentication states
+  const [hasValidToken, setHasValidToken] = useState(false);
+  const [isLoginDialogOpen, setIsLoginDialogOpen] = useState(false);
+  const [isCheckingToken, setIsCheckingToken] = useState(true);
+
   // Form state
   const [formData, setFormData] = useState<KassaSetupData>({
-    antrian: true, // Queue Active by default
-    status_aktif: true, // Status Active by default
-    finger: 'Y', // Fingerprint Active by default
-    default_jual: '2', // Both by default
+    antrian: true,
+    status_aktif: true,
+    finger: 'Y',
+    default_jual: '2',
     ip_address: HARDCODED_IP,
     mac_address: HARDCODED_MAC,
   });
@@ -53,10 +60,162 @@ const KassaSetupDialog: FC<KassaSetupDialogProps> = ({
     "Epson TMU 220B-776 Auto Cutter USB Dot Matrix"
   );
   
-  // Use custom hook for kassa management
   const { updateKassa, isLoading: isSubmitting } = useKassa();
 
+  // Check token when dialog opens
+  useEffect(() => {
+    if (isOpen) {
+      checkTokenStatus();
+    }
+  }, [isOpen]);
+
+  // DEFINITIVE FIX: Skip token check entirely and use API validation instead
+  const checkTokenStatus = async () => {
+    console.log('🔍 CHECKING TOKEN STATUS...');
+    setIsCheckingToken(true);
+    
+    try {
+      // Instead of checking cookies, test if we can make an API call
+      const response = await fetch('/api/user?limit=1&offset=0', {
+        method: 'GET',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+      });
+
+      console.log('🔍 API Test Response status:', response.status);
+      
+      if (response.ok) {
+        // API call successful = user is authenticated
+        console.log('✅ API CALL SUCCESS: User is authenticated');
+        setHasValidToken(true);
+        setIsCheckingToken(false);
+      } else if (response.status === 401) {
+        // 401 = Not authenticated
+        console.log('❌ API CALL 401: Not authenticated');
+        setHasValidToken(false);
+        setIsCheckingToken(false);
+        showSessionExpiredPopup();
+      } else {
+        // Other error - assume need login
+        console.log('❌ API CALL ERROR:', response.status);
+        setHasValidToken(false);
+        setIsCheckingToken(false);
+        showSessionExpiredPopup();
+      }
+    } catch (error) {
+      console.log('❌ API CALL FAILED:', error);
+      // Network error or other issue - assume need login
+      setHasValidToken(false);
+      setIsCheckingToken(false);
+      showSessionExpiredPopup();
+    }
+  };
+
+  // FIXED: Session expired popup that flows to login
+  const showSessionExpiredPopup = () => {
+    console.log('⚠️ Showing session expired popup');
+    
+    let timerInterval: NodeJS.Timeout;
+    
+    Swal.fire({
+      icon: 'warning',
+      title: 'Session Expired',
+      html: `
+        <div class="text-sm text-gray-600 mb-4">
+          Your session has expired. Please login again.
+        </div>
+        <div class="text-xs text-gray-500">
+          This popup will close automatically in <strong id="timer">3</strong> seconds
+        </div>
+      `,
+      timer: 3000,
+      timerProgressBar: true,
+      showConfirmButton: true,
+      confirmButtonText: 'Login Now',
+      confirmButtonColor: '#025CCA',
+      allowOutsideClick: false,
+      allowEscapeKey: false,
+      customClass: {
+        popup: 'rounded-xl shadow-2xl',
+        confirmButton: 'rounded-lg px-6 py-2 font-medium',
+        title: 'text-lg font-bold text-red-600',
+        htmlContainer: 'text-sm',
+      },
+      background: '#ffffff',
+      color: '#1f2937',
+      didOpen: () => {
+        const timer = Swal.getPopup()?.querySelector('#timer');
+        let remainingTime = 3;
+        
+        timerInterval = setInterval(() => {
+          remainingTime--;
+          if (timer) {
+            timer.textContent = remainingTime.toString();
+          }
+          
+          if (remainingTime <= 0) {
+            clearInterval(timerInterval);
+          }
+        }, 1000);
+      },
+      willClose: () => {
+        clearInterval(timerInterval);
+      }
+    }).then((result) => {
+      console.log('🔄 Session expired popup result:', result);
+      
+      // Both timer end and button click should open login dialog
+      if (result.isConfirmed || result.dismiss === Swal.DismissReason.timer) {
+        console.log('➡️ Opening login dialog');
+        setIsLoginDialogOpen(true);
+      }
+    });
+  };
+
+  // Handle successful login
+  const handleLoginSuccess = (userData: any) => {
+    console.log('✅ Login successful:', userData);
+    setHasValidToken(true);
+    setIsLoginDialogOpen(false);
+    // Now user can continue with Kassa Setup
+  };
+
+  // Handle login dialog close
+  const handleLoginClose = () => {
+    console.log('❌ Login dialog closed without login');
+    setIsLoginDialogOpen(false);
+    // Close parent dialog if login is cancelled
+    onClose();
+  };
+
   if (!isOpen) return null;
+
+  // Show loading while checking token
+  if (isCheckingToken) {
+    return (
+      <div className="fixed inset-0 flex items-center justify-center z-50">
+        <div className="absolute inset-0 bg-black/50"></div>
+        <div className="bg-white rounded-lg p-8 relative z-10">
+          <div className="flex items-center gap-3">
+            <div className="animate-spin rounded-full h-6 w-6 border-b-2 border-blue-600"></div>
+            <span>Checking authentication...</span>
+          </div>
+        </div>
+      </div>
+    );
+  }
+
+  // Show login dialog if no valid token
+  if (!hasValidToken) {
+    return (
+      <EmployeeLoginDialog
+        isOpen={isLoginDialogOpen}
+        onClose={handleLoginClose}
+        onLogin={handleLoginSuccess}
+      />
+    );
+  }
 
   // Handle toggle changes
   const handleToggle = (field: keyof KassaSetupData, value: boolean | string) => {
@@ -69,38 +228,74 @@ const KassaSetupDialog: FC<KassaSetupDialogProps> = ({
   // Handle form submission
   const handleSubmit = async () => {
     try {
-      // Call API using custom hook
-      const success = await updateKassa(HARDCODED_MAC, formData);
-      
-      if (success) {
-        // Show success message
+      console.log('🚀 Submitting kassa setup:', formData);
+
+      // Double check token before submission
+      if (!hasValidToken) {
+        showSessionExpiredPopup();
+        return;
+      }
+
+      const response = await fetch(`/api/kassa/${HARDCODED_MAC}/upsert`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify(formData),
+      });
+
+      const result = await response.json();
+
+      if (!response.ok) {
+        // Handle session expired during submission
+        if (response.status === 401) {
+          console.log('🔄 Session expired during submission');
+          setHasValidToken(false);
+          showSessionExpiredPopup();
+          return;
+        }
+        
+        await showErrorAlert(
+          'Setup Failed',
+          result.message || 'Failed to save kassa setup. Please try again.',
+          'OK'
+        );
+        return;
+      }
+
+      if (result.success) {
         await showSuccessAlert(
           'Success!',
           'Kassa setup saved successfully',
           1500
         );
 
-        // Call parent callbacks
         onSubmit();
         onClose();
+      } else {
+        throw new Error(result.message || 'Invalid response from server');
       }
-      // Note: Error handling is now done in the useKassa hook
-      // including session expired handling with auto-popup
     } catch (error) {
-      console.error('Unexpected error in handleSubmit:', error);
+      console.error('❌ Error in kassa setup:', error);
       
-      // Show generic error message for unexpected errors
-      await showErrorAlert(
-        'Unexpected Error',
-        'An unexpected error occurred. Please try again.',
-        'OK'
-      );
+      if (error instanceof TypeError && error.message.includes('fetch')) {
+        await showErrorAlert(
+          'Network Error',
+          'Unable to connect to server. Please check your connection.',
+          'OK'
+        );
+      } else {
+        await showErrorAlert(
+          'Unexpected Error',
+          'An unexpected error occurred. Please try again.',
+          'OK'
+        );
+      }
     }
   };
 
   // Handle cancel
   const handleCancel = () => {
-    // Reset form to default values
     setFormData({
       antrian: true,
       status_aktif: true,

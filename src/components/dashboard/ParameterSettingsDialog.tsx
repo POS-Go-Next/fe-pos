@@ -1,8 +1,8 @@
-// components/dashboard/ParameterSettingsDialog.tsx - COMPLETE FIXED VERSION
+// components/dashboard/ParameterSettingsDialog.tsx - FIXED WITH API-BASED AUTH CHECK
 "use client";
 
 import { FC, useState, useEffect } from "react";
-import { X, Loader2, AlertCircle, Receipt, FileText } from "lucide-react";
+import { X, Loader2, Receipt, FileText } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import {
@@ -17,6 +17,8 @@ import { useCabang } from "@/hooks/useCabang";
 import { useArea } from "@/hooks/useArea";
 import { useParameter } from "@/hooks/useParameter";
 import { showSuccessAlert, showErrorAlert } from "@/lib/swal";
+import EmployeeLoginDialog from "@/components/shared/EmployeeLoginDialog";
+import Swal from 'sweetalert2';
 
 interface ParameterSettingsDialogProps {
   isOpen: boolean;
@@ -63,6 +65,11 @@ const ParameterSettingsDialog: FC<ParameterSettingsDialogProps> = ({
   onClose,
   onSubmit,
 }) => {
+  // Authentication states
+  const [hasValidToken, setHasValidToken] = useState(false);
+  const [isLoginDialogOpen, setIsLoginDialogOpen] = useState(false);
+  const [isCheckingAuth, setIsCheckingAuth] = useState(true);
+
   const { parameterData, isLoading: isLoadingParameter, error: parameterError, refetch: refetchParameter, updateParameter } = useParameter();
   const { cabangList, isLoading: isLoadingCabang, error: cabangError, refetch: refetchCabang } = useCabang({
     limit: 50,
@@ -117,6 +124,148 @@ const ParameterSettingsDialog: FC<ParameterSettingsDialogProps> = ({
 
   const [isSubmitting, setIsSubmitting] = useState(false);
 
+  // Check authentication when dialog opens
+  useEffect(() => {
+    if (isOpen) {
+      checkAuthenticationStatus();
+    }
+  }, [isOpen]);
+
+  // FIXED: API-based authentication check with better debugging
+  const checkAuthenticationStatus = async () => {
+    console.log('🔍 CHECKING AUTHENTICATION STATUS...');
+    setIsCheckingAuth(true);
+    
+    // Debug: Check all cookies
+    console.log('🍪 All document.cookie:', document.cookie);
+    console.log('🍪 Cookie length:', document.cookie.length);
+    
+    try {
+      // Test authentication with API call - with explicit credentials
+      const response = await fetch('/api/parameter/me', {
+        method: 'GET',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        credentials: 'include', // IMPORTANT: Include cookies in request
+      });
+
+      console.log('🔍 Auth API Test Response status:', response.status);
+      console.log('🔍 Response headers:', Object.fromEntries(Array.from(response.headers.entries())));
+      
+      if (response.ok) {
+        // API call successful = user is authenticated
+        const data = await response.json();
+        console.log('✅ API CALL SUCCESS: User is authenticated', data);
+        setHasValidToken(true);
+        setIsCheckingAuth(false);
+      } else if (response.status === 401) {
+        // 401 = Not authenticated
+        console.log('❌ API CALL 401: Not authenticated');
+        const errorData = await response.text();
+        console.log('❌ Error response:', errorData);
+        setHasValidToken(false);
+        setIsCheckingAuth(false);
+        showSessionExpiredPopup();
+      } else {
+        // Other error - but let's check if it's a temporary error
+        console.log('⚠️ API CALL ERROR:', response.status);
+        // For non-401 errors, assume user might still be authenticated
+        // Let the useParameter hook handle the actual data fetching
+        setHasValidToken(true);
+        setIsCheckingAuth(false);
+      }
+    } catch (error) {
+      console.log('❌ API CALL FAILED:', error);
+      // Network error - let the component continue and let useParameter handle it
+      setHasValidToken(true);
+      setIsCheckingAuth(false);
+    }
+  };
+
+  // Session expired popup
+  const showSessionExpiredPopup = () => {
+    console.log('⚠️ Showing session expired popup');
+    
+    let timerInterval: NodeJS.Timeout;
+    
+    Swal.fire({
+      icon: 'warning',
+      title: 'Session Expired',
+      html: `
+        <div class="text-sm text-gray-600 mb-4">
+          Your session has expired. Please login again.
+        </div>
+        <div class="text-xs text-gray-500">
+          This popup will close automatically in <strong id="timer">3</strong> seconds
+        </div>
+      `,
+      timer: 3000,
+      timerProgressBar: true,
+      showConfirmButton: true,
+      confirmButtonText: 'Login Now',
+      confirmButtonColor: '#025CCA',
+      allowOutsideClick: false,
+      allowEscapeKey: false,
+      customClass: {
+        popup: 'rounded-xl shadow-2xl',
+        confirmButton: 'rounded-lg px-6 py-2 font-medium',
+        title: 'text-lg font-bold text-red-600',
+        htmlContainer: 'text-sm',
+      },
+      background: '#ffffff',
+      color: '#1f2937',
+      didOpen: () => {
+        const timer = Swal.getPopup()?.querySelector('#timer');
+        let remainingTime = 3;
+        
+        timerInterval = setInterval(() => {
+          remainingTime--;
+          if (timer) {
+            timer.textContent = remainingTime.toString();
+          }
+          
+          if (remainingTime <= 0) {
+            clearInterval(timerInterval);
+          }
+        }, 1000);
+      },
+      willClose: () => {
+        clearInterval(timerInterval);
+      }
+    }).then((result) => {
+      console.log('🔄 Session expired popup result:', result);
+      
+      // Both timer end and button click should open login dialog
+      if (result.isConfirmed || result.dismiss === Swal.DismissReason.timer) {
+        console.log('➡️ Opening login dialog');
+        setIsLoginDialogOpen(true);
+      }
+    });
+  };
+
+  // Handle successful login - refresh data
+  const handleLoginSuccess = (userData: any) => {
+    console.log('✅ Login successful:', userData);
+    setHasValidToken(true);
+    setIsLoginDialogOpen(false);
+    
+    // Refresh all data after login
+    setTimeout(() => {
+      refetchParameter();
+      refetchCabang();
+      refetchArea();
+    }, 1000);
+  };
+
+  // Handle login dialog close
+  const handleLoginClose = () => {
+    console.log('❌ Login dialog closed without login');
+    setIsLoginDialogOpen(false);
+    // Close parent dialog if login is cancelled
+    onClose();
+  };
+
   const convertYNToYaTidak = (value: 'Y' | 'N'): string => {
     return value === 'Y' ? 'Ya' : 'Tidak';
   };
@@ -125,73 +274,78 @@ const ParameterSettingsDialog: FC<ParameterSettingsDialogProps> = ({
     return value === 'Ya' ? 'Y' : 'N';
   };
 
-  // FIXED: Enhanced useEffect with proper dependencies and debugging
+  // Load parameter data into form
   useEffect(() => {
     if (parameterData && cabangList.length > 0 && areaList.length > 0) {
       const selectedCabang = cabangList.find(cabang => cabang.kd_cabang === parameterData.kd_cab);
       const selectedArea = areaList.find(area => area.id_area === parameterData.kd_area);
 
       console.log('🔄 LOADING PARAMETER DATA INTO FORM');
-      console.log('📋 Parameter Data:', {
-        kd_area: parameterData.kd_area,
-        kd_cab: parameterData.kd_cab,
-        kd_depo: parameterData.kd_depo,
-        kd_satelit: parameterData.kd_satelit,
-        timestamp: new Date().toISOString()
-      });
-      console.log('📋 Found Cabang:', selectedCabang);
-      console.log('📋 Found Area:', selectedArea);
-      console.log('📋 Available Areas:', areaList.map(a => ({ id: a.id_area, name: a.nama_area })));
-
-      setFormData(prev => {
-        const newFormData = {
-          ...prev,
-          namaCabang: parameterData.kd_cab || "",
-          namaCabangText: selectedCabang?.nama_cabang || '',
-          namaArea: parameterData.kd_area || "",
-          namaAreaText: selectedArea?.nama_area || '',
-          lokasiDepo: parameterData.kd_depo || "",
-          lokasiSatelit: parameterData.kd_satelit || "",
-          cabangBaru: convertYNToYaTidak(parameterData.cabang_baru || 'N'),
-          rsia: convertYNToYaTidak(parameterData.rsia || 'N'),
-          barangTransit: convertYNToYaTidak(parameterData.transit || 'N'),
-          sc: (parameterData.service || 0).toString(),
-          scDoctor: (parameterData.service_dokter || 0).toString(),
-          ruResep: (parameterData.roundup_resep || 0).toString(),
-          ruSwalayan: (parameterData.roundup_swalayan || 0).toString(),
-          shift1Start: parameterData.shift_1_awal || "07:00:00",
-          shift1End: parameterData.shift_1_akhir || "14:29:00",
-          shift2Start: parameterData.shift_2_awal || "14:30:00",
-          shift2End: parameterData.shift_2_akhir || "21:59:00",
-          shift3Start: parameterData.shift_3_awal || "22:00:00",
-          shift3End: parameterData.shift_3_akhir || "07:00:00",
-          toleransiWaktuMin: (parameterData.toleransi_awal || 30).toString(),
-          toleransiWaktuMax: (parameterData.toleransi_akhir || 120).toString(),
-          receiptType: 'header' as const,
-          header1: parameterData.header_struk_line1 || "",
-          header2: parameterData.header_struk_line2 || "",
-          header3: parameterData.header_struk_line3 || "",
-          header4: parameterData.header_struk_line4 || "",
-          header5: parameterData.header_struk_line5 || "",
-          footer1: parameterData.footer_struk_line1 || "",
-          footer2: parameterData.footer_struk_line2 || "",
-          footer3: parameterData.footer_struk_line3 || "",
-          footer4: parameterData.footer_struk_line4 || "",
-        };
-
-        console.log('✅ Form data updated:', {
-          namaCabang: newFormData.namaCabang,
-          namaArea: newFormData.namaArea,
-          namaCabangText: newFormData.namaCabangText,
-          namaAreaText: newFormData.namaAreaText,
-        });
-
-        return newFormData;
-      });
+      
+      setFormData(prev => ({
+        ...prev,
+        namaCabang: parameterData.kd_cab || "",
+        namaCabangText: selectedCabang?.nama_cabang || '',
+        namaArea: parameterData.kd_area || "",
+        namaAreaText: selectedArea?.nama_area || '',
+        lokasiDepo: parameterData.kd_depo || "",
+        lokasiSatelit: parameterData.kd_satelit || "",
+        cabangBaru: convertYNToYaTidak(parameterData.cabang_baru || 'N'),
+        rsia: convertYNToYaTidak(parameterData.rsia || 'N'),
+        barangTransit: convertYNToYaTidak(parameterData.transit || 'N'),
+        sc: (parameterData.service || 0).toString(),
+        scDoctor: (parameterData.service_dokter || 0).toString(),
+        ruResep: (parameterData.roundup_resep || 0).toString(),
+        ruSwalayan: (parameterData.roundup_swalayan || 0).toString(),
+        shift1Start: parameterData.shift_1_awal || "07:00:00",
+        shift1End: parameterData.shift_1_akhir || "14:29:00",
+        shift2Start: parameterData.shift_2_awal || "14:30:00",
+        shift2End: parameterData.shift_2_akhir || "21:59:00",
+        shift3Start: parameterData.shift_3_awal || "22:00:00",
+        shift3End: parameterData.shift_3_akhir || "07:00:00",
+        toleransiWaktuMin: (parameterData.toleransi_awal || 30).toString(),
+        toleransiWaktuMax: (parameterData.toleransi_akhir || 120).toString(),
+        receiptType: 'header' as const,
+        header1: parameterData.header_struk_line1 || "",
+        header2: parameterData.header_struk_line2 || "",
+        header3: parameterData.header_struk_line3 || "",
+        header4: parameterData.header_struk_line4 || "",
+        header5: parameterData.header_struk_line5 || "",
+        footer1: parameterData.footer_struk_line1 || "",
+        footer2: parameterData.footer_struk_line2 || "",
+        footer3: parameterData.footer_struk_line3 || "",
+        footer4: parameterData.footer_struk_line4 || "",
+      }));
     }
-  }, [parameterData, cabangList, areaList]); // FIXED: Added proper dependencies
+  }, [parameterData, cabangList, areaList]);
 
   if (!isOpen) return null;
+
+  // Show loading while checking authentication
+  if (isCheckingAuth) {
+    return (
+      <div className="fixed inset-0 flex items-center justify-center z-50">
+        <div className="absolute inset-0 bg-black/50"></div>
+        <div className="bg-white rounded-lg p-8 relative z-10">
+          <div className="flex items-center gap-3">
+            <Loader2 className="h-6 w-6 animate-spin text-blue-600" />
+            <span>Checking authentication...</span>
+          </div>
+        </div>
+      </div>
+    );
+  }
+
+  // Show login dialog if no valid token
+  if (!hasValidToken) {
+    return (
+      <EmployeeLoginDialog
+        isOpen={isLoginDialogOpen}
+        onClose={handleLoginClose}
+        onLogin={handleLoginSuccess}
+      />
+    );
+  }
 
   const handleInputChange = (field: keyof ParameterFormData, value: string) => {
     console.log(`🔄 Input changed: ${field} = ${value}`);
@@ -215,7 +369,6 @@ const ParameterSettingsDialog: FC<ParameterSettingsDialogProps> = ({
   const handleAreaChange = (idArea: string) => {
     console.log('🔄 AREA CHANGE');
     console.log('📝 Selected idArea:', idArea);
-    console.log('📝 Available areaList:', areaList);
     
     const selectedArea = areaList.find(area => area.id_area === idArea);
     console.log('📝 Found area:', selectedArea);
@@ -236,7 +389,6 @@ const ParameterSettingsDialog: FC<ParameterSettingsDialogProps> = ({
     });
   };
 
-  // FIXED: Enhanced handleSubmit with better error handling and debugging
   const handleSubmit = async () => {
     const requiredFields = {
       namaCabang: 'Nama Cabang',
@@ -263,19 +415,7 @@ const ParameterSettingsDialog: FC<ParameterSettingsDialogProps> = ({
 
     try {
       console.log('🚀 FORM SUBMISSION STARTED');
-      console.log('📋 Current Form Data:', {
-        namaCabang: formData.namaCabang,
-        namaArea: formData.namaArea,
-        namaCabangText: formData.namaCabangText,
-        namaAreaText: formData.namaAreaText,
-        timestamp: new Date().toISOString()
-      });
-      console.log('📋 Current Parameter Data:', {
-        kd_cab: parameterData?.kd_cab,
-        kd_area: parameterData?.kd_area,
-        timestamp: new Date().toISOString()
-      });
-
+      
       const updateData = {
         kd_cab: formData.namaCabang,
         kd_area: formData.namaArea,
@@ -305,7 +445,7 @@ const ParameterSettingsDialog: FC<ParameterSettingsDialogProps> = ({
         footer_struk_line2: formData.footer2,
         footer_struk_line3: formData.footer3,
         footer_struk_line4: formData.footer4,
-        // FIXED: Preserve all existing parameter data that's not being updated
+        // Preserve all existing parameter data
         kd_pt: parameterData?.kd_pt || "001",
         type_cab: parameterData?.type_cab || "1",
         trana: parameterData?.trana || 30,
@@ -357,34 +497,23 @@ const ParameterSettingsDialog: FC<ParameterSettingsDialogProps> = ({
         max_buffer_central: parameterData?.max_buffer_central || 10,
         cabang_penyangga: parameterData?.cabang_penyangga || "N",
       };
-
-      console.log('📤 SENDING TO API');
-      console.log('📤 Update Data Keys:', Object.keys(updateData));
-      console.log('📤 Critical Fields:', {
-        kd_cab: updateData.kd_cab,
-        kd_area: updateData.kd_area,
-        kd_depo: updateData.kd_depo,
-        kd_satelit: updateData.kd_satelit,
-        timestamp: new Date().toISOString()
-      });
       
       const success = await updateParameter(updateData);
       
       if (success) {
-        console.log('✅ UPDATE SUCCESS - Dialog will close after delay');
+        console.log('✅ UPDATE SUCCESS');
         await showSuccessAlert(
           'Success!',
           'Parameter settings updated successfully',
           1500
         );
         
-        // FIXED: Wait longer for the data to propagate and close dialog properly
         setTimeout(async () => {
           console.log('🔄 Final refetch before closing dialog');
           await refetchParameter();
           onSubmit(formData);
           onClose();
-        }, 2000); // FIXED: Increased delay to 2 seconds
+        }, 2000);
       } else {
         console.log('❌ UPDATE FAILED');
         await showErrorAlert(
@@ -433,19 +562,7 @@ const ParameterSettingsDialog: FC<ParameterSettingsDialogProps> = ({
           </div>
         )}
 
-        {parameterError && (
-          <div className="flex-1 flex items-center justify-center">
-            <div className="text-center">
-              <AlertCircle className="h-12 w-12 text-red-500 mx-auto mb-4" />
-              <p className="text-red-500 mb-4">{parameterError}</p>
-              <Button onClick={refetchParameter} variant="outline">
-                Retry
-              </Button>
-            </div>
-          </div>
-        )}
-
-        {!isLoadingParameter && !parameterError && (
+        {!isLoadingParameter && (
           <div className="flex-1 overflow-auto p-6">
             <div className="grid grid-cols-2 gap-6 h-full">
               
@@ -474,7 +591,10 @@ const ParameterSettingsDialog: FC<ParameterSettingsDialogProps> = ({
                       {cabangError && (
                         <div className="mt-2 flex items-center gap-2">
                           <p className="text-red-500 text-xs flex-1">
-                            Failed to load cabang data. Please try again.
+                            {cabangError.includes('Session expired') 
+                              ? 'Authentication required. Please login again.' 
+                              : 'Failed to load cabang data. Please try again.'
+                            }
                           </p>
                           <Button
                             variant="outline"
@@ -484,6 +604,18 @@ const ParameterSettingsDialog: FC<ParameterSettingsDialogProps> = ({
                           >
                             Retry
                           </Button>
+                          {cabangError.includes('Session expired') && (
+                            <Button
+                              size="sm"
+                              onClick={() => {
+                                setHasValidToken(false);
+                                showSessionExpiredPopup();
+                              }}
+                              className="text-xs h-7 px-2 bg-blue-600 hover:bg-blue-700"
+                            >
+                              Login
+                            </Button>
+                          )}
                         </div>
                       )}
                     </div>
@@ -510,7 +642,10 @@ const ParameterSettingsDialog: FC<ParameterSettingsDialogProps> = ({
                       {areaError && (
                         <div className="mt-2 flex items-center gap-2">
                           <p className="text-red-500 text-xs flex-1">
-                            Failed to load area data. Please try again.
+                            {areaError.includes('Session expired') 
+                              ? 'Authentication required. Please login again.' 
+                              : 'Failed to load area data. Please try again.'
+                            }
                           </p>
                           <Button
                             variant="outline"
@@ -520,6 +655,18 @@ const ParameterSettingsDialog: FC<ParameterSettingsDialogProps> = ({
                           >
                             Retry
                           </Button>
+                          {areaError.includes('Session expired') && (
+                            <Button
+                              size="sm"
+                              onClick={() => {
+                                setHasValidToken(false);
+                                showSessionExpiredPopup();
+                              }}
+                              className="text-xs h-7 px-2 bg-blue-600 hover:bg-blue-700"
+                            >
+                              Login
+                            </Button>
+                          )}
                         </div>
                       )}
                     </div>
@@ -973,7 +1120,7 @@ const ParameterSettingsDialog: FC<ParameterSettingsDialogProps> = ({
           <Button
             onClick={handleSubmit}
             className="bg-blue-600 hover:bg-blue-700 px-8"
-            disabled={isSubmitting || isLoadingParameter || !!parameterError}
+            disabled={isSubmitting || isLoadingParameter}
           >
             {isSubmitting ? (
               <>

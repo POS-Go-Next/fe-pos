@@ -1,8 +1,8 @@
-// lib/sessionHandler.ts
+// lib/sessionHandler.ts - FIXED VERSION
 import { showErrorAlert } from "@/lib/swal";
 import Swal from 'sweetalert2';
 
-// Custom session expired alert with timer
+// Custom session expired alert with timer - for general use
 export const showSessionExpiredAlert = () => {
   let timerInterval: NodeJS.Timeout;
   
@@ -69,11 +69,21 @@ export const handleSessionExpired = () => {
   window.location.href = '/';
 };
 
-// Enhanced error handler for API responses
-export const handleApiError = async (response: Response, data: any) => {
+// Enhanced error handler for API responses with custom callback support
+export const handleApiError = async (
+  response: Response, 
+  data: any, 
+  customSessionHandler?: () => Promise<void>
+) => {
   // Check for 401 Unauthorized (Session Expired)
   if (response.status === 401) {
-    await showSessionExpiredAlert();
+    if (customSessionHandler) {
+      // Use custom session handler if provided
+      await customSessionHandler();
+    } else {
+      // Use default session expired alert
+      await showSessionExpiredAlert();
+    }
     return true; // Indicates session expired was handled
   }
   
@@ -92,4 +102,14 @@ export const isSessionExpired = (response: Response, data?: any): boolean => {
   return response.status === 401 || 
          (data?.message && data.message.toLowerCase().includes('session expired')) ||
          (data?.message && data.message.toLowerCase().includes('unauthorized'));
+};
+
+// Silent session check without popup
+export const checkAuthenticationStatus = (): boolean => {
+  const authToken = document.cookie
+    .split('; ')
+    .find(row => row.startsWith('auth-token='))
+    ?.split('=')[1];
+  
+  return !!authToken;
 };
