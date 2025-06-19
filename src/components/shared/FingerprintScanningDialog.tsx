@@ -1,4 +1,4 @@
-// components/shared/FingerprintScanningDialog.tsx
+// components/shared/FingerprintScanningDialog.tsx - UPDATED FOR NEW FLOW
 "use client";
 
 import { FC, useState, useEffect } from "react";
@@ -9,7 +9,7 @@ interface FingerprintScanningDialogProps {
   isOpen: boolean;
   onClose: () => void;
   onComplete: () => void;
-  scanningType: 'scan' | 'rescan' | '';
+  scanningType: 'finger1-scan' | 'finger1-rescan' | 'finger2-scan' | 'finger2-rescan' | '';
 }
 
 const FingerprintScanningDialog: FC<FingerprintScanningDialogProps> = ({
@@ -49,7 +49,45 @@ const FingerprintScanningDialog: FC<FingerprintScanningDialogProps> = ({
     setScanCompleted(false);
   };
 
+  // Get display text based on scanning type
+  const getDisplayText = () => {
+    switch (scanningType) {
+      case 'finger1-scan':
+        return {
+          title: 'Scanning Fingerprint 1',
+          subtitle: 'First scan for fingerprint 1',
+          instruction: 'Place your first finger on the scanner'
+        };
+      case 'finger1-rescan':
+        return {
+          title: 'Rescanning Fingerprint 1',
+          subtitle: 'Confirmation scan for fingerprint 1',
+          instruction: 'Place your first finger on the scanner again'
+        };
+      case 'finger2-scan':
+        return {
+          title: 'Scanning Fingerprint 2',
+          subtitle: 'First scan for fingerprint 2',
+          instruction: 'Place your second finger on the scanner'
+        };
+      case 'finger2-rescan':
+        return {
+          title: 'Rescanning Fingerprint 2',
+          subtitle: 'Confirmation scan for fingerprint 2',
+          instruction: 'Place your second finger on the scanner again'
+        };
+      default:
+        return {
+          title: 'Scanning Fingerprint',
+          subtitle: 'Processing fingerprint scan',
+          instruction: 'Place your finger on the scanner'
+        };
+    }
+  };
+
   if (!isOpen) return null;
+
+  const displayText = getDisplayText();
 
   return (
     <div className="fixed inset-0 flex items-center justify-center z-50">
@@ -60,7 +98,7 @@ const FingerprintScanningDialog: FC<FingerprintScanningDialogProps> = ({
       <div className="bg-white rounded-lg w-full max-w-md relative z-10">
         <div className="flex justify-between items-center p-6 border-b">
           <h2 className="text-xl font-semibold text-[#202325]">
-            Scanning Fingerprint
+            {displayText.title}
           </h2>
           <button onClick={handleClose}>
             <X className="h-5 w-5 text-gray-600" />
@@ -95,12 +133,15 @@ const FingerprintScanningDialog: FC<FingerprintScanningDialogProps> = ({
           </div>
 
           <div className="mb-8">
+            <h3 className="text-lg font-semibold text-gray-800 mb-2">
+              {displayText.subtitle}
+            </h3>
             <p className="text-gray-600 mb-2">
               {scanCompleted 
                 ? 'Scan completed successfully!' 
                 : isScanning 
                 ? 'Scanning in progress...' 
-                : 'Scan your finger to Get Started'
+                : displayText.instruction
               }
             </p>
             <p className="text-[#202325] font-medium">Touch Sensor</p>
