@@ -1,15 +1,17 @@
-// components/dashboard/FingerprintSetupDialog.tsx - NEW FLOW VERSION
+// components/dashboard/FingerprintSetupDialog.tsx - REFACTORED VERSION
 "use client";
 
-import { FC, useState, useEffect } from "react";
+import { FC, useState, useEffect, useCallback } from "react";
 import { X, ChevronDown, Loader2, AlertCircle, CheckCircle } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import EmployeeLoginDialog from "../shared/EmployeeLoginDialog";
 import FingerprintScanningDialog from "../shared/FingerprintScanningDialog";
 import { useUser } from "@/hooks/useUser";
 import { UserData, FingerprintSetupData } from "@/types/user";
-import { showSuccessAlert, showErrorAlert } from "@/lib/swal";
+import { showErrorAlert } from "@/lib/swal";
 import Swal from 'sweetalert2';
+
+// ====================== TYPES ======================
 
 interface FingerprintSetupDialogProps {
   isOpen: boolean;
@@ -17,317 +19,553 @@ interface FingerprintSetupDialogProps {
   onRegister: () => void;
 }
 
-type FingerprintStep = 'employee-selection' | 'finger1-scan' | 'finger1-rescan' | 'finger1-complete' | 'finger2-scan' | 'finger2-rescan' | 'complete';
-type ScanningType = 'finger1-scan' | 'finger1-rescan' | 'finger2-scan' | 'finger2-rescan' | '';
+type FingerprintStep = 
+  | 'employee-selection' 
+  | 'finger1-scan' 
+  | 'finger1-rescan' 
+  | 'finger1-complete' 
+  | 'finger2-scan' 
+  | 'finger2-rescan' 
+  | 'complete';
 
-const FingerprintSetupDialog: FC<FingerprintSetupDialogProps> = ({
-  isOpen,
-  onClose,
-  onRegister,
-}) => {
-  // Authentication states
-  const [hasValidToken, setHasValidToken] = useState(false);
-  const [isLoginDialogOpen, setIsLoginDialogOpen] = useState(false);
-  const [isCheckingAuth, setIsCheckingAuth] = useState(true);
+type ScanningType = 
+  | 'finger1-scan' 
+  | 'finger1-rescan' 
+  | 'finger2-scan' 
+  | 'finger2-rescan' 
+  | '';
 
-  // Use custom hook for user data
-  const { userList: employees, isLoading: isLoadingEmployees, error: employeeError, refetch: refetchEmployees } = useUser({
-    limit: 50,
-    offset: 0
+interface FingerprintState {
+  finger1ScanCompleted: boolean;
+  finger1RescanCompleted: boolean;
+  finger2ScanCompleted: boolean;
+  finger2RescanCompleted: boolean;
+}
+
+interface AuthState {
+  hasValidToken: boolean;
+  isLoginDialogOpen: boolean;
+  isCheckingAuth: boolean;
+}
+
+interface EmployeeState {
+  selectedEmployeeId: number | null;
+  selectedEmployeeName: string;
+  showDropdown: boolean;
+}
+
+interface ScanState {
+  isDialogOpen: boolean;
+  scanningType: ScanningType;
+}
+
+// ====================== HOOKS ======================
+const useAuthManager = () => {
+  const [authState, setAuthState] = useState<AuthState>({
+    hasValidToken: false,
+    isLoginDialogOpen: false,
+    isCheckingAuth: true
   });
 
-  // NEW FLOW: Step-based state management
-  const [currentStep, setCurrentStep] = useState<FingerprintStep>('employee-selection');
-  const [selectedEmployeeId, setSelectedEmployeeId] = useState<number | null>(null);
-  const [selectedEmployeeName, setSelectedEmployeeName] = useState<string>("");
-  const [showEmployeeDropdown, setShowEmployeeDropdown] = useState(false);
-  
-  // Scanning states
-  const [isScanningDialogOpen, setIsScanningDialogOpen] = useState(false);
-  const [scanningType, setScanningType] = useState<ScanningType>('');
-  
-  // Fingerprint completion tracking
-  const [finger1ScanCompleted, setFinger1ScanCompleted] = useState(false);
-  const [finger1RescanCompleted, setFinger1RescanCompleted] = useState(false);
-  const [finger2ScanCompleted, setFinger2ScanCompleted] = useState(false);
-  const [finger2RescanCompleted, setFinger2RescanCompleted] = useState(false);
-
-  // Check authentication when dialog opens
-  useEffect(() => {
-    if (isOpen) {
-      checkAuthenticationStatus();
-    }
-  }, [isOpen]);
-
-  // API-based authentication check
-  const checkAuthenticationStatus = async () => {
-    console.log('🔍 FINGERPRINT SETUP - CHECKING AUTHENTICATION STATUS...');
-    setIsCheckingAuth(true);
+  const checkAuthentication = useCallback(async () => {
+    console.log('🔍 Checking authentication status...');
+    setAuthState(prev => ({ ...prev, isCheckingAuth: true }));
     
     try {
       const response = await fetch('/api/user?limit=1&offset=0', {
         method: 'GET',
-        headers: {
-          'Content-Type': 'application/json',
-        },
+        headers: { 'Content-Type': 'application/json' },
         credentials: 'include',
       });
 
-      console.log('🔍 Fingerprint Auth API Test Response status:', response.status);
-      
       if (response.ok) {
-        console.log('✅ USER ALREADY AUTHENTICATED');
-        setHasValidToken(true);
-        setIsCheckingAuth(false);
-        
-        setTimeout(() => {
-          refetchEmployees();
-        }, 500);
-      } else if (response.status === 401) {
-        console.log('❌ USER NOT AUTHENTICATED');
-        setHasValidToken(false);
-        setIsCheckingAuth(false);
-        showSessionExpiredPopup();
+        console.log('✅ User authenticated');
+        setAuthState(prev => ({ 
+          ...prev, 
+          hasValidToken: true, 
+          isCheckingAuth: false 
+        }));
       } else {
-        console.log('⚠️ API ERROR');
-        setHasValidToken(false);
-        setIsCheckingAuth(false);
-        showSessionExpiredPopup();
+        console.log('❌ User not authenticated');
+        setAuthState(prev => ({ 
+          ...prev, 
+          hasValidToken: false, 
+          isCheckingAuth: false 
+        }));
+        showSessionExpiredDialog();
       }
     } catch (error) {
-      console.log('❌ NETWORK ERROR:', error);
-      setHasValidToken(false);
-      setIsCheckingAuth(false);
-      showSessionExpiredPopup();
+      console.error('❌ Authentication check failed:', error);
+      setAuthState(prev => ({ 
+        ...prev, 
+        hasValidToken: false, 
+        isCheckingAuth: false 
+      }));
+      showSessionExpiredDialog();
     }
-  };
+  }, []); // ✅ Empty deps - stable function
 
-  // Session expired popup
-  const showSessionExpiredPopup = () => {
-    console.log('⚠️ Fingerprint Setup - Showing session expired popup');
-    
-    let timerInterval: NodeJS.Timeout;
-    
+  const showSessionExpiredDialog = useCallback(() => {
     Swal.fire({
       icon: 'warning',
       title: 'Session Expired',
       html: `
         <div class="text-sm text-gray-600 mb-4">
-          Your session has expired. Please login again to continue with fingerprint setup.
+          Your session has expired. Please login again to continue.
         </div>
         <div class="text-xs text-gray-500">
-          This popup will close automatically in <strong id="timer">3</strong> seconds
+          Auto-closing in <strong id="timer">3</strong> seconds
         </div>
       `,
       timer: 3000,
       timerProgressBar: true,
-      showConfirmButton: true,
       confirmButtonText: 'Login Now',
       confirmButtonColor: '#025CCA',
       allowOutsideClick: false,
-      allowEscapeKey: false,
-      customClass: {
-        popup: 'rounded-xl shadow-2xl',
-        confirmButton: 'rounded-lg px-6 py-2 font-medium',
-        title: 'text-lg font-bold text-red-600',
-        htmlContainer: 'text-sm',
-      },
-      background: '#ffffff',
-      color: '#1f2937',
       didOpen: () => {
         const timer = Swal.getPopup()?.querySelector('#timer');
         let remainingTime = 3;
-        
-        timerInterval = setInterval(() => {
+        const interval = setInterval(() => {
           remainingTime--;
-          if (timer) {
-            timer.textContent = remainingTime.toString();
-          }
-          
-          if (remainingTime <= 0) {
-            clearInterval(timerInterval);
-          }
+          if (timer) timer.textContent = remainingTime.toString();
+          if (remainingTime <= 0) clearInterval(interval);
         }, 1000);
-      },
-      willClose: () => {
-        clearInterval(timerInterval);
       }
-    }).then((result) => {
-      if (result.isConfirmed || result.dismiss === Swal.DismissReason.timer) {
-        setIsLoginDialogOpen(true);
-      }
+    }).then(() => {
+      setAuthState(prev => ({ ...prev, isLoginDialogOpen: true }));
+    });
+  }, []);
+
+  const handleLoginSuccess = useCallback((userData: any) => {
+    console.log('✅ Login successful:', userData);
+    setAuthState({
+      hasValidToken: true,
+      isLoginDialogOpen: false,
+      isCheckingAuth: false
+    });
+  }, []);
+
+  const handleLoginClose = useCallback(() => {
+    setAuthState(prev => ({ ...prev, isLoginDialogOpen: false }));
+  }, []);
+
+  const resetAuth = useCallback(() => {
+    setAuthState({
+      hasValidToken: false,
+      isLoginDialogOpen: false,
+      isCheckingAuth: true
+    });
+  }, []);
+
+  return {
+    authState,
+    checkAuthentication,
+    handleLoginSuccess,
+    handleLoginClose,
+    resetAuth
+  };
+};
+
+const useFingerprintFlow = () => {
+  const [currentStep, setCurrentStep] = useState<FingerprintStep>('employee-selection');
+  const [fingerprintState, setFingerprintState] = useState<FingerprintState>({
+    finger1ScanCompleted: false,
+    finger1RescanCompleted: false,
+    finger2ScanCompleted: false,
+    finger2RescanCompleted: false
+  });
+
+  const updateFingerprintState = (updates: Partial<FingerprintState>) => {
+    setFingerprintState(prev => ({ ...prev, ...updates }));
+  };
+
+  const resetFlow = () => {
+    setCurrentStep('employee-selection');
+    setFingerprintState({
+      finger1ScanCompleted: false,
+      finger1RescanCompleted: false,
+      finger2ScanCompleted: false,
+      finger2RescanCompleted: false
     });
   };
 
-  // Handle successful login
-  const handleLoginSuccess = (userData: any) => {
-    console.log('✅ Fingerprint Setup - Login successful:', userData);
-    setHasValidToken(true);
-    setIsLoginDialogOpen(false);
-    
-    setTimeout(() => {
-      refetchEmployees();
-    }, 1000);
+  return {
+    currentStep,
+    setCurrentStep,
+    fingerprintState,
+    updateFingerprintState,
+    resetFlow
   };
+};
 
-  // Handle login dialog close
-  const handleLoginClose = () => {
-    console.log('❌ Fingerprint Setup - Login dialog closed without login');
-    setIsLoginDialogOpen(false);
-    onClose();
-  };
+const useEmployeeSelection = () => {
+  const [employeeState, setEmployeeState] = useState<EmployeeState>({
+    selectedEmployeeId: null,
+    selectedEmployeeName: '',
+    showDropdown: false
+  });
 
-  // Handle employee selection
-  const handleEmployeeSelect = (employee: UserData) => {
-    setSelectedEmployeeId(employee.id);
-    setSelectedEmployeeName(employee.fullname);
-    setShowEmployeeDropdown(false);
-    // Don't change step immediately - stay on employee-selection to show activated cards
-  };
+  const { 
+    userList: employees, 
+    isLoading, 
+    error, 
+    refetch 
+  } = useUser({ limit: 50, offset: 0 });
 
-  // Handle start scanning
-  const handleStartScanning = (type: ScanningType) => {
-    setScanningType(type);
-    setIsScanningDialogOpen(true);
-    
-    // Update step based on scanning type
-    switch (type) {
-      case 'finger1-scan':
-        setCurrentStep('finger1-scan');
-        break;
-      case 'finger1-rescan':
-        setCurrentStep('finger1-rescan');
-        break;
-      case 'finger2-scan':
-        setCurrentStep('finger2-scan');
-        break;
-      case 'finger2-rescan':
-        setCurrentStep('finger2-rescan');
-        break;
+  const selectEmployee = useCallback((employee: UserData) => {
+    setEmployeeState({
+      selectedEmployeeId: employee.id,
+      selectedEmployeeName: employee.fullname,
+      showDropdown: false
+    });
+  }, []);
+
+  const toggleDropdown = useCallback(() => {
+    if (!isLoading) {
+      setEmployeeState(prev => ({ 
+        ...prev, 
+        showDropdown: !prev.showDropdown 
+      }));
     }
+  }, [isLoading]);
+
+  const resetEmployee = useCallback(() => {
+    setEmployeeState({
+      selectedEmployeeId: null,
+      selectedEmployeeName: '',
+      showDropdown: false
+    });
+  }, []);
+
+  return {
+    employeeState,
+    employees,
+    isLoading,
+    error,
+    selectEmployee,
+    toggleDropdown,
+    resetEmployee,
+    refetch
+  };
+};
+
+const useScanningManager = () => {
+  const [scanState, setScanState] = useState<ScanState>({
+    isDialogOpen: false,
+    scanningType: ''
+  });
+
+  const startScanning = (type: ScanningType) => {
+    setScanState({
+      isDialogOpen: true,
+      scanningType: type
+    });
   };
 
-  // Handle scan completion
+  const closeScanDialog = () => {
+    setScanState({
+      isDialogOpen: false,
+      scanningType: ''
+    });
+  };
+
+  return {
+    scanState,
+    startScanning,
+    closeScanDialog
+  };
+};
+
+// ====================== COMPONENTS ======================
+const LoadingScreen: FC = () => (
+  <div className="fixed inset-0 flex items-center justify-center z-50">
+    <div className="absolute inset-0 bg-black/50"></div>
+    <div className="bg-white rounded-lg p-8 relative z-10">
+      <div className="flex items-center gap-3">
+        <Loader2 className="h-6 w-6 animate-spin text-blue-600" />
+        <span>Checking authentication for fingerprint setup...</span>
+      </div>
+    </div>
+  </div>
+);
+
+interface EmployeeDropdownProps {
+  employees: UserData[];
+  isLoading: boolean;
+  error: string | null;
+  isOpen: boolean;
+  selectedName: string;
+  onToggle: () => void;
+  onSelect: (employee: UserData) => void;
+  onRetry: () => void;
+}
+
+const EmployeeDropdown: FC<EmployeeDropdownProps> = ({
+  employees,
+  isLoading,
+  error,
+  isOpen,
+  selectedName,
+  onToggle,
+  onSelect,
+  onRetry
+}) => (
+  <div className="mb-6">
+    <label className="block text-gray-800 mb-2 font-medium">
+      Employee Name
+    </label>
+    <div className="relative">
+      <button
+        onClick={onToggle}
+        disabled={isLoading}
+        className={`w-full flex justify-between items-center text-left rounded-md py-4 px-4 transition-colors ${
+          isLoading 
+            ? 'bg-gray-100 cursor-not-allowed'
+            : 'bg-[#F5F5F5] hover:bg-gray-200'
+        }`}
+      >
+        <span className={selectedName ? "text-gray-800" : "text-gray-500"}>
+          {isLoading ? (
+            <div className="flex items-center gap-2">
+              <Loader2 className="h-4 w-4 animate-spin" />
+              Loading employees...
+            </div>
+          ) : error ? (
+            <div className="flex items-center gap-2 text-red-500">
+              <AlertCircle className="h-4 w-4" />
+              Error loading data
+            </div>
+          ) : (
+            selectedName || "Select User"
+          )}
+        </span>
+        <ChevronDown className="h-5 w-5 text-gray-500" />
+      </button>
+      
+      {isOpen && !isLoading && !error && (
+        <div className="absolute top-full left-0 w-full bg-white border border-gray-200 rounded-md shadow-lg z-20 max-h-48 overflow-y-auto mt-1">
+          {employees.length > 0 ? (
+            employees.map((employee) => (
+              <button
+                key={employee.id}
+                onClick={() => onSelect(employee)}
+                className="w-full text-left px-4 py-3 hover:bg-gray-100 border-b last:border-b-0 transition-colors"
+              >
+                <div className="font-medium">{employee.fullname}</div>
+              </button>
+            ))
+          ) : (
+            <div className="px-4 py-3 text-gray-500 text-center">
+              No employees found
+            </div>
+          )}
+        </div>
+      )}
+
+      {error && (
+        <div className="mt-2 flex items-center gap-2">
+          <p className="text-red-500 text-xs flex-1">
+            {error.includes('Session expired') 
+              ? 'Authentication required. Please login again.' 
+              : 'Failed to load employee data. Please try again.'
+            }
+          </p>
+          <Button
+            variant="outline"
+            size="sm"
+            onClick={onRetry}
+            className="text-xs h-7 px-2"
+          >
+            Retry
+          </Button>
+        </div>
+      )}
+    </div>
+  </div>
+);
+
+interface FingerprintCardProps {
+  title: string;
+  description: string;
+  isCompleted: boolean;
+  isEnabled: boolean;
+  onAction: () => void;
+  actionText?: string;
+}
+
+const FingerprintCard: FC<FingerprintCardProps> = ({
+  title,
+  description,
+  isCompleted,
+  isEnabled,
+  onAction,
+  actionText = "Start Scanning"
+}) => (
+  <div className={`bg-white rounded-lg border p-6 flex flex-col items-center transition-opacity ${
+    !isEnabled ? 'opacity-50' : ''
+  }`}>
+    <div className="w-16 h-16 bg-blue-100 rounded-xl flex items-center justify-center mb-4">
+      {isCompleted ? (
+        <CheckCircle className="h-8 w-8 text-green-600" />
+      ) : (
+        <svg
+          xmlns="http://www.w3.org/2000/svg"
+          className="h-8 w-8 text-blue-600"
+          fill="none"
+          viewBox="0 0 24 24"
+          stroke="currentColor"
+        >
+          <path
+            strokeLinecap="round"
+            strokeLinejoin="round"
+            strokeWidth={2}
+            d="M12 11c0 3.517-1.009 6.799-2.753 9.571m-3.44-2.04l.054-.09A13.916 13.916 0 008 11a4 4 0 118 0c0 1.017-.07 2.019-.203 3m-2.118 6.844A21.88 21.88 0 0015.171 17m3.839 1.132c.645-2.266.99-4.659.99-7.132A8 8 0 008 4.07M3 15.364c.64-1.319 1-2.8 1-4.364 0-1.457.39-2.823 1.07-4"
+          />
+        </svg>
+      )}
+    </div>
+    <h3 className="text-lg font-medium mb-3 text-center">{title}</h3>
+    <p className="text-gray-600 text-center mb-6 text-sm">{description}</p>
+    
+    <Button 
+      onClick={onAction}
+      disabled={!isEnabled}
+      className={`w-full transition-all duration-200 ${
+        isCompleted
+          ? 'bg-green-500 hover:bg-green-600 cursor-default'
+          : isEnabled
+          ? 'bg-blue-600 hover:bg-blue-700'
+          : 'bg-gray-300 text-gray-500 cursor-not-allowed'
+      }`}
+    >
+      {isCompleted ? 'Success Added' : actionText}
+    </Button>
+  </div>
+);
+
+// ====================== MAIN COMPONENT ======================
+const FingerprintSetupDialog: FC<FingerprintSetupDialogProps> = ({
+  isOpen,
+  onClose,
+  onRegister,
+}) => {
+  // Custom hooks
+  const { authState, checkAuthentication, handleLoginSuccess, handleLoginClose, resetAuth } = useAuthManager();
+  const { currentStep, setCurrentStep, fingerprintState, updateFingerprintState, resetFlow } = useFingerprintFlow();
+  const { employeeState, employees, isLoading, error, selectEmployee, toggleDropdown, resetEmployee, refetch } = useEmployeeSelection();
+  const { scanState, startScanning, closeScanDialog } = useScanningManager();
+
+  // Effects
+  useEffect(() => {
+    if (isOpen) {
+      checkAuthentication();
+    }
+  }, [isOpen, checkAuthentication]);
+
+  useEffect(() => {
+    if (authState.hasValidToken) {
+      // Only refetch once when authentication is successful
+      const timeoutId = setTimeout(() => {
+        refetch();
+      }, 500);
+      
+      return () => clearTimeout(timeoutId);
+    }
+  }, [authState.hasValidToken]); // ❌ Removed refetch from deps
+
+  // Handlers
+  const handleStartScanning = (type: ScanningType) => {
+    startScanning(type);
+    setCurrentStep(type as FingerprintStep);
+  };
+
   const handleScanComplete = () => {
-    switch (scanningType) {
+    switch (scanState.scanningType) {
       case 'finger1-scan':
-        setFinger1ScanCompleted(true);
+        updateFingerprintState({ finger1ScanCompleted: true });
         setCurrentStep('finger1-rescan');
         break;
       case 'finger1-rescan':
-        setFinger1RescanCompleted(true);
+        updateFingerprintState({ finger1RescanCompleted: true });
         setCurrentStep('finger1-complete');
         break;
       case 'finger2-scan':
-        setFinger2ScanCompleted(true);
+        updateFingerprintState({ finger2ScanCompleted: true });
         setCurrentStep('finger2-rescan');
         break;
       case 'finger2-rescan':
-        setFinger2RescanCompleted(true);
+        updateFingerprintState({ finger2RescanCompleted: true });
         setCurrentStep('complete');
         handleFinalSubmit();
         break;
     }
-    setIsScanningDialogOpen(false);
-    setScanningType('');
+    closeScanDialog();
   };
 
-  // Handle next button (after finger 1 complete)
   const handleNext = () => {
     setCurrentStep('finger2-scan');
   };
 
-  // Handle final submission
   const handleFinalSubmit = async () => {
-    if (!selectedEmployeeId) return;
+    if (!employeeState.selectedEmployeeId) return;
 
     try {
-      console.log('🚀 Fingerprint Setup - Starting final submission...');
+      console.log('🚀 Starting final submission...');
 
-      // Submit fingerprint 1
-      const fingerprint1Data: FingerprintSetupData = {
-        user_id: selectedEmployeeId,
+      const fingerprintData = (fingerprintNumber: 1 | 2): FingerprintSetupData => ({
+        user_id: employeeState.selectedEmployeeId!,
         mac_address: "84-1B-77-FD-31-35",
-        number_of_fingerprint: 1
-      };
-
-      const response1 = await fetch('/api/fingerprint/setup', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        credentials: 'include',
-        body: JSON.stringify(fingerprint1Data),
+        number_of_fingerprint: fingerprintNumber
       });
 
-      if (!response1.ok) {
-        if (response1.status === 401) {
-          setHasValidToken(false);
-          showSessionExpiredPopup();
-          return;
+      // Submit both fingerprints
+      const responses = await Promise.all([
+        fetch('/api/fingerprint/setup', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          credentials: 'include',
+          body: JSON.stringify(fingerprintData(1)),
+        }),
+        fetch('/api/fingerprint/setup', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          credentials: 'include',
+          body: JSON.stringify(fingerprintData(2)),
+        })
+      ]);
+
+      // Check responses
+      for (const response of responses) {
+        if (!response.ok) {
+          if (response.status === 401) {
+            resetAuth();
+            return;
+          }
+          const result = await response.json();
+          throw new Error(result.message || 'Failed to save fingerprint');
         }
-        const result1 = await response1.json();
-        throw new Error(result1.message || 'Failed to save fingerprint 1');
-      }
-
-      // Submit fingerprint 2
-      const fingerprint2Data: FingerprintSetupData = {
-        user_id: selectedEmployeeId,
-        mac_address: "84-1B-77-FD-31-35",
-        number_of_fingerprint: 2
-      };
-
-      const response2 = await fetch('/api/fingerprint/setup', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        credentials: 'include',
-        body: JSON.stringify(fingerprint2Data),
-      });
-
-      if (!response2.ok) {
-        if (response2.status === 401) {
-          setHasValidToken(false);
-          showSessionExpiredPopup();
-          return;
-        }
-        const result2 = await response2.json();
-        throw new Error(result2.message || 'Failed to save fingerprint 2');
       }
 
       console.log('✅ Both fingerprints setup successful');
-      
-      // Show success popup and redirect
-      await showFingerprintSuccessPopup();
+      await showSuccessDialog();
       
     } catch (error) {
       console.error('❌ Error saving fingerprints:', error);
-      
-      if (error instanceof TypeError && error.message.includes('fetch')) {
-        await showErrorAlert(
-          'Network Error',
-          'Unable to connect to server. Please check your connection.',
-          'OK'
-        );
-      } else {
-        await showErrorAlert(
-          'Setup Failed',
-          error instanceof Error ? error.message : 'Failed to save fingerprint data. Please try again.',
-          'OK'
-        );
-      }
+      await showErrorAlert(
+        'Setup Failed',
+        error instanceof Error ? error.message : 'Failed to save fingerprint data. Please try again.',
+        'OK'
+      );
     }
   };
 
-  // Show fingerprint success popup with auto-redirect
-  const showFingerprintSuccessPopup = async () => {
+  const showSuccessDialog = async () => {
     return Swal.fire({
       icon: 'success',
       title: 'Fingerprint Success Added!',
       html: `
         <div class="text-sm text-gray-600 mb-4">
-          Both fingerprints have been successfully registered for ${selectedEmployeeName}.
+          Both fingerprints have been successfully registered for ${employeeState.selectedEmployeeName}.
         </div>
         <div class="text-xs text-gray-500">
           Redirecting to dashboard in <strong id="countdown">3</strong> seconds...
@@ -337,244 +575,83 @@ const FingerprintSetupDialog: FC<FingerprintSetupDialogProps> = ({
       timerProgressBar: true,
       showConfirmButton: false,
       allowOutsideClick: false,
-      allowEscapeKey: false,
-      customClass: {
-        popup: 'rounded-xl shadow-2xl',
-        title: 'text-lg font-bold text-green-600',
-        htmlContainer: 'text-sm',
-      },
-      background: '#ffffff',
-      color: '#1f2937',
       didOpen: () => {
         const countdown = Swal.getPopup()?.querySelector('#countdown');
         let remainingTime = 3;
-        
-        const countdownInterval = setInterval(() => {
+        const interval = setInterval(() => {
           remainingTime--;
-          if (countdown) {
-            countdown.textContent = remainingTime.toString();
-          }
-          
-          if (remainingTime <= 0) {
-            clearInterval(countdownInterval);
-          }
+          if (countdown) countdown.textContent = remainingTime.toString();
+          if (remainingTime <= 0) clearInterval(interval);
         }, 1000);
       }
     }).then(() => {
-      // Reset all states and close dialog
       handleReset();
       onRegister();
       onClose();
     });
   };
 
-  // Handle reset
   const handleReset = () => {
-    setCurrentStep('employee-selection');
-    setSelectedEmployeeId(null);
-    setSelectedEmployeeName("");
-    setFinger1ScanCompleted(false);
-    setFinger1RescanCompleted(false);
-    setFinger2ScanCompleted(false);
-    setFinger2RescanCompleted(false);
+    resetFlow();
+    resetEmployee();
   };
 
-  // Handle close dialog
-  const handleCloseDialog = () => {
+  const handleClose = () => {
     handleReset();
-    setHasValidToken(false);
-    setIsCheckingAuth(true);
+    resetAuth();
     onClose();
   };
 
+  // Render guards
   if (!isOpen) return null;
 
-  // Show loading while checking authentication
-  if (isCheckingAuth) {
-    return (
-      <div className="fixed inset-0 flex items-center justify-center z-50">
-        <div className="absolute inset-0 bg-black/50"></div>
-        <div className="bg-white rounded-lg p-8 relative z-10">
-          <div className="flex items-center gap-3">
-            <Loader2 className="h-6 w-6 animate-spin text-blue-600" />
-            <span>Checking authentication for fingerprint setup...</span>
-          </div>
-        </div>
-      </div>
-    );
+  if (authState.isCheckingAuth) {
+    return <LoadingScreen />;
   }
 
-  // Show login dialog if no valid token
-  if (!hasValidToken) {
+  if (!authState.hasValidToken) {
     return (
       <EmployeeLoginDialog
-        isOpen={isLoginDialogOpen}
+        isOpen={authState.isLoginDialogOpen}
         onClose={handleLoginClose}
         onLogin={handleLoginSuccess}
       />
     );
   }
 
-  // Render step-based content
+  // Step content renderer
   const renderStepContent = () => {
     switch (currentStep) {
       case 'employee-selection':
         return (
           <div className="p-6">
-            {/* Employee Selection */}
-            <div className="mb-6">
-              <label className="block text-gray-800 mb-2 font-medium">
-                Employee Name
-              </label>
-              <div className="relative">
-                <button
-                  onClick={() => !isLoadingEmployees && setShowEmployeeDropdown(!showEmployeeDropdown)}
-                  disabled={isLoadingEmployees}
-                  className={`w-full flex justify-between items-center text-left rounded-md py-4 px-4 transition-colors ${
-                    isLoadingEmployees 
-                      ? 'bg-gray-100 cursor-not-allowed'
-                      : 'bg-[#F5F5F5] hover:bg-gray-200'
-                  }`}
-                >
-                  <span className={selectedEmployeeName ? "text-gray-800" : "text-gray-500"}>
-                    {isLoadingEmployees ? (
-                      <div className="flex items-center gap-2">
-                        <Loader2 className="h-4 w-4 animate-spin" />
-                        Loading employees...
-                      </div>
-                    ) : employeeError ? (
-                      <div className="flex items-center gap-2 text-red-500">
-                        <AlertCircle className="h-4 w-4" />
-                        Error loading data
-                      </div>
-                    ) : (
-                      selectedEmployeeName || "Select User"
-                    )}
-                  </span>
-                  <ChevronDown className="h-5 w-5 text-gray-500" />
-                </button>
-                
-                {showEmployeeDropdown && !isLoadingEmployees && !employeeError && (
-                  <div className="absolute top-full left-0 w-full bg-white border border-gray-200 rounded-md shadow-lg z-20 max-h-48 overflow-y-auto mt-1">
-                    {employees.length > 0 ? (
-                      employees.map((employee) => (
-                        <button
-                          key={employee.id}
-                          onClick={() => handleEmployeeSelect(employee)}
-                          className="w-full text-left px-4 py-3 hover:bg-gray-100 border-b last:border-b-0 transition-colors"
-                        >
-                          <div className="font-medium">{employee.fullname}</div>
-                          <div className="text-sm text-gray-500">@{employee.username}</div>
-                        </button>
-                      ))
-                    ) : (
-                      <div className="px-4 py-3 text-gray-500 text-center">
-                        No employees found
-                      </div>
-                    )}
-                  </div>
-                )}
+            <EmployeeDropdown
+              employees={employees}
+              isLoading={isLoading}
+              error={error}
+              isOpen={employeeState.showDropdown}
+              selectedName={employeeState.selectedEmployeeName}
+              onToggle={toggleDropdown}
+              onSelect={selectEmployee}
+              onRetry={refetch}
+            />
 
-                {employeeError && (
-                  <div className="mt-2 flex items-center gap-2">
-                    <p className="text-red-500 text-xs flex-1">
-                      {employeeError.includes('Session expired') 
-                        ? 'Authentication required. Please login again.' 
-                        : 'Failed to load employee data. Please try again.'
-                      }
-                    </p>
-                    <Button
-                      variant="outline"
-                      size="sm"
-                      onClick={refetchEmployees}
-                      className="text-xs h-7 px-2"
-                    >
-                      Retry
-                    </Button>
-                  </div>
-                )}
-              </div>
-            </div>
-
-            {/* Fingerprint 1 Cards - Always visible but disabled until employee selected */}
             <div className="grid grid-cols-2 gap-6">
-              {/* Scan Fingerprint 1 */}
-              <div className={`bg-white rounded-lg border p-6 flex flex-col items-center transition-opacity ${
-                !selectedEmployeeId ? 'opacity-50' : ''
-              }`}>
-                <div className="w-16 h-16 bg-blue-100 rounded-xl flex items-center justify-center mb-4">
-                  <svg
-                    xmlns="http://www.w3.org/2000/svg"
-                    className="h-8 w-8 text-blue-600"
-                    fill="none"
-                    viewBox="0 0 24 24"
-                    stroke="currentColor"
-                  >
-                    <path
-                      strokeLinecap="round"
-                      strokeLinejoin="round"
-                      strokeWidth={2}
-                      d="M12 11c0 3.517-1.009 6.799-2.753 9.571m-3.44-2.04l.054-.09A13.916 13.916 0 008 11a4 4 0 118 0c0 1.017-.07 2.019-.203 3m-2.118 6.844A21.88 21.88 0 0015.171 17m3.839 1.132c.645-2.266.99-4.659.99-7.132A8 8 0 008 4.07M3 15.364c.64-1.319 1-2.8 1-4.364 0-1.457.39-2.823 1.07-4"
-                    />
-                  </svg>
-                </div>
-                <h3 className="text-lg font-medium mb-3 text-center">Scan Fingerprint 1</h3>
-                <p className="text-gray-600 text-center mb-6 text-sm">
-                  Place your finger on the scanner to start registration.
-                </p>
-                
-                <Button 
-                  onClick={() => selectedEmployeeId && handleStartScanning('finger1-scan')}
-                  disabled={!selectedEmployeeId}
-                  className={`w-full transition-all duration-200 ${
-                    selectedEmployeeId
-                      ? 'bg-blue-600 hover:bg-blue-700'
-                      : 'bg-gray-300 text-gray-500 cursor-not-allowed'
-                  }`}
-                >
-                  Start Scanning
-                </Button>
-              </div>
+              <FingerprintCard
+                title="Scan Fingerprint 1"
+                description="Place your finger on the scanner to start registration."
+                isCompleted={fingerprintState.finger1ScanCompleted}
+                isEnabled={!!employeeState.selectedEmployeeId}
+                onAction={() => handleStartScanning('finger1-scan')}
+              />
               
-              {/* Rescan Fingerprint 1 */}
-              <div className={`bg-white rounded-lg border p-6 flex flex-col items-center transition-opacity ${
-                !selectedEmployeeId ? 'opacity-50' : ''
-              }`}>
-                <div className="w-16 h-16 bg-blue-100 rounded-xl flex items-center justify-center mb-4">
-                  <svg
-                    xmlns="http://www.w3.org/2000/svg"
-                    className="h-8 w-8 text-blue-600"
-                    fill="none"
-                    viewBox="0 0 24 24"
-                    stroke="currentColor"
-                  >
-                    <path
-                      strokeLinecap="round"
-                      strokeLinejoin="round"
-                      strokeWidth={2}
-                      d="M12 11c0 3.517-1.009 6.799-2.753 9.571m-3.44-2.04l.054-.09A13.916 13.916 0 008 11a4 4 0 118 0c0 1.017-.07 2.019-.203 3m-2.118 6.844A21.88 21.88 0 0015.171 17m3.839 1.132c.645-2.266.99-4.659.99-7.132A8 8 0 008 4.07M3 15.364c.64-1.319 1-2.8 1-4.364 0-1.457.39-2.823 1.07-4"
-                    />
-                  </svg>
-                </div>
-                <h3 className="text-lg font-medium mb-3 text-center">Rescan Fingerprint 1</h3>
-                <p className="text-gray-600 text-center mb-6 text-sm">
-                  Please scan your finger again to confirm your identity.
-                </p>
-                
-                <Button 
-                  onClick={() => finger1ScanCompleted && handleStartScanning('finger1-rescan')}
-                  disabled={!finger1ScanCompleted}
-                  className={`w-full transition-all duration-200 ${
-                    finger1RescanCompleted
-                      ? 'bg-green-500 hover:bg-green-600 cursor-default'
-                      : finger1ScanCompleted
-                      ? 'bg-blue-600 hover:bg-blue-700'
-                      : 'bg-gray-300 text-gray-500 cursor-not-allowed'
-                  }`}
-                >
-                  {finger1RescanCompleted ? 'Success Added' : 'Start Scanning'}
-                </Button>
-              </div>
+              <FingerprintCard
+                title="Rescan Fingerprint 1"
+                description="Please scan your finger again to confirm your identity."
+                isCompleted={fingerprintState.finger1RescanCompleted}
+                isEnabled={fingerprintState.finger1ScanCompleted}
+                onAction={() => handleStartScanning('finger1-rescan')}
+              />
             </div>
           </div>
         );
@@ -585,93 +662,25 @@ const FingerprintSetupDialog: FC<FingerprintSetupDialogProps> = ({
           <div className="p-6">
             <div className="text-center mb-6">
               <h3 className="text-lg font-semibold mb-2">Fingerprint 1 Setup</h3>
-              <p className="text-gray-600">Employee: <strong>{selectedEmployeeName}</strong></p>
+              <p className="text-gray-600">Employee: <strong>{employeeState.selectedEmployeeName}</strong></p>
             </div>
 
             <div className="grid grid-cols-2 gap-6">
-              {/* Scan Fingerprint 1 */}
-              <div className="bg-white rounded-lg border p-6 flex flex-col items-center">
-                <div className="w-16 h-16 bg-blue-100 rounded-xl flex items-center justify-center mb-4">
-                  {finger1ScanCompleted ? (
-                    <CheckCircle className="h-8 w-8 text-green-600" />
-                  ) : (
-                    <svg
-                      xmlns="http://www.w3.org/2000/svg"
-                      className="h-8 w-8 text-blue-600"
-                      fill="none"
-                      viewBox="0 0 24 24"
-                      stroke="currentColor"
-                    >
-                      <path
-                        strokeLinecap="round"
-                        strokeLinejoin="round"
-                        strokeWidth={2}
-                        d="M12 11c0 3.517-1.009 6.799-2.753 9.571m-3.44-2.04l.054-.09A13.916 13.916 0 008 11a4 4 0 118 0c0 1.017-.07 2.019-.203 3m-2.118 6.844A21.88 21.88 0 0015.171 17m3.839 1.132c.645-2.266.99-4.659.99-7.132A8 8 0 008 4.07M3 15.364c.64-1.319 1-2.8 1-4.364 0-1.457.39-2.823 1.07-4"
-                      />
-                    </svg>
-                  )}
-                </div>
-                <h3 className="text-lg font-medium mb-3 text-center">Scan Fingerprint 1</h3>
-                <p className="text-gray-600 text-center mb-6 text-sm">
-                  Place your finger on the scanner to start registration.
-                </p>
-                
-                <Button 
-                  onClick={() => handleStartScanning('finger1-scan')}
-                  disabled={finger1ScanCompleted || currentStep !== 'finger1-scan'}
-                  className={`w-full transition-all duration-200 ${
-                    finger1ScanCompleted
-                      ? 'bg-green-500 hover:bg-green-600 cursor-default'
-                      : currentStep === 'finger1-scan'
-                      ? 'bg-blue-600 hover:bg-blue-700'
-                      : 'bg-gray-300 text-gray-500 cursor-not-allowed'
-                  }`}
-                >
-                  {finger1ScanCompleted ? 'Success Added' : 'Start Scanning'}
-                </Button>
-              </div>
+              <FingerprintCard
+                title="Scan Fingerprint 1"
+                description="Place your finger on the scanner to start registration."
+                isCompleted={fingerprintState.finger1ScanCompleted}
+                isEnabled={currentStep === 'finger1-scan'}
+                onAction={() => handleStartScanning('finger1-scan')}
+              />
               
-              {/* Rescan Fingerprint 1 */}
-              <div className="bg-white rounded-lg border p-6 flex flex-col items-center">
-                <div className="w-16 h-16 bg-blue-100 rounded-xl flex items-center justify-center mb-4">
-                  {finger1RescanCompleted ? (
-                    <CheckCircle className="h-8 w-8 text-green-600" />
-                  ) : (
-                    <svg
-                      xmlns="http://www.w3.org/2000/svg"
-                      className="h-8 w-8 text-blue-600"
-                      fill="none"
-                      viewBox="0 0 24 24"
-                      stroke="currentColor"
-                    >
-                      <path
-                        strokeLinecap="round"
-                        strokeLinejoin="round"
-                        strokeWidth={2}
-                        d="M12 11c0 3.517-1.009 6.799-2.753 9.571m-3.44-2.04l.054-.09A13.916 13.916 0 008 11a4 4 0 118 0c0 1.017-.07 2.019-.203 3m-2.118 6.844A21.88 21.88 0 0015.171 17m3.839 1.132c.645-2.266.99-4.659.99-7.132A8 8 0 008 4.07M3 15.364c.64-1.319 1-2.8 1-4.364 0-1.457.39-2.823 1.07-4"
-                      />
-                    </svg>
-                  )}
-                </div>
-                <h3 className="text-lg font-medium mb-3 text-center">Rescan Fingerprint 1</h3>
-                <p className="text-gray-600 text-center mb-6 text-sm">
-                  Please scan your finger again to confirm your identity.
-                </p>
-                
-                <Button 
-                  onClick={() => handleStartScanning('finger1-rescan')}
-                  disabled={finger1RescanCompleted || currentStep !== 'finger1-rescan'}
-                  className={`w-full transition-all duration-200 ${
-                    finger1RescanCompleted
-                      ? 'bg-green-500 hover:bg-green-600 cursor-default'
-                      : currentStep === 'finger1-rescan'
-                      ? 'bg-blue-600 hover:bg-blue-700'
-                      : 'bg-gray-300 text-gray-500 cursor-not-allowed'
-                  }`}
-                >
-                  {finger1RescanCompleted ? 'Success Added' : 'Start Scanning'}
-                </Button>
-              </div>
+              <FingerprintCard
+                title="Rescan Fingerprint 1"
+                description="Please scan your finger again to confirm your identity."
+                isCompleted={fingerprintState.finger1RescanCompleted}
+                isEnabled={currentStep === 'finger1-rescan'}
+                onAction={() => handleStartScanning('finger1-rescan')}
+              />
             </div>
           </div>
         );
@@ -682,7 +691,7 @@ const FingerprintSetupDialog: FC<FingerprintSetupDialogProps> = ({
             <div className="text-center mb-6">
               <CheckCircle className="h-16 w-16 text-green-600 mx-auto mb-4" />
               <h3 className="text-lg font-semibold mb-2">Fingerprint 1 Complete!</h3>
-              <p className="text-gray-600">Ready to setup Fingerprint 2 for <strong>{selectedEmployeeName}</strong></p>
+              <p className="text-gray-600">Ready to setup Fingerprint 2 for <strong>{employeeState.selectedEmployeeName}</strong></p>
             </div>
 
             <div className="flex justify-center">
@@ -702,93 +711,25 @@ const FingerprintSetupDialog: FC<FingerprintSetupDialogProps> = ({
           <div className="p-6">
             <div className="text-center mb-6">
               <h3 className="text-lg font-semibold mb-2">Fingerprint 2 Setup</h3>
-              <p className="text-gray-600">Employee: <strong>{selectedEmployeeName}</strong></p>
+              <p className="text-gray-600">Employee: <strong>{employeeState.selectedEmployeeName}</strong></p>
             </div>
 
             <div className="grid grid-cols-2 gap-6">
-              {/* Scan Fingerprint 2 */}
-              <div className="bg-white rounded-lg border p-6 flex flex-col items-center">
-                <div className="w-16 h-16 bg-blue-100 rounded-xl flex items-center justify-center mb-4">
-                  {finger2ScanCompleted ? (
-                    <CheckCircle className="h-8 w-8 text-green-600" />
-                  ) : (
-                    <svg
-                      xmlns="http://www.w3.org/2000/svg"
-                      className="h-8 w-8 text-blue-600"
-                      fill="none"
-                      viewBox="0 0 24 24"
-                      stroke="currentColor"
-                    >
-                      <path
-                        strokeLinecap="round"
-                        strokeLinejoin="round"
-                        strokeWidth={2}
-                        d="M12 11c0 3.517-1.009 6.799-2.753 9.571m-3.44-2.04l.054-.09A13.916 13.916 0 008 11a4 4 0 118 0c0 1.017-.07 2.019-.203 3m-2.118 6.844A21.88 21.88 0 0015.171 17m3.839 1.132c.645-2.266.99-4.659.99-7.132A8 8 0 008 4.07M3 15.364c.64-1.319 1-2.8 1-4.364 0-1.457.39-2.823 1.07-4"
-                      />
-                    </svg>
-                  )}
-                </div>
-                <h3 className="text-lg font-medium mb-3 text-center">Scan Fingerprint 2</h3>
-                <p className="text-gray-600 text-center mb-6 text-sm">
-                  Place your second finger on the scanner.
-                </p>
-                
-                <Button 
-                  onClick={() => handleStartScanning('finger2-scan')}
-                  disabled={finger2ScanCompleted || currentStep !== 'finger2-scan'}
-                  className={`w-full transition-all duration-200 ${
-                    finger2ScanCompleted
-                      ? 'bg-green-500 hover:bg-green-600 cursor-default'
-                      : currentStep === 'finger2-scan'
-                      ? 'bg-blue-600 hover:bg-blue-700'
-                      : 'bg-gray-300 text-gray-500 cursor-not-allowed'
-                  }`}
-                >
-                  {finger2ScanCompleted ? 'Success Added' : 'Start Scanning'}
-                </Button>
-              </div>
+              <FingerprintCard
+                title="Scan Fingerprint 2"
+                description="Place your second finger on the scanner."
+                isCompleted={fingerprintState.finger2ScanCompleted}
+                isEnabled={currentStep === 'finger2-scan'}
+                onAction={() => handleStartScanning('finger2-scan')}
+              />
               
-              {/* Rescan Fingerprint 2 */}
-              <div className="bg-white rounded-lg border p-6 flex flex-col items-center">
-                <div className="w-16 h-16 bg-blue-100 rounded-xl flex items-center justify-center mb-4">
-                  {finger2RescanCompleted ? (
-                    <CheckCircle className="h-8 w-8 text-green-600" />
-                  ) : (
-                    <svg
-                      xmlns="http://www.w3.org/2000/svg"
-                      className="h-8 w-8 text-blue-600"
-                      fill="none"
-                      viewBox="0 0 24 24"
-                      stroke="currentColor"
-                    >
-                      <path
-                        strokeLinecap="round"
-                        strokeLinejoin="round"
-                        strokeWidth={2}
-                        d="M12 11c0 3.517-1.009 6.799-2.753 9.571m-3.44-2.04l.054-.09A13.916 13.916 0 008 11a4 4 0 118 0c0 1.017-.07 2.019-.203 3m-2.118 6.844A21.88 21.88 0 0015.171 17m3.839 1.132c.645-2.266.99-4.659.99-7.132A8 8 0 008 4.07M3 15.364c.64-1.319 1-2.8 1-4.364 0-1.457.39-2.823 1.07-4"
-                      />
-                    </svg>
-                  )}
-                </div>
-                <h3 className="text-lg font-medium mb-3 text-center">Rescan Fingerprint 2</h3>
-                <p className="text-gray-600 text-center mb-6 text-sm">
-                  Please scan your second finger again to confirm.
-                </p>
-                
-                <Button 
-                  onClick={() => handleStartScanning('finger2-rescan')}
-                  disabled={finger2RescanCompleted || currentStep !== 'finger2-rescan'}
-                  className={`w-full transition-all duration-200 ${
-                    finger2RescanCompleted
-                      ? 'bg-green-500 hover:bg-green-600 cursor-default'
-                      : currentStep === 'finger2-rescan'
-                      ? 'bg-blue-600 hover:bg-blue-700'
-                      : 'bg-gray-300 text-gray-500 cursor-not-allowed'
-                  }`}
-                >
-                  {finger2RescanCompleted ? 'Success Added' : 'Start Scanning'}
-                </Button>
-              </div>
+              <FingerprintCard
+                title="Rescan Fingerprint 2"
+                description="Please scan your second finger again to confirm."
+                isCompleted={fingerprintState.finger2RescanCompleted}
+                isEnabled={currentStep === 'finger2-rescan'}
+                onAction={() => handleStartScanning('finger2-rescan')}
+              />
             </div>
           </div>
         );
@@ -801,24 +742,20 @@ const FingerprintSetupDialog: FC<FingerprintSetupDialogProps> = ({
   return (
     <>
       <div className="fixed inset-0 flex items-center justify-center z-50">
-        {/* Overlay */}
-        <div className="absolute inset-0 bg-black/50" onClick={handleCloseDialog}></div>
+        <div className="absolute inset-0 bg-black/50" onClick={handleClose}></div>
 
-        {/* Dialog */}
         <div className="bg-white rounded-lg w-full max-w-2xl relative z-10">
           <div className="flex justify-between items-center p-6 border-b">
             <h2 className="text-xl font-semibold text-[#202325]">
               Fingerprint Setup
             </h2>
-            <button onClick={handleCloseDialog}>
+            <button onClick={handleClose}>
               <X className="h-5 w-5 text-gray-600" />
             </button>
           </div>
 
-          {/* Step Content */}
           {renderStepContent()}
 
-          {/* Action Buttons - Only show for employee selection step */}
           {currentStep === 'employee-selection' && (
             <div className="flex gap-4 justify-end p-6 border-t">
               <Button
@@ -833,12 +770,11 @@ const FingerprintSetupDialog: FC<FingerprintSetupDialogProps> = ({
         </div>
       </div>
 
-      {/* Scanning Dialog */}
       <FingerprintScanningDialog
-        isOpen={isScanningDialogOpen}
-        onClose={() => setIsScanningDialogOpen(false)}
+        isOpen={scanState.isDialogOpen}
+        onClose={closeScanDialog}
         onComplete={handleScanComplete}
-        scanningType={scanningType}
+        scanningType={scanState.scanningType}
       />
     </>
   );
