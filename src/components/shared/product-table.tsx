@@ -363,13 +363,6 @@ export default function EnhancedProductTable({
           ))}
         </div>
       </div>
-
-      {/* Scroll Indicator */}
-      <div className="mt-3 flex justify-center">
-        <div className="bg-gray-300 h-1 w-40 rounded-full">
-          <div className="bg-blue-500 h-1 w-12 rounded-full"></div>
-        </div>
-      </div>
     </div>
   );
 }
