@@ -1,4 +1,4 @@
-// components/shared/FingerprintScanningDialog.tsx - UPDATED FOR NEW FLOW
+// components/shared/FingerprintScanningDialog.tsx - UPDATED FOR 2-SECOND SCANNING
 "use client";
 
 import { FC, useState, useEffect } from "react";
@@ -10,6 +10,7 @@ interface FingerprintScanningDialogProps {
   onClose: () => void;
   onComplete: () => void;
   scanningType: 'finger1-scan' | 'finger1-rescan' | 'finger2-scan' | 'finger2-rescan' | '';
+  scanDuration?: number; // 🔥 NEW: Customizable scan duration
 }
 
 const FingerprintScanningDialog: FC<FingerprintScanningDialogProps> = ({
@@ -17,36 +18,53 @@ const FingerprintScanningDialog: FC<FingerprintScanningDialogProps> = ({
   onClose,
   onComplete,
   scanningType,
+  scanDuration = 2000, // 🔥 IMPROVEMENT: Default 2 seconds instead of 3
 }) => {
   const [isScanning, setIsScanning] = useState(false);
   const [scanCompleted, setScanCompleted] = useState(false);
+  const [progress, setProgress] = useState(0);
 
   useEffect(() => {
     if (isOpen) {
       setIsScanning(true);
       setScanCompleted(false);
+      setProgress(0);
       
-      // Simulate scanning process (3 seconds)
-      // TODO: Replace with actual fingerprint scanning API
+      // 🔥 IMPROVEMENT: Progress animation during scanning
+      const progressInterval = setInterval(() => {
+        setProgress(prev => {
+          const newProgress = prev + (100 / (scanDuration / 100));
+          return newProgress >= 100 ? 100 : newProgress;
+        });
+      }, 100);
+      
+      // 🔥 IMPROVEMENT: Use customizable scan duration
       const timer = setTimeout(() => {
         setIsScanning(false);
         setScanCompleted(true);
-      }, 3000);
+        setProgress(100);
+        clearInterval(progressInterval);
+      }, scanDuration);
 
-      return () => clearTimeout(timer);
+      return () => {
+        clearTimeout(timer);
+        clearInterval(progressInterval);
+      };
     }
-  }, [isOpen]);
+  }, [isOpen, scanDuration]);
 
   const handleComplete = () => {
     onComplete();
     setIsScanning(false);
     setScanCompleted(false);
+    setProgress(0);
   };
 
   const handleClose = () => {
     onClose();
     setIsScanning(false);
     setScanCompleted(false);
+    setProgress(0);
   };
 
   // Get display text based on scanning type
@@ -106,9 +124,23 @@ const FingerprintScanningDialog: FC<FingerprintScanningDialogProps> = ({
         </div>
 
         <div className="p-8 text-center">
-          {/* Fingerprint Icon */}
-          <div className="w-32 h-32 mx-auto mb-6 flex items-center justify-center">
-            <div className={`text-8xl transition-all duration-500 ${
+          {/* Fingerprint Icon with Enhanced Animation */}
+          <div className="w-32 h-32 mx-auto mb-6 flex items-center justify-center relative">
+            {/* Animated Ring */}
+            {isScanning && (
+              <div className="absolute inset-0 rounded-full border-4 border-blue-200">
+                <div 
+                  className="absolute inset-0 rounded-full border-4 border-blue-500 border-t-transparent animate-spin"
+                  style={{ 
+                    animationDuration: `${scanDuration / 1000}s`,
+                    animationTimingFunction: 'linear'
+                  }}
+                ></div>
+              </div>
+            )}
+            
+            {/* Fingerprint Icon */}
+            <div className={`text-8xl transition-all duration-500 z-10 ${
               scanCompleted 
                 ? 'text-green-500 scale-110' 
                 : isScanning 
@@ -132,11 +164,12 @@ const FingerprintScanningDialog: FC<FingerprintScanningDialogProps> = ({
             </div>
           </div>
 
-          <div className="mb-8">
+          {/* Status Text */}
+          <div className="mb-6">
             <h3 className="text-lg font-semibold text-gray-800 mb-2">
               {displayText.subtitle}
             </h3>
-            <p className="text-gray-600 mb-2">
+            <p className="text-gray-600 mb-3">
               {scanCompleted 
                 ? 'Scan completed successfully!' 
                 : isScanning 
@@ -147,12 +180,27 @@ const FingerprintScanningDialog: FC<FingerprintScanningDialogProps> = ({
             <p className="text-[#202325] font-medium">Touch Sensor</p>
           </div>
 
+          {/* 🔥 IMPROVEMENT: Progress Bar */}
+          {isScanning && (
+            <div className="mb-6">
+              <div className="w-full bg-gray-200 rounded-full h-2">
+                <div 
+                  className="bg-blue-600 h-2 rounded-full transition-all duration-100 ease-out"
+                  style={{ width: `${progress}%` }}
+                ></div>
+              </div>
+              <p className="text-xs text-gray-500 mt-2">
+                {Math.round(progress)}% Complete
+              </p>
+            </div>
+          )}
+
           {/* Action Button */}
           <div className="flex justify-center">
             {scanCompleted ? (
               <Button
                 onClick={handleComplete}
-                className="bg-blue-600 hover:bg-blue-700 px-8"
+                className="bg-blue-600 hover:bg-blue-700 px-8 py-3 text-base font-medium"
               >
                 Continue
               </Button>
@@ -160,7 +208,7 @@ const FingerprintScanningDialog: FC<FingerprintScanningDialogProps> = ({
               <Button
                 variant="outline"
                 onClick={handleClose}
-                className="px-8"
+                className="px-8 py-3 text-base font-medium"
               >
                 ← Back
               </Button>
