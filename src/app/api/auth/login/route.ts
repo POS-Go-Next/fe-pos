@@ -9,11 +9,9 @@ const API_BASE_URL = "https://api-pos.masivaguna.com/api";
 
 export async function POST(request: NextRequest) {
   try {
-    // Parse and validate request body
     const body = await request.json();
     const validatedData = loginSchema.parse(body);
 
-    // Call external API
     const response = await fetch(`${API_BASE_URL}/login`, {
       method: "POST",
       headers: {
@@ -24,9 +22,8 @@ export async function POST(request: NextRequest) {
     });
 
     const responseData = await response.json();
-    console.log("API Response:", responseData); // Debug log
+    console.log("API Response:", responseData);
 
-    // Handle API response based on actual structure
     if (!response.ok) {
       return NextResponse.json(
         {
@@ -38,7 +35,6 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    // Check if login was successful based on message
     if (responseData.message !== "Login successful" || !responseData.data) {
       return NextResponse.json(
         {
@@ -49,10 +45,9 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    // Create session using Lucia
     const apiUser = responseData.data.user;
     const userData: AppUser = {
-      id: apiUser.id.toString(), // Convert number to string for Lucia
+      id: apiUser.id.toString(),
       username: apiUser.username,
       name: apiUser.fullname,
       role: apiUser.role_id?.toString(),
@@ -61,19 +56,17 @@ export async function POST(request: NextRequest) {
     
     const session = await createSession(userData.id, userData);
 
-    // Store auth token in HTTP-only cookie for subsequent API calls
     const cookieStore = cookies();
     if (responseData.data.token) {
       cookieStore.set('auth-token', responseData.data.token, {
         httpOnly: true,
         secure: process.env.NODE_ENV === 'production',
         sameSite: 'lax',
-        maxAge: 60 * 60 * 24 * 7, // 7 days
+        maxAge: 60 * 60 * 24 * 7,
         path: '/'
       });
     }
 
-    // Return success response
     return NextResponse.json({
       success: true,
       message: "Login successful",
@@ -88,7 +81,6 @@ export async function POST(request: NextRequest) {
   } catch (error) {
     console.error("Login error:", error);
 
-    // Handle Zod validation errors
     if (error instanceof ZodError) {
       return NextResponse.json(
         {
@@ -100,7 +92,6 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    // Handle fetch errors
     if (error instanceof TypeError && error.message.includes("fetch")) {
       return NextResponse.json(
         {
@@ -111,7 +102,6 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    // Handle other errors
     return NextResponse.json(
       {
         success: false,

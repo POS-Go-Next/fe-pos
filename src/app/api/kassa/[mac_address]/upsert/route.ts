@@ -38,7 +38,6 @@ export async function POST(
   { params }: { params: { mac_address: string } }
 ) {
   try {
-    // Get authorization token from cookies or headers
     const cookieStore = cookies();
     const authToken = cookieStore.get('auth-token')?.value || request.headers.get('authorization');
     
@@ -52,7 +51,6 @@ export async function POST(
       );
     }
 
-    // Get MAC address from URL params
     const macAddress = params.mac_address;
     
     if (!macAddress) {
@@ -65,10 +63,8 @@ export async function POST(
       );
     }
 
-    // Parse request body
     const body: KassaUpsertData = await request.json();
     
-    // Validate required fields
     if (
       typeof body.antrian !== 'boolean' ||
       typeof body.status_aktif !== 'boolean' ||
@@ -92,7 +88,6 @@ export async function POST(
       timestamp: new Date().toISOString()
     });
 
-    // Call external API
     const response = await fetch(`${API_BASE_URL}/kassa/${macAddress}/upsert`, {
       method: "POST",
       headers: {
@@ -113,9 +108,7 @@ export async function POST(
     const responseData = await response.json();
     console.log("Kassa API Response:", responseData);
 
-    // Handle API response
     if (!response.ok) {
-      // Handle unauthorized specifically
       if (response.status === 401) {
         return NextResponse.json(
           {
@@ -136,7 +129,6 @@ export async function POST(
       );
     }
 
-    // Check if response has expected structure
     if (!responseData.message || !responseData.data) {
       return NextResponse.json(
         {
@@ -147,7 +139,6 @@ export async function POST(
       );
     }
 
-    // Return success response
     return NextResponse.json({
       success: true,
       message: responseData.message,
@@ -157,7 +148,6 @@ export async function POST(
   } catch (error) {
     console.error("Kassa upsert error:", error);
 
-    // Handle fetch errors
     if (error instanceof TypeError && error.message.includes("fetch")) {
       return NextResponse.json(
         {
@@ -168,7 +158,6 @@ export async function POST(
       );
     }
 
-    // Handle JSON parsing errors
     if (error instanceof SyntaxError) {
       return NextResponse.json(
         {
@@ -179,7 +168,6 @@ export async function POST(
       );
     }
 
-    // Handle other errors
     return NextResponse.json(
       {
         success: false,

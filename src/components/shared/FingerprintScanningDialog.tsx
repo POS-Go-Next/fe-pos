@@ -73,25 +73,25 @@ const FingerprintScanningDialog: FC<FingerprintScanningDialogProps> = ({
       case 'finger1-scan':
         return {
           title: 'Scanning Fingerprint 1',
-          subtitle: 'First scan for fingerprint 1',
+          subtitle: 'Registering fingerprint 1',
           instruction: 'Place your first finger on the scanner'
         };
       case 'finger1-rescan':
         return {
-          title: 'Rescanning Fingerprint 1',
-          subtitle: 'Confirmation scan for fingerprint 1',
+          title: 'Validating Fingerprint 1',
+          subtitle: 'Verifying fingerprint 1 match',
           instruction: 'Place your first finger on the scanner again'
         };
       case 'finger2-scan':
         return {
           title: 'Scanning Fingerprint 2',
-          subtitle: 'First scan for fingerprint 2',
+          subtitle: 'Registering fingerprint 2',
           instruction: 'Place your second finger on the scanner'
         };
       case 'finger2-rescan':
         return {
-          title: 'Rescanning Fingerprint 2',
-          subtitle: 'Confirmation scan for fingerprint 2',
+          title: 'Validating Fingerprint 2',
+          subtitle: 'Verifying fingerprint 2 match',
           instruction: 'Place your second finger on the scanner again'
         };
       default:

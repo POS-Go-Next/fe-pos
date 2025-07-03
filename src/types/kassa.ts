@@ -3,7 +3,7 @@ export interface KassaSetupData {
   antrian: boolean;
   status_aktif: boolean;
   finger: "Y" | "N";
-  default_jual: string; // '0' = Swalayan, '1' = Resep, '2' = Both
+  default_jual: string;
   ip_address: string;
   mac_address: string;
 }
@@ -40,18 +40,16 @@ export interface KassaExternalApiResponse {
   data: KassaResponse;
 }
 
-// Form state interface for component
 export interface KassaFormState {
   antrian: boolean;
   status_aktif: boolean;
   finger: "Y" | "N";
-  default_jual: "0" | "1" | "2"; // 0=Swalayan, 1=Resep, 2=Both
+  default_jual: "0" | "1" | "2";
   ip_address: string;
   mac_address: string;
   selected_printer?: string;
 }
 
-// Constants
 export const KASSA_DEFAULT_JUAL_OPTIONS = {
   "0": "Swalayan",
   "1": "Resep",

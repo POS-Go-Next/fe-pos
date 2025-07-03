@@ -1,5 +1,4 @@
-// components/dashboard/index.ts (Updated)
-export { default as Dashboard } from './Dashboard';
+// app/dashboard/_components/index.ts
 export { default as ActionCard } from './ActionCard';
 export { default as TimeDisplay } from './TimeDisplay';
 export { default as CloseCashierDialog } from './CloseCashierDialog';

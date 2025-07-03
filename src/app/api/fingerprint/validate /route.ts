@@ -1,4 +1,4 @@
-// app/api/fingerprint/setup/route.ts
+// app/api/fingerprint/validate/route.ts
 import { NextRequest, NextResponse } from "next/server";
 import { cookies } from "next/headers";
 
@@ -43,14 +43,14 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    console.log('Fingerprint setup request:', {
+    console.log('Fingerprint validation request:', {
       user_id,
       mac_address,
       number_of_fingerprint,
       timestamp: new Date().toISOString()
     });
 
-    const response = await fetch(`${API_BASE_URL}/fingerprint/setup`, {
+    const response = await fetch(`${API_BASE_URL}/fingerprint/validate`, {
       method: "POST",
       headers: {
         "Content-Type": "application/json",
@@ -65,7 +65,7 @@ export async function POST(request: NextRequest) {
     });
 
     const responseData = await response.json();
-    console.log("Fingerprint setup API Response:", responseData);
+    console.log("Fingerprint validation API Response:", responseData);
 
     if (!response.ok) {
       if (response.status === 401) {
@@ -81,7 +81,7 @@ export async function POST(request: NextRequest) {
       return NextResponse.json(
         {
           success: false,
-          message: responseData.message || "Failed to setup fingerprint",
+          message: responseData.message || "Failed to validate fingerprint",
           errors: responseData.errors,
         },
         { status: response.status }
@@ -90,12 +90,14 @@ export async function POST(request: NextRequest) {
 
     return NextResponse.json({
       success: true,
-      message: "Fingerprint setup completed successfully",
-      data: responseData,
+      message: responseData.message || "Fingerprint validation completed",
+      data: {
+        matched: responseData.data?.matched || false
+      },
     });
 
   } catch (error) {
-    console.error("Fingerprint setup API error:", error);
+    console.error("Fingerprint validation API error:", error);
 
     if (error instanceof SyntaxError) {
       return NextResponse.json(
@@ -111,7 +113,7 @@ export async function POST(request: NextRequest) {
       return NextResponse.json(
         {
           success: false,
-          message: "Unable to connect to fingerprint API server",
+          message: "Unable to connect to fingerprint validation API server",
         },
         { status: 503 }
       );
@@ -120,7 +122,7 @@ export async function POST(request: NextRequest) {
     return NextResponse.json(
       {
         success: false,
-        message: "An unexpected error occurred during fingerprint setup",
+        message: "An unexpected error occurred during fingerprint validation",
       },
       { status: 500 }
     );

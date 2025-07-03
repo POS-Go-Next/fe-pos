@@ -5,10 +5,10 @@ import { FC, useState, useEffect, useCallback } from "react";
 import { X, ChevronDown, Loader2, AlertCircle, CheckCircle, Edit } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import EmployeeLoginDialog from "../shared/EmployeeLoginDialog";
-import FingerprintScanningDialog from "../shared/FingerprintScanningDialog";
+import EmployeeLoginDialog from "../../../components/shared/EmployeeLoginDialog";
+import FingerprintScanningDialog from "../../../components/shared/FingerprintScanningDialog";
 import { useUser } from "@/hooks/useUser";
-import { UserData, FingerprintSetupData } from "@/types/user";
+import { UserData } from "@/types/user";
 import { showErrorAlert } from "@/lib/swal";
 import Swal from 'sweetalert2';
 
@@ -61,11 +61,6 @@ interface ScanState {
   scanningType: ScanningType;
 }
 
-interface SubmissionState {
-  isSubmitting: boolean;
-  submissionStep: string;
-}
-
 // ====================== HOOKS ======================
 const useAuthManager = () => {
   const [authState, setAuthState] = useState<AuthState>({
@@ -73,6 +68,37 @@ const useAuthManager = () => {
     isLoginDialogOpen: false,
     isCheckingAuth: true
   });
+
+  const showSessionExpiredDialog = useCallback(() => {
+    Swal.fire({
+      icon: 'warning',
+      title: 'Session Expired',
+      html: `
+        <div class="text-sm text-gray-600 mb-4">
+          Your session has expired. Please login again to continue.
+        </div>
+        <div class="text-xs text-gray-500">
+          Auto-closing in <strong id="timer">3</strong> seconds
+        </div>
+      `,
+      timer: 3000,
+      timerProgressBar: true,
+      confirmButtonText: 'Login Now',
+      confirmButtonColor: '#025CCA',
+      allowOutsideClick: false,
+      didOpen: () => {
+        const timer = Swal.getPopup()?.querySelector('#timer');
+        let remainingTime = 3;
+        const interval = setInterval(() => {
+          remainingTime--;
+          if (timer) timer.textContent = remainingTime.toString();
+          if (remainingTime <= 0) clearInterval(interval);
+        }, 1000);
+      }
+    }).then(() => {
+      setAuthState(prev => ({ ...prev, isLoginDialogOpen: true }));
+    });
+  }, []);
 
   const checkAuthentication = useCallback(async () => {
     console.log('🔍 Checking authentication status...');
@@ -110,40 +136,9 @@ const useAuthManager = () => {
       }));
       showSessionExpiredDialog();
     }
-  }, []);
+  }, [showSessionExpiredDialog]);
 
-  const showSessionExpiredDialog = useCallback(() => {
-    Swal.fire({
-      icon: 'warning',
-      title: 'Session Expired',
-      html: `
-        <div class="text-sm text-gray-600 mb-4">
-          Your session has expired. Please login again to continue.
-        </div>
-        <div class="text-xs text-gray-500">
-          Auto-closing in <strong id="timer">3</strong> seconds
-        </div>
-      `,
-      timer: 3000,
-      timerProgressBar: true,
-      confirmButtonText: 'Login Now',
-      confirmButtonColor: '#025CCA',
-      allowOutsideClick: false,
-      didOpen: () => {
-        const timer = Swal.getPopup()?.querySelector('#timer');
-        let remainingTime = 3;
-        const interval = setInterval(() => {
-          remainingTime--;
-          if (timer) timer.textContent = remainingTime.toString();
-          if (remainingTime <= 0) clearInterval(interval);
-        }, 1000);
-      }
-    }).then(() => {
-      setAuthState(prev => ({ ...prev, isLoginDialogOpen: true }));
-    });
-  }, []);
-
-  const handleLoginSuccess = useCallback((userData: any) => {
+  const handleLoginSuccess = useCallback((userData: UserData) => {
     console.log('✅ Login successful:', userData);
     setAuthState({
       hasValidToken: true,
@@ -504,22 +499,6 @@ const FingerprintCard: FC<FingerprintCardProps> = ({
   </div>
 );
 
-// 🔥 IMPROVEMENT 4: Submission Loading Component
-const SubmissionLoading: FC<{ step: string }> = ({ step }) => (
-  <div className="p-6">
-    <div className="text-center">
-      <div className="flex justify-center mb-4">
-        <Loader2 className="h-12 w-12 animate-spin text-blue-600" />
-      </div>
-      <h3 className="text-lg font-semibold mb-2">Processing Fingerprint Setup</h3>
-      <p className="text-gray-600 text-sm">{step}</p>
-      <div className="mt-4 w-full bg-gray-200 rounded-full h-2">
-        <div className="bg-blue-600 h-2 rounded-full animate-pulse" style={{ width: '60%' }}></div>
-      </div>
-    </div>
-  </div>
-);
-
 // ====================== MAIN COMPONENT ======================
 const FingerprintSetupDialog: FC<FingerprintSetupDialogProps> = ({
   isOpen,
@@ -531,12 +510,6 @@ const FingerprintSetupDialog: FC<FingerprintSetupDialogProps> = ({
   const { currentStep, setCurrentStep, fingerprintState, updateFingerprintState, resetFlow } = useFingerprintFlow();
   const { employeeState, employees, isLoading, error, selectEmployee, toggleDropdown, updateSearchTerm, resetEmployee, refetch } = useEmployeeSelection();
   const { scanState, startScanning, closeScanDialog } = useScanningManager();
-  
-  // 🔥 IMPROVEMENT 4: Submission State
-  const [submissionState, setSubmissionState] = useState<SubmissionState>({
-    isSubmitting: false,
-    submissionStep: ''
-  });
 
   // Effects
   useEffect(() => {
@@ -545,20 +518,84 @@ const FingerprintSetupDialog: FC<FingerprintSetupDialogProps> = ({
     }
   }, [isOpen, checkAuthentication]);
 
-  useEffect(() => {
-    if (authState.hasValidToken) {
-      const timeoutId = setTimeout(() => {
-        refetch();
-      }, 500);
-      
-      return () => clearTimeout(timeoutId);
-    }
-  }, [authState.hasValidToken]);
+  // Remove the automatic refetch effect - let useUser handle its own loading
 
   // Handlers
-  const handleStartScanning = (type: ScanningType) => {
+  const handleStartScanning = async (type: ScanningType) => {
+    if (!employeeState.selectedEmployeeId) return;
+    
     startScanning(type);
     setCurrentStep(type as FingerprintStep);
+    
+    // Determine fingerprint number based on scanning type
+    const fingerprintNumber = type.includes('finger1') ? 1 : 2;
+    
+    // Determine if this is a rescan validation or initial setup
+    const isRescan = type.includes('rescan');
+    const apiEndpoint = isRescan ? '/api/fingerprint/validate' : '/api/fingerprint/setup';
+    const httpMethod = isRescan ? 'POST' : 'POST';
+    
+    try {
+      console.log(`🚀 Starting ${isRescan ? 'validation' : 'setup'} API call for ${type}...`);
+      
+      const fingerprintData = {
+        user_id: employeeState.selectedEmployeeId,
+        mac_address: "84-1B-77-FD-31-35",
+        number_of_fingerprint: fingerprintNumber
+      };
+
+      const response = await fetch(apiEndpoint, {
+        method: httpMethod,
+        headers: { 'Content-Type': 'application/json' },
+        credentials: 'include',
+        body: JSON.stringify(fingerprintData),
+      });
+
+      if (!response.ok) {
+        if (response.status === 401) {
+          resetAuth();
+          closeScanDialog();
+          return;
+        }
+        const result = await response.json();
+        throw new Error(result.message || `Failed to ${isRescan ? 'validate' : 'save'} fingerprint ${fingerprintNumber}`);
+      }
+
+      const result = await response.json();
+      
+      // For rescan validation, check if fingerprint matches
+      if (isRescan) {
+        if (!result.data?.matched) {
+          closeScanDialog();
+          setTimeout(async () => {
+            await showErrorAlert(
+              'Validation Failed',
+              `Fingerprint ${fingerprintNumber} doesn't match the previously registered fingerprint. Please try again.`,
+              'OK'
+            );
+          }, 100);
+          return;
+        }
+        console.log(`✅ Fingerprint ${fingerprintNumber} validation successful - Match confirmed`);
+      } else {
+        console.log(`✅ Fingerprint ${fingerprintNumber} setup successful`);
+      }
+      
+      // The scanning dialog will complete after its timer, then call handleScanComplete
+      
+    } catch (error) {
+      console.error(`❌ Error calling API for ${type}:`, error);
+      closeScanDialog();
+      
+      // Show error dialog
+      setTimeout(async () => {
+        await showErrorAlert(
+          isRescan ? 'Validation Failed' : 'Scan Failed',
+          error instanceof Error ? error.message : `Failed to ${isRescan ? 'validate' : 'save'} fingerprint ${fingerprintNumber}. Please try again.`,
+          'OK'
+        );
+      }, 100);
+    }
   };
 
   // 🔥 IMPROVEMENT 3: Edit Handler
@@ -579,7 +616,7 @@ const FingerprintSetupDialog: FC<FingerprintSetupDialogProps> = ({
     }
   };
 
-  // 🔥 IMPROVEMENT 2: Faster Scan Complete (2 seconds)
+  // 🔥 IMPROVEMENT 2: Faster Scan Complete (2 seconds) - Now only updates state
   const handleScanComplete = () => {
     switch (scanState.scanningType) {
       case 'finger1-scan':
@@ -597,7 +634,8 @@ const FingerprintSetupDialog: FC<FingerprintSetupDialogProps> = ({
       case 'finger2-rescan':
         updateFingerprintState({ finger2RescanCompleted: true });
         setCurrentStep('complete');
-        handleFinalSubmit();
+        // Show success after both fingerprints are completed
+        showSuccessDialog();
         break;
     }
     closeScanDialog();
@@ -607,98 +645,7 @@ const FingerprintSetupDialog: FC<FingerprintSetupDialogProps> = ({
     setCurrentStep('finger2-scan');
   };
 
-  const handleFinalSubmit = async () => {
-    if (!employeeState.selectedEmployeeId) return;
-
-    // 🔥 IMPROVEMENT 4: Show Loading State
-    setSubmissionState({
-      isSubmitting: true,
-      submissionStep: 'Preparing fingerprint data...'
-    });
-
-    try {
-      console.log('🚀 Starting final submission...');
-
-      const fingerprintData = (fingerprintNumber: 1 | 2): FingerprintSetupData => ({
-        user_id: employeeState.selectedEmployeeId!,
-        mac_address: "84-1B-77-FD-31-35",
-        number_of_fingerprint: fingerprintNumber
-      });
-
-      setSubmissionState(prev => ({ 
-        ...prev, 
-        submissionStep: 'Sending fingerprint 1...' 
-      }));
-
-      // Submit first fingerprint
-      const response1 = await fetch('/api/fingerprint/setup', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        credentials: 'include',
-        body: JSON.stringify(fingerprintData(1)),
-      });
-
-      if (!response1.ok) {
-        if (response1.status === 401) {
-          resetAuth();
-          return;
-        }
-        const result = await response1.json();
-        throw new Error(result.message || 'Failed to save fingerprint 1');
-      }
-
-      setSubmissionState(prev => ({ 
-        ...prev, 
-        submissionStep: 'Sending fingerprint 2...' 
-      }));
-
-      // Submit second fingerprint
-      const response2 = await fetch('/api/fingerprint/setup', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        credentials: 'include',
-        body: JSON.stringify(fingerprintData(2)),
-      });
-
-      if (!response2.ok) {
-        if (response2.status === 401) {
-          resetAuth();
-          return;
-        }
-        const result = await response2.json();
-        throw new Error(result.message || 'Failed to save fingerprint 2');
-      }
-
-      setSubmissionState(prev => ({ 
-        ...prev, 
-        submissionStep: 'Finalizing setup...' 
-      }));
-
-      console.log('✅ Both fingerprints setup successful');
-      await showSuccessDialog();
-      
-    } catch (error) {
-      console.error('❌ Error saving fingerprints:', error);
-      setSubmissionState({ isSubmitting: false, submissionStep: '' });
-      
-      // 🔥 FIX: Close the main dialog BEFORE showing error popup
-      handleReset();
-      onClose();
-      
-      // Small delay to ensure dialog is closed before showing error
-      setTimeout(async () => {
-        await showErrorAlert(
-          'Setup Failed',
-          error instanceof Error ? error.message : 'Failed to save fingerprint data. Please try again.',
-          'OK'
-        );
-      }, 100);
-    }
-  };
-
   const showSuccessDialog = async () => {
-    setSubmissionState({ isSubmitting: false, submissionStep: '' });
-    
     return Swal.fire({
       icon: 'success',
       title: 'Fingerprint Success Added!',
@@ -733,12 +680,9 @@ const FingerprintSetupDialog: FC<FingerprintSetupDialogProps> = ({
   const handleReset = () => {
     resetFlow();
     resetEmployee();
-    setSubmissionState({ isSubmitting: false, submissionStep: '' });
   };
 
   const handleClose = () => {
-    if (submissionState.isSubmitting) return; // Prevent closing while submitting
-    
     handleReset();
     resetAuth();
     onClose();
@@ -758,25 +702,6 @@ const FingerprintSetupDialog: FC<FingerprintSetupDialogProps> = ({
         onClose={handleLoginClose}
         onLogin={handleLoginSuccess}
       />
-    );
-  }
-
-  // 🔥 IMPROVEMENT 4: Show Loading During Submission
-  if (submissionState.isSubmitting) {
-    return (
-      <div className="fixed inset-0 flex items-center justify-center z-50">
-        <div className="absolute inset-0 bg-black/50"></div>
-        <div className="bg-white rounded-lg w-full max-w-md relative z-10">
-          <div className="flex justify-between items-center p-6 border-b">
-            <h2 className="text-xl font-semibold text-[#202325]">
-              Fingerprint Setup
-            </h2>
-            {/* Disable close button during submission */}
-            <div className="w-5 h-5"></div>
-          </div>
-          <SubmissionLoading step={submissionState.submissionStep} />
-        </div>
-      </div>
     );
   }
 
@@ -807,6 +732,7 @@ const FingerprintSetupDialog: FC<FingerprintSetupDialogProps> = ({
                 isEnabled={!!employeeState.selectedEmployeeId}
                 onAction={() => handleStartScanning('finger1-scan')}
                 onEdit={() => handleEditFingerprint('finger1-scan')}
+                actionText="Start Scanning"
               />
               
               <FingerprintCard
@@ -816,6 +742,7 @@ const FingerprintSetupDialog: FC<FingerprintSetupDialogProps> = ({
                 isEnabled={fingerprintState.finger1ScanCompleted}
                 onAction={() => handleStartScanning('finger1-rescan')}
                 onEdit={() => handleEditFingerprint('finger1-rescan')}
+                actionText="Validate Fingerprint"
               />
             </div>
           </div>
@@ -838,6 +765,7 @@ const FingerprintSetupDialog: FC<FingerprintSetupDialogProps> = ({
                 isEnabled={currentStep === 'finger1-scan'}
                 onAction={() => handleStartScanning('finger1-scan')}
                 onEdit={() => handleEditFingerprint('finger1-scan')}
+                actionText="Start Scanning"
               />
               
               <FingerprintCard
@@ -847,6 +775,7 @@ const FingerprintSetupDialog: FC<FingerprintSetupDialogProps> = ({
                 isEnabled={currentStep === 'finger1-rescan'}
                 onAction={() => handleStartScanning('finger1-rescan')}
                 onEdit={() => handleEditFingerprint('finger1-rescan')}
+                actionText="Validate Fingerprint"
               />
             </div>
           </div>
@@ -889,6 +818,7 @@ const FingerprintSetupDialog: FC<FingerprintSetupDialogProps> = ({
                 isEnabled={currentStep === 'finger2-scan'}
                 onAction={() => handleStartScanning('finger2-scan')}
                 onEdit={() => handleEditFingerprint('finger2-scan')}
+                actionText="Start Scanning"
               />
               
               <FingerprintCard
@@ -898,6 +828,7 @@ const FingerprintSetupDialog: FC<FingerprintSetupDialogProps> = ({
                 isEnabled={currentStep === 'finger2-rescan'}
                 onAction={() => handleStartScanning('finger2-rescan')}
                 onEdit={() => handleEditFingerprint('finger2-rescan')}
+                actionText="Validate Fingerprint"
               />
             </div>
           </div>
@@ -918,7 +849,7 @@ const FingerprintSetupDialog: FC<FingerprintSetupDialogProps> = ({
             <h2 className="text-xl font-semibold text-[#202325]">
               Fingerprint Setup
             </h2>
-            <button onClick={handleClose} disabled={submissionState.isSubmitting}>
+            <button onClick={handleClose}>
               <X className="h-5 w-5 text-gray-600" />
             </button>
           </div>
@@ -931,7 +862,6 @@ const FingerprintSetupDialog: FC<FingerprintSetupDialogProps> = ({
                 variant="outline"
                 onClick={handleReset}
                 className="px-8 border-blue-600 text-blue-600 hover:bg-blue-50"
-                disabled={submissionState.isSubmitting}
               >
                 Reset
               </Button>

@@ -36,7 +36,6 @@ export interface UserData {
     search?: string;
   }
   
-  // Fingerprint related interfaces
   export interface FingerprintSetupData {
     user_id: number;
     mac_address: string;

@@ -6,7 +6,6 @@ const API_BASE_URL = "https://api-pos.masivaguna.com/api";
 
 export async function POST(request: NextRequest) {
   try {
-    // Get authorization token from cookies or headers
     const cookieStore = cookies();
     const authToken = cookieStore.get('auth-token')?.value || request.headers.get('authorization');
     
@@ -20,13 +19,10 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    // Get request body
     const body = await request.json();
     
-    // Log the data being sent for debugging
     console.log('Parameter upsert request body:', body);
 
-    // Call external API with authorization - CHANGED TO POST
     const response = await fetch(`${API_BASE_URL}/parameter/upsert`, {
       method: "POST",
       headers: {
@@ -37,13 +33,10 @@ export async function POST(request: NextRequest) {
       body: JSON.stringify(body),
     });
 
-    // Parse response
     const responseData = await response.json();
     console.log("Parameter upsert API Response:", response.status, responseData);
 
-    // Handle API response
     if (!response.ok) {
-      // Handle unauthorized specifically
       if (response.status === 401) {
         return NextResponse.json(
           {
@@ -54,7 +47,6 @@ export async function POST(request: NextRequest) {
         );
       }
 
-      // Handle 404 - endpoint not found
       if (response.status === 404) {
         return NextResponse.json(
           {
@@ -65,7 +57,6 @@ export async function POST(request: NextRequest) {
         );
       }
 
-      // Handle validation errors
       if (response.status === 422 || response.status === 400) {
         return NextResponse.json(
           {
@@ -87,7 +78,6 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    // Return success response - matching the expected structure
     return NextResponse.json({
       success: true,
       message: responseData.message || "Parameter updated successfully",
@@ -97,7 +87,6 @@ export async function POST(request: NextRequest) {
   } catch (error) {
     console.error("Parameter upsert API error:", error);
 
-    // Handle JSON parsing errors
     if (error instanceof SyntaxError) {
       return NextResponse.json(
         {
@@ -108,7 +97,6 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    // Handle fetch errors
     if (error instanceof TypeError && error.message.includes("fetch")) {
       return NextResponse.json(
         {
@@ -119,7 +107,6 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    // Handle other errors
     return NextResponse.json(
       {
         success: false,

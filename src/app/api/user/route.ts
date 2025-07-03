@@ -6,7 +6,6 @@ const API_BASE_URL = "https://api-pos.masivaguna.com/api";
 
 export async function GET(request: NextRequest) {
   try {
-    // Get authorization token from cookies or headers
     const cookieStore = cookies();
     const authToken = cookieStore.get('auth-token')?.value || request.headers.get('authorization');
     
@@ -20,24 +19,20 @@ export async function GET(request: NextRequest) {
       );
     }
 
-    // Get query parameters from the request URL
     const { searchParams } = new URL(request.url);
     const offset = searchParams.get("offset") || "0";
     const limit = searchParams.get("limit") || "50";
     const search = searchParams.get("search") || "";
 
-    // Build query string for external API
     const queryParams = new URLSearchParams({
       offset,
       limit,
     });
 
-    // Add search parameter if provided
     if (search) {
       queryParams.append("search", search);
     }
 
-    // Call external API with authorization
     const response = await fetch(`${API_BASE_URL}/user?${queryParams.toString()}`, {
       method: "GET",
       headers: {
@@ -45,16 +40,13 @@ export async function GET(request: NextRequest) {
         "Accept": "application/json",
         "Authorization": authToken.startsWith('Bearer ') ? authToken : `Bearer ${authToken}`,
       },
-      // Add cache settings for better performance
-      next: { revalidate: 300 } // Cache for 5 minutes
+      next: { revalidate: 300 }
     });
 
     const responseData = await response.json();
-    console.log("User API Response:", responseData); // Debug log
+    console.log("User API Response:", responseData);
 
-    // Handle API response based on actual structure
     if (!response.ok) {
-      // Handle unauthorized specifically
       if (response.status === 401) {
         return NextResponse.json(
           {
@@ -75,7 +67,6 @@ export async function GET(request: NextRequest) {
       );
     }
 
-    // Check if response was successful based on the API structure
     if (responseData.message !== "Get paginated user successful" || !responseData.data) {
       return NextResponse.json(
         {
@@ -86,7 +77,6 @@ export async function GET(request: NextRequest) {
       );
     }
 
-    // Return success response with data
     return NextResponse.json({
       success: true,
       message: "User data retrieved successfully",
@@ -96,7 +86,6 @@ export async function GET(request: NextRequest) {
   } catch (error) {
     console.error("User API error:", error);
 
-    // Handle fetch errors
     if (error instanceof TypeError && error.message.includes("fetch")) {
       return NextResponse.json(
         {
@@ -107,7 +96,6 @@ export async function GET(request: NextRequest) {
       );
     }
 
-    // Handle other errors
     return NextResponse.json(
       {
         success: false,

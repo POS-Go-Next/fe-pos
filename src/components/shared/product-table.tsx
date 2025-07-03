@@ -183,6 +183,18 @@ export default function EnhancedProductTable({
     }
   };
 
+  // NEW: Separate search row from product rows
+  const searchProduct = products.find(p => !p.name); // First empty product for search
+  const filledProducts = products.filter(p => p.name); // Products with data
+  const emptyProducts = products.filter(p => !p.name && p !== searchProduct); // Other empty products
+
+  // Reorder: search first, then filled products, then empty products
+  const reorderedProducts = [
+    ...(searchProduct ? [searchProduct] : []),
+    ...filledProducts,
+    ...emptyProducts.slice(0, 5) // Limit empty rows
+  ];
+
   return (
     <>
       <div className={`${className} bg-white rounded-2xl overflow-hidden`}>
@@ -212,166 +224,147 @@ export default function EnhancedProductTable({
               
               {/* Body */}
               <tbody>
-                {products.map((product, index) => (
-                  <tr 
-                    key={product.id}
-                    className={`border-b border-gray-100 hover:bg-blue-50 ${
-                      index % 2 === 1 ? "bg-gray-50/30" : ""
-                    }`}
-                  >
-                    {/* Product Name */}
-                    <td className="p-3">
-                      <div className="flex items-center gap-3">
-                        {product.name ? (
-                          <>
-                            <ProductIcon 
-                              productName={product.name}
-                              onBranchStockClick={() => handleBranchStockClick(product)}
-                              onMedicationDetailsClick={() => handleMedicationDetailsClick(product)}
-                            />
-                            <div className="flex items-center gap-2">
-                              <span
-                                className="cursor-pointer hover:text-blue-600 text-sm font-medium truncate max-w-[140px]"
+                {reorderedProducts.map((product, index) => {
+                  const isSearchRow = !product.name && index === 0;
+                  const hasProductData = !!product.name;
+                  
+                  return (
+                    <tr 
+                      key={product.id}
+                      className={`border-b border-gray-100 hover:bg-blue-50 ${
+                        index % 2 === 1 ? "bg-gray-50/30" : ""
+                      }`}
+                    >
+                      {/* Product Name */}
+                      <td className="p-3">
+                        <div className="flex items-center gap-3">
+                          {hasProductData ? (
+                            // Product with data - show icons + name
+                            <>
+                              <ProductIcon 
+                                productName={product.name}
+                                onBranchStockClick={() => handleBranchStockClick(product)}
+                                onMedicationDetailsClick={() => handleMedicationDetailsClick(product)}
+                              />
+                              <div className="flex items-center gap-2">
+                                <span
+                                  className="cursor-pointer hover:text-blue-600 text-sm font-medium truncate max-w-[140px]"
+                                  onClick={() => handleProductNameClick(product.id)}
+                                  title={product.name}
+                                >
+                                  {product.name}
+                                </span>
+                              </div>
+                            </>
+                          ) : (
+                            // Empty product - no icons, just search input
+                            <div className="flex items-center gap-3 w-full">
+                              <Input
+                                placeholder="Cari nama produk disini"
+                                className="border-gray-200 text-sm h-9 flex-1"
                                 onClick={() => handleProductNameClick(product.id)}
-                                title={product.name}
-                              >
-                                {product.name}
-                              </span>
+                                readOnly
+                              />
                             </div>
-                          </>
+                          )}
+                        </div>
+                      </td>
+
+                      {/* Type */}
+                      <td className="p-3">
+                        {hasProductData ? (
+                          <ProductTypeSelector
+                            type={product.type || 'R/'}
+                            onChange={(newType) => handleTypeChange(product.id, newType)}
+                          />
                         ) : (
-                          <div className="flex items-center gap-3 w-full">
-                            <button 
-                              className="w-8 h-8 bg-gray-100 rounded flex items-center justify-center cursor-not-allowed"
-                              disabled
-                              title="Select a product first"
-                            >
-                              <Package className="w-5 h-5 text-gray-400" />
-                            </button>
-                            <button 
-                              className="w-8 h-8 bg-gray-100 rounded flex items-center justify-center cursor-not-allowed"
-                              disabled
-                              title="Select a product first"
-                            >
-                              <svg 
-                                className="w-5 h-5 text-gray-400" 
-                                fill="none" 
-                                stroke="currentColor" 
-                                viewBox="0 0 24 24"
-                              >
-                                <path 
-                                  strokeLinecap="round" 
-                                  strokeLinejoin="round" 
-                                  strokeWidth={2} 
-                                  d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" 
-                                />
-                              </svg>
-                            </button>
-                            <Input
-                              placeholder="Cari nama produk disini"
-                              className="border-gray-200 text-sm h-9 flex-1"
-                              onClick={() => handleProductNameClick(product.id)}
-                              readOnly
-                            />
+                          <div className="w-[50px] h-9 bg-white border border-gray-300 rounded flex items-center justify-center">
+                            <span className="text-xs text-gray-400">-</span>
                           </div>
                         )}
-                      </div>
-                    </td>
+                      </td>
 
-                    {/* Type */}
-                    <td className="p-3">
-                      {product.name ? (
-                        <ProductTypeSelector
-                          type={product.type || 'R/'}
-                          onChange={(newType) => handleTypeChange(product.id, newType)}
-                        />
-                      ) : (
-                        <div className="w-[50px] h-9 bg-white border border-gray-300 rounded flex items-center justify-center">
-                          <span className="text-xs text-gray-400">-</span>
+                      {/* Price */}
+                      <td className="p-3 text-sm">
+                        <div className="whitespace-nowrap">
+                          {formatCurrency(product.price)}
                         </div>
-                      )}
-                    </td>
+                      </td>
 
-                    {/* Price */}
-                    <td className="p-3 text-sm">
-                      <div className="whitespace-nowrap">
-                        {formatCurrency(product.price)}
-                      </div>
-                    </td>
+                      {/* Quantity */}
+                      <td className="p-3">
+                        <div className="flex justify-center">
+                          <Input
+                            type="number"
+                            value={product.quantity || ""}
+                            onChange={(e) =>
+                              onQuantityChange(product.id, parseInt(e.target.value) || 0)
+                            }
+                            className="w-12 text-sm border-gray-200 h-9 text-center"
+                            min="0"
+                          />
+                        </div>
+                      </td>
 
-                    {/* Quantity */}
-                    <td className="p-3">
-                      <div className="flex justify-center">
-                        <Input
-                          type="number"
-                          value={product.quantity || ""}
-                          onChange={(e) =>
-                            onQuantityChange(product.id, parseInt(e.target.value) || 0)
-                          }
-                          className="w-12 text-sm border-gray-200 h-9 text-center"
-                          min="0"
-                        />
-                      </div>
-                    </td>
+                      {/* Sub Total */}
+                      <td className="p-3 text-sm font-semibold">
+                        <div className="whitespace-nowrap">
+                          {formatCurrency(product.subtotal)}
+                        </div>
+                      </td>
 
-                    {/* Sub Total */}
-                    <td className="p-3 text-sm font-semibold">
-                      <div className="whitespace-nowrap">
-                        {formatCurrency(product.subtotal)}
-                      </div>
-                    </td>
+                      {/* Discount % */}
+                      <td className="p-3">
+                        <div className="flex justify-center">
+                          <Input
+                            type="number"
+                            value={product.discount || ""}
+                            className="w-12 text-sm border-gray-200 h-9 text-center"
+                            min="0"
+                            max="100"
+                          />
+                        </div>
+                      </td>
 
-                    {/* Discount % */}
-                    <td className="p-3">
-                      <div className="flex justify-center">
-                        <Input
-                          type="number"
-                          value={product.discount || ""}
-                          className="w-12 text-sm border-gray-200 h-9 text-center"
-                          min="0"
-                          max="100"
-                        />
-                      </div>
-                    </td>
+                      {/* SC */}
+                      <td className="p-3 text-sm">
+                        <div className="whitespace-nowrap">
+                          {formatCurrency(product.sc)}
+                        </div>
+                      </td>
 
-                    {/* SC */}
-                    <td className="p-3 text-sm">
-                      <div className="whitespace-nowrap">
-                        {formatCurrency(product.sc)}
-                      </div>
-                    </td>
+                      {/* Misc */}
+                      <td className="p-3 text-sm">
+                        <div className="whitespace-nowrap">
+                          {formatCurrency(product.misc)}
+                        </div>
+                      </td>
 
-                    {/* Misc */}
-                    <td className="p-3 text-sm">
-                      <div className="whitespace-nowrap">
-                        {formatCurrency(product.misc)}
-                      </div>
-                    </td>
+                      {/* Promo */}
+                      <td className="p-3 text-sm">
+                        <div className="whitespace-nowrap">
+                          {formatCurrency(product.promo || 0)}
+                        </div>
+                      </td>
 
-                    {/* Promo */}
-                    <td className="p-3 text-sm">
-                      <div className="whitespace-nowrap">
-                        {formatCurrency(product.promo || 0)}
-                      </div>
-                    </td>
+                      {/* Promo % */}
+                      <td className="p-3 text-sm text-center">{product.promoPercent || 0}%</td>
 
-                    {/* Promo % */}
-                    <td className="p-3 text-sm text-center">{product.promoPercent || 0}%</td>
+                      {/* Up */}
+                      <td className="p-3 text-sm text-center">{product.up || 'N'}</td>
 
-                    {/* Up */}
-                    <td className="p-3 text-sm text-center">{product.up || 'N'}</td>
+                      {/* No Voucher */}
+                      <td className="p-3 text-sm text-center">{product.noVoucher || 0}</td>
 
-                    {/* No Voucher */}
-                    <td className="p-3 text-sm text-center">{product.noVoucher || 0}</td>
-
-                    {/* Total */}
-                    <td className="p-3 text-sm font-bold pr-[140px]">
-                      <div className="whitespace-nowrap">
-                        {formatCurrency(product.total || product.subtotal)}
-                      </div>
-                    </td>
-                  </tr>
-                ))}
+                      {/* Total */}
+                      <td className="p-3 text-sm font-bold pr-[140px]">
+                        <div className="whitespace-nowrap">
+                          {formatCurrency(product.total || product.subtotal)}
+                        </div>
+                      </td>
+                    </tr>
+                  );
+                })}
               </tbody>
             </table>
           </div>
@@ -384,31 +377,40 @@ export default function EnhancedProductTable({
             </div>
             
             {/* Action Buttons */}
-            {products.map((product, index) => (
-              <div
-                key={`action-${product.id}`}
-                className={`p-4 border-b border-gray-100 flex items-center justify-center gap-2 ${
-                  index % 2 === 1 ? "bg-gray-50/30" : ""
-                }`}
-              >
-                <Button
-                  variant="destructive"
-                  size="sm"
-                  className="h-7 w-7 p-0 rounded-full bg-red-500 hover:bg-red-600"
-                  onClick={() => onRemoveProduct(product.id)}
+            {reorderedProducts.map((product, index) => {
+              const hasProductData = !!product.name;
+              
+              return (
+                <div
+                  key={`action-${product.id}`}
+                  className={`p-4 border-b border-gray-100 flex items-center justify-center gap-2 ${
+                    index % 2 === 1 ? "bg-gray-50/30" : ""
+                  }`}
                 >
-                  <Trash size={14} />
-                </Button>
-                <Button
-                  variant="default"
-                  size="sm"
-                  className="h-7 w-7 p-0 rounded-full bg-blue-500 hover:bg-blue-600"
-                  onClick={() => onAddProduct && onAddProduct(product)}
-                >
-                  <Plus size={14} />
-                </Button>
-              </div>
-            ))}
+                  {hasProductData ? (
+                    // Product with data - show only DELETE button
+                    <Button
+                      variant="destructive"
+                      size="sm"
+                      className="h-7 w-7 p-0 rounded-full bg-red-500 hover:bg-red-600"
+                      onClick={() => onRemoveProduct(product.id)}
+                    >
+                      <Trash size={14} />
+                    </Button>
+                  ) : (
+                    // Empty product - show only ADD button
+                    <Button
+                      variant="default"
+                      size="sm"
+                      className="h-7 w-7 p-0 rounded-full bg-blue-500 hover:bg-blue-600"
+                      onClick={() => onAddProduct && onAddProduct(product)}
+                    >
+                      <Plus size={14} />
+                    </Button>
+                  )}
+                </div>
+              );
+            })}
           </div>
         </div>
       </div>

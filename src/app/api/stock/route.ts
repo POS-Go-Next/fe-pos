@@ -1,4 +1,4 @@
-// app/api/area/route.ts
+// app/api/stock/route.ts
 import { NextRequest, NextResponse } from "next/server";
 import { cookies } from "next/headers";
 
@@ -6,6 +6,7 @@ const API_BASE_URL = "https://api-pos.masivaguna.com/api";
 
 export async function GET(request: NextRequest) {
   try {
+    // Get authorization token from cookies or headers
     const cookieStore = cookies();
     const authToken = cookieStore.get('auth-token')?.value || request.headers.get('authorization');
     
@@ -19,34 +20,41 @@ export async function GET(request: NextRequest) {
       );
     }
 
+    // Get query parameters from the request URL
     const { searchParams } = new URL(request.url);
     const offset = searchParams.get("offset") || "0";
-    const limit = searchParams.get("limit") || "50";
+    const limit = searchParams.get("limit") || "10";
     const search = searchParams.get("search") || "";
 
+    // Build query string for external API
     const queryParams = new URLSearchParams({
       offset,
       limit,
     });
 
+    // Add search parameter if provided
     if (search) {
       queryParams.append("search", search);
     }
 
-    const response = await fetch(`${API_BASE_URL}/area?${queryParams.toString()}`, {
+    // Call external API with authorization
+    const response = await fetch(`${API_BASE_URL}/stock?${queryParams.toString()}`, {
       method: "GET",
       headers: {
         "Content-Type": "application/json",
         "Accept": "application/json",
         "Authorization": authToken.startsWith('Bearer ') ? authToken : `Bearer ${authToken}`,
       },
-      next: { revalidate: 300 }
+      // Add cache settings for better performance
+      next: { revalidate: 60 } // Cache for 1 minute (stock data changes frequently)
     });
 
     const responseData = await response.json();
-    console.log("Area API Response:", responseData);
+    console.log("Stock API Response:", responseData); // Debug log
 
+    // Handle API response based on actual structure
     if (!response.ok) {
+      // Handle unauthorized specifically
       if (response.status === 401) {
         return NextResponse.json(
           {
@@ -60,46 +68,50 @@ export async function GET(request: NextRequest) {
       return NextResponse.json(
         {
           success: false,
-          message: responseData.message || "Failed to fetch area data",
+          message: responseData.message || "Failed to fetch stock data",
           errors: responseData.errors,
         },
         { status: response.status }
       );
     }
 
-    if (responseData.message !== "Get paginated area successful" || !responseData.data) {
+    // Check if response was successful
+    if (responseData.message !== "Get paginated stock successful" || !responseData.data) {
       return NextResponse.json(
         {
           success: false,
-          message: responseData.message || "Invalid response from area API",
+          message: responseData.message || "Invalid response from stock API",
         },
         { status: 400 }
       );
     }
 
+    // Return success response with data
     return NextResponse.json({
       success: true,
-      message: "Area data retrieved successfully",
+      message: "Stock data retrieved successfully",
       data: responseData.data,
     });
 
   } catch (error) {
-    console.error("Area API error:", error);
+    console.error("Stock API error:", error);
 
+    // Handle fetch errors
     if (error instanceof TypeError && error.message.includes("fetch")) {
       return NextResponse.json(
         {
           success: false,
-          message: "Unable to connect to area API server",
+          message: "Unable to connect to stock API server",
         },
         { status: 503 }
       );
     }
 
+    // Handle other errors
     return NextResponse.json(
       {
         success: false,
-        message: "An unexpected error occurred while fetching area data",
+        message: "An unexpected error occurred while fetching stock data",
       },
       { status: 500 }
     );
