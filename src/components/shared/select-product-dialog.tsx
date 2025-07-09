@@ -1,31 +1,18 @@
+// components/shared/select-product-dialog.tsx
 "use client";
 
-import { useState, useMemo } from "react";
+import { useState, useEffect } from "react";
 import { ArrowLeft, Search, Plus, X } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import Pagination from "./pagination";
-
-interface Product {
-  id: string;
-  sku: string;
-  name: string;
-  dept: string;
-  satuan: string;
-  hjEcer: string;
-  hjSwalayan: string;
-  hjPerpack: string;
-  isi: string;
-  strip: string;
-  obbs: string;
-  barcode: string;
-  selected?: boolean;
-}
+import { useStock } from "@/hooks/useStock";
+import type { StockData } from "@/types/stock";
 
 interface SelectProductDialogProps {
   isOpen: boolean;
   onClose: () => void;
-  onSelectProduct: (product: Product) => void;
+  onSelectProduct: (product: StockData) => void;
 }
 
 export default function SelectProductDialog({
@@ -37,177 +24,38 @@ export default function SelectProductDialog({
   const [searchTerm, setSearchTerm] = useState("");
   const [currentPage, setCurrentPage] = useState(1);
   const [isSearchActive, setIsSearchActive] = useState(false);
+  const [apiParams, setApiParams] = useState({
+    offset: 0,
+    limit: 7,
+    search: "",
+  });
 
-  // Sample product data based on the Figma design
-  const products: Product[] = useMemo(
-    () => [
-      {
-        id: "1",
-        sku: "140788",
-        name: "3M Steri- Dual ECO",
-        dept: "H3",
-        satuan: "BOX",
-        hjEcer: "Rp 12.000",
-        hjSwalayan: "Rp 12.000",
-        hjPerpack: "Rp 12.000",
-        isi: "40",
-        strip: "4",
-        obbs: "4",
-        barcode: "8995614078",
-      },
-      {
-        id: "2",
-        sku: "136295",
-        name: "33 Green Propolis 10G",
-        dept: "H3",
-        satuan: "PCS",
-        hjEcer: "Rp 3.700",
-        hjSwalayan: "Rp 3.700",
-        hjPerpack: "Rp 3.700",
-        isi: "1",
-        strip: "1",
-        obbs: "1",
-        barcode: "899561362",
-      },
-      {
-        id: "3",
-        sku: "200441",
-        name: "7 Day AM/PM Pillreminder",
-        dept: "A2",
-        satuan: "PCS",
-        hjEcer: "Rp 7.000",
-        hjSwalayan: "Rp 7.000",
-        hjPerpack: "Rp 7.000",
-        isi: "1",
-        strip: "1",
-        obbs: "1",
-        barcode: "8995620041",
-      },
-      {
-        id: "4",
-        sku: "139803",
-        name: "Abikal 400mg Tablet",
-        dept: "A2",
-        satuan: "FLS",
-        hjEcer: "Rp 2.500",
-        hjSwalayan: "Rp 2.500",
-        hjPerpack: "Rp 2.500",
-        isi: "1",
-        strip: "1",
-        obbs: "1",
-        barcode: "8995613980",
-      },
-      {
-        id: "5",
-        sku: "200041",
-        name: "Abomax 500mg Capsul",
-        dept: "H3",
-        satuan: "PCS",
-        hjEcer: "Rp 8.300",
-        hjSwalayan: "Rp 8.300",
-        hjPerpack: "Rp 8.300",
-        isi: "1",
-        strip: "1",
-        obbs: "1",
-        barcode: "8995620041",
-      },
-      {
-        id: "6",
-        sku: "136295",
-        name: "Abate 10G Tablet",
-        dept: "A2",
-        satuan: "PCS",
-        hjEcer: "Rp 4.900",
-        hjSwalayan: "Rp 4.900",
-        hjPerpack: "Rp 4.900",
-        isi: "1",
-        strip: "1",
-        obbs: "1",
-        barcode: "8995613629",
-      },
-      {
-        id: "7",
-        sku: "132356",
-        name: "Abdec Plus Syrup 120ml",
-        dept: "A2",
-        satuan: "PCS",
-        hjEcer: "Rp 7.200",
-        hjSwalayan: "Rp 7.200",
-        hjPerpack: "Rp 7.200",
-        isi: "1",
-        strip: "0",
-        obbs: "1",
-        barcode: "8995613235",
-      },
-      {
-        id: "8",
-        sku: "148356",
-        name: "Absolute FH menopause 60ml",
-        dept: "H3",
-        satuan: "PCS",
-        hjEcer: "Rp 4.400",
-        hjSwalayan: "Rp 4.400",
-        hjPerpack: "Rp 4.400",
-        isi: "2",
-        strip: "2",
-        obbs: "2",
-        barcode: "8995614835",
-      },
-      {
-        id: "9",
-        sku: "142058",
-        name: "Accu Check Avtive meter Extra",
-        dept: "H3",
-        satuan: "PCS",
-        hjEcer: "Rp 3.300",
-        hjSwalayan: "Rp 3.300",
-        hjPerpack: "Rp 3.300",
-        isi: "8",
-        strip: "1",
-        obbs: "8",
-        barcode: "8995614205",
-      },
-      {
-        id: "10",
-        sku: "148256",
-        name: "Acetazolamide 250mg Tablet",
-        dept: "A2",
-        satuan: "PCS",
-        hjEcer: "Rp 2.900",
-        hjSwalayan: "Rp 2.900",
-        hjPerpack: "Rp 2.900",
-        isi: "10",
-        strip: "1",
-        obbs: "10",
-        barcode: "8995614825",
-      },
-    ],
-    []
-  );
+  // Use the stock hook to get data from API
+  const { stockList, isLoading, error, totalPages, totalDocs, refetch } =
+    useStock(apiParams);
 
-  // Filter products based on search term
-  const filteredProducts = products.filter(
-    (product) =>
-      searchTerm === "" ||
-      product.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      product.sku.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      product.barcode.toLowerCase().includes(searchTerm.toLowerCase())
-  );
-
-  // Pagination logic
-  const itemsPerPage = 7;
-  const totalPages = Math.ceil(filteredProducts.length / itemsPerPage);
-
-  const paginatedProducts = filteredProducts.slice(
-    (currentPage - 1) * itemsPerPage,
-    currentPage * itemsPerPage
-  );
+  // Reset to page 1 when dialog opens
+  useEffect(() => {
+    if (isOpen) {
+      setCurrentPage(1);
+      setApiParams({ offset: 0, limit: 7, search: "" });
+      setSearchInput("");
+      setSearchTerm("");
+      setIsSearchActive(false);
+    }
+  }, [isOpen]);
 
   // Handle search
   const handleSearch = () => {
-    setSearchTerm(searchInput);
-    setIsSearchActive(searchInput.trim() !== "");
+    const trimmedSearch = searchInput.trim();
+    setSearchTerm(trimmedSearch);
+    setIsSearchActive(trimmedSearch !== "");
     setCurrentPage(1);
+    setApiParams({
+      offset: 0,
+      limit: 7,
+      search: trimmedSearch,
+    });
   };
 
   // Handle search toggle (reset)
@@ -216,17 +64,33 @@ export default function SelectProductDialog({
     setSearchTerm("");
     setIsSearchActive(false);
     setCurrentPage(1);
+    setApiParams({ offset: 0, limit: 7, search: "" });
   };
 
   // Handle product selection
-  const handleSelectProduct = (product: Product) => {
+  const handleSelectProduct = (product: StockData) => {
     onSelectProduct(product);
     onClose();
   };
 
   // Handle page change
   const handlePageChange = (page: number) => {
+    if (page < 1 || page > (totalPages || 1)) return;
+
     setCurrentPage(page);
+    const offset = (page - 1) * 7;
+    setApiParams({
+      offset,
+      limit: 7,
+      search: searchTerm,
+    });
+  };
+
+  // Handle enter key for search
+  const handleKeyPress = (e: React.KeyboardEvent) => {
+    if (e.key === "Enter") {
+      handleSearch();
+    }
   };
 
   if (!isOpen) return null;
@@ -236,11 +100,16 @@ export default function SelectProductDialog({
       <div className="w-full max-w-6xl h-[90vh] flex flex-col">
         {/* Header - Outside white background */}
         <div className="flex items-center py-3">
-          <button onClick={onClose} className="mr-4">
+          <button
+            onClick={onClose}
+            className="mr-4 text-gray-700 hover:text-gray-900"
+          >
             <ArrowLeft size={20} />
           </button>
-          <h2 className="text-xl font-semibold flex-grow">Select Product</h2>
-          <Button className="bg-blue-600">
+          <h2 className="text-xl font-semibold flex-grow text-gray-900">
+            Select Product
+          </h2>
+          <Button className="bg-blue-600 hover:bg-blue-700">
             <Plus size={16} className="mr-2" />
             Add Product
           </Button>
@@ -253,10 +122,11 @@ export default function SelectProductDialog({
             <div className="relative flex">
               <Input
                 type="text"
-                placeholder="Search here"
+                placeholder="Search product name, SKU, or barcode..."
                 className="pl-10 bg-[#F5F5F5] border-none flex-grow mr-2 h-10"
                 value={searchInput}
                 onChange={(e) => setSearchInput(e.target.value)}
+                onKeyPress={handleKeyPress}
               />
               <Search
                 className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400"
@@ -294,56 +164,86 @@ export default function SelectProductDialog({
             <div className="col-span-1">HJ Perpack</div>
             <div className="col-span-1">Isi</div>
             <div className="col-span-1">Strip</div>
-            <div className="col-span-1">Obbs</div>
+            <div className="col-span-1">Stock</div>
           </div>
 
           {/* Table rows */}
           <div className="flex-grow overflow-y-auto">
-            {paginatedProducts.length > 0 ? (
-              paginatedProducts.map((product, index) => (
+            {isLoading ? (
+              <div className="flex items-center justify-center h-40">
+                <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-500"></div>
+                <span className="ml-2 text-gray-600">Loading products...</span>
+              </div>
+            ) : error ? (
+              <div className="flex flex-col items-center justify-center h-40">
+                <div className="text-red-500 text-center mb-4">
+                  <p className="font-medium">Error loading products</p>
+                  <p className="text-sm text-gray-600 mt-1">{error}</p>
+                </div>
+                <button
+                  onClick={() => refetch()}
+                  className="px-4 py-2 bg-blue-500 text-white rounded hover:bg-blue-600 transition-colors"
+                >
+                  Retry
+                </button>
+              </div>
+            ) : stockList.length > 0 ? (
+              stockList.map((product, index) => (
                 <div
-                  key={product.id}
-                  className={`grid grid-cols-12 p-4 hover:bg-blue-50 cursor-pointer ${
+                  key={product.kode_brg}
+                  className={`grid grid-cols-12 p-4 hover:bg-blue-50 cursor-pointer transition-colors ${
                     index % 2 === 1 ? "bg-gray-50/50" : ""
                   }`}
                   onClick={() => handleSelectProduct(product)}
                 >
                   <div className="col-span-1 flex items-center">
-                    <div
-                      className={`w-5 h-5 rounded-full mr-2 ${
-                        ["1", "2", "9"].includes(product.id)
-                          ? "bg-red-500"
-                          : "bg-transparent"
-                      }`}
-                    ></div>
-                    {index + 1 + (currentPage - 1) * itemsPerPage}
+                    <div className="w-5 h-5 rounded-full mr-2 bg-transparent"></div>
+                    {index + 1 + (currentPage - 1) * 7}
                   </div>
-                  <div className="col-span-1">{product.sku}</div>
-                  <div className="col-span-2">{product.name}</div>
-                  <div className="col-span-1">{product.dept}</div>
-                  <div className="col-span-1">{product.satuan}</div>
-                  <div className="col-span-1">{product.hjEcer}</div>
-                  <div className="col-span-1">{product.hjSwalayan}</div>
-                  <div className="col-span-1">{product.hjPerpack}</div>
-                  <div className="col-span-1">{product.isi}</div>
-                  <div className="col-span-1">{product.strip}</div>
-                  <div className="col-span-1">{product.obbs}</div>
+                  <div className="col-span-1 text-sm">{product.kode_brg}</div>
+                  <div className="col-span-2 text-sm font-medium">
+                    {product.nama_brg}
+                  </div>
+                  <div className="col-span-1 text-sm">{product.id_dept}</div>
+                  <div className="col-span-1 text-sm">{product.satuan}</div>
+                  <div className="col-span-1 text-sm">
+                    Rp {product.hj_ecer?.toLocaleString("id-ID") || 0}
+                  </div>
+                  <div className="col-span-1 text-sm">
+                    Rp {product.hj_ecer?.toLocaleString("id-ID") || 0}
+                  </div>
+                  <div className="col-span-1 text-sm">
+                    Rp {product.hj_ecer?.toLocaleString("id-ID") || 0}
+                  </div>
+                  <div className="col-span-1 text-sm">{product.isi}</div>
+                  <div className="col-span-1 text-sm">{product.strip}</div>
+                  <div className="col-span-1 text-sm font-medium text-green-600">
+                    {product.q_bbs || 0}
+                  </div>
                 </div>
               ))
             ) : (
               <div className="p-8 text-center text-gray-500">
-                No products found.
+                {isSearchActive
+                  ? "No products found for your search."
+                  : "No products found."}
               </div>
             )}
           </div>
 
           {/* Pagination */}
-          {filteredProducts.length > 0 && (
-            <div className="p-4 flex justify-center">
+          {stockList.length > 0 && totalPages && totalPages > 1 && (
+            <div className="p-4 flex justify-between items-center border-t">
+              <div className="text-sm text-gray-600">
+                Showing {(currentPage - 1) * 7 + 1} to{" "}
+                {Math.min(currentPage * 7, totalDocs || 0)} of {totalDocs || 0}{" "}
+                products
+              </div>
               <Pagination
                 currentPage={currentPage}
                 totalPages={totalPages}
                 onPageChange={handlePageChange}
+                size="sm"
               />
             </div>
           )}
