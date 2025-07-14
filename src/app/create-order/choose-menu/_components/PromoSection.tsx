@@ -16,7 +16,7 @@ const PromoSection: FC<PromoSectionProps> = ({ promos }) => {
   return (
     <div className="w-full h-full">
       {/* Search Section */}
-      <div className="flex p-4 pb-2">
+      <div className="flex pb-2">
         <div className="relative flex-grow mr-2">
           <Input
             type="text"
@@ -36,7 +36,7 @@ const PromoSection: FC<PromoSectionProps> = ({ promos }) => {
       </div>
 
       {/* Promo Table Header */}
-      <div className="grid grid-cols-12 py-3 px-4 text-sm font-medium text-gray-600 bg-[#F5F5F5] w-full mx-4 rounded-t-lg">
+      <div className="grid grid-cols-12 py-3 px-4 text-sm font-medium text-gray-600 bg-[#F5F5F5] w-full rounded-t-lg">
         <div className="col-span-2">Promo ID</div>
         <div className="col-span-3">Product Name</div>
         <div className="col-span-3">Promo Type</div>
@@ -45,7 +45,7 @@ const PromoSection: FC<PromoSectionProps> = ({ promos }) => {
       </div>
 
       {/* Promo Table Body */}
-      <div className="w-full mx-4">
+      <div className="w-full">
         {promos.slice(0, 3).map((promo, index) => (
           <div
             key={promo.id}
@@ -65,19 +65,45 @@ const PromoSection: FC<PromoSectionProps> = ({ promos }) => {
       {/* Pagination */}
       <div className="flex justify-center py-4 items-center w-full">
         <button className="h-8 w-8 flex items-center justify-center rounded-md hover:bg-gray-100 mr-1">
-          <svg className="h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 19l-7-7 7-7" />
+          <svg
+            className="h-4 w-4"
+            fill="none"
+            stroke="currentColor"
+            viewBox="0 0 24 24"
+          >
+            <path
+              strokeLinecap="round"
+              strokeLinejoin="round"
+              strokeWidth={2}
+              d="M15 19l-7-7 7-7"
+            />
           </svg>
         </button>
-        
-        <button className="h-8 w-8 flex items-center justify-center rounded-md bg-blue-500 text-white mr-1">1</button>
-        <button className="h-8 w-8 flex items-center justify-center rounded-md hover:bg-gray-100 mr-1">2</button>
-        <button className="h-8 w-8 flex items-center justify-center rounded-md hover:bg-gray-100 mr-1">3</button>
+
+        <button className="h-8 w-8 flex items-center justify-center rounded-md bg-blue-500 text-white mr-1">
+          1
+        </button>
+        <button className="h-8 w-8 flex items-center justify-center rounded-md hover:bg-gray-100 mr-1">
+          2
+        </button>
+        <button className="h-8 w-8 flex items-center justify-center rounded-md hover:bg-gray-100 mr-1">
+          3
+        </button>
         <span className="mx-1">...</span>
-        
+
         <button className="h-8 w-8 flex items-center justify-center rounded-md hover:bg-gray-100 ml-1">
-          <svg className="h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
+          <svg
+            className="h-4 w-4"
+            fill="none"
+            stroke="currentColor"
+            viewBox="0 0 24 24"
+          >
+            <path
+              strokeLinecap="round"
+              strokeLinejoin="round"
+              strokeWidth={2}
+              d="M9 5l7 7-7 7"
+            />
           </svg>
         </button>
       </div>

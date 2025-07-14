@@ -1,7 +1,7 @@
 "use client";
 
 import { useState } from "react";
-import { X, ChevronRight } from "lucide-react";
+import { X } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import {
@@ -30,257 +30,378 @@ export default function PaymentDialog({
   totalAmount,
   orderDetails,
 }: PaymentDialogProps) {
-  const [selectedPaymentMethod, setSelectedPaymentMethod] = useState<
-    "cash" | "credit" | "debit" | null
-  >(null);
+  // Form states for different payment methods
+  const [cashAmount, setCashAmount] = useState("");
+  const [debitAmount, setDebitAmount] = useState("");
+  const [debitBank, setDebitBank] = useState("BCA");
+  const [debitAccountNumber, setDebitAccountNumber] = useState("");
+  const [debitEDCMachine, setDebitEDCMachine] = useState("BCA");
+  const [debitCardType, setDebitCardType] = useState("");
+  const [creditAmount, setCreditAmount] = useState("");
+  const [creditBank, setCreditBank] = useState("BCA");
+  const [creditAccountNumber, setCreditAccountNumber] = useState("");
+  const [creditEDCMachine, setCreditEDCMachine] = useState("BCA");
+  const [creditCardType, setCreditCardType] = useState("");
 
   if (!isOpen) return null;
 
+  const handlePayment = () => {
+    // Add validation logic here if needed
+    onPaymentSuccess();
+  };
+
   const renderPaymentMethodContent = () => {
-    switch (selectedPaymentMethod) {
-      case "cash":
-        return (
-          <div className="space-y-4">
-            <div>
-              <label className="text-sm text-gray-600 block mb-2">Amount</label>
-              <Input placeholder="Enter amount" />
+    return (
+      <div className="space-y-6">
+        {/* Cash Card with Form */}
+        <div className="border border-gray-300 rounded-2xl p-4">
+          <div className="flex items-center gap-3 mb-4">
+            <div className="w-10 h-10 bg-green-50 rounded-xl flex items-center justify-center">
+              <svg
+                className="w-6 h-6 text-green-600"
+                fill="currentColor"
+                viewBox="0 0 24 24"
+              >
+                <path d="M2 6a2 2 0 012-2h16a2 2 0 012 2v8a2 2 0 01-2 2H4a2 2 0 01-2-2V6zm2 0v8h16V6H4zm2 1h2v1H6V7zm0 2h2v1H6V9zm4-2h8v1h-8V7z" />
+              </svg>
+            </div>
+            <span className="font-medium text-gray-900 text-lg">Cash</span>
+          </div>
+
+          <div>
+            <label className="block text-base font-medium text-gray-700 mb-3">
+              Amount
+            </label>
+            <div className="relative">
+              <span className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-500 font-medium">
+                Rp
+              </span>
+              <Input
+                type="text"
+                value={cashAmount}
+                onChange={(e) => setCashAmount(e.target.value)}
+                placeholder="0"
+                className="pl-10 bg-gray-50 border-gray-300 rounded-xl h-12 text-base"
+              />
             </div>
           </div>
-        );
-      case "credit":
-        return (
+        </div>
+
+        {/* Debit Card with Form */}
+        <div className="border border-gray-300 rounded-2xl p-4">
+          <div className="flex items-center gap-3 mb-4">
+            <div className="w-10 h-10 bg-blue-50 rounded-xl flex items-center justify-center">
+              <svg
+                className="w-6 h-6 text-blue-600"
+                fill="currentColor"
+                viewBox="0 0 24 24"
+              >
+                <path d="M4 4a2 2 0 00-2 2v1h16V6a2 2 0 00-2-2H4z" />
+                <path
+                  fillRule="evenodd"
+                  d="M18 9H2v5a2 2 0 002 2h12a2 2 0 002-2V9zM4 13a1 1 0 011-1h1a1 1 0 110 2H5a1 1 0 01-1-1zm5-1a1 1 0 100 2h1a1 1 0 100-2H9z"
+                  clipRule="evenodd"
+                />
+              </svg>
+            </div>
+            <span className="font-medium text-gray-900 text-lg">
+              Debit Card
+            </span>
+          </div>
+
           <div className="space-y-4">
-            <div className="flex justify-between gap-4">
-              <div className="flex-1">
-                <label className="text-sm text-gray-600 block mb-2">
+            <div className="grid grid-cols-2 gap-4">
+              <div>
+                <label className="block text-base font-medium text-gray-700 mb-3">
                   Amount
                 </label>
-                <Input placeholder="Enter amount" />
+                <div className="relative">
+                  <span className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-500 font-medium">
+                    Rp
+                  </span>
+                  <Input
+                    type="text"
+                    value={debitAmount}
+                    onChange={(e) => setDebitAmount(e.target.value)}
+                    placeholder="0"
+                    className="pl-10 bg-gray-50 border-gray-300 rounded-xl h-12 text-base"
+                  />
+                </div>
               </div>
-              <div className="flex-1">
-                <label className="text-sm text-gray-600 block mb-2">Bank</label>
-                <Select>
-                  <SelectTrigger>
-                    <SelectValue placeholder="Select bank" />
+              <div>
+                <label className="block text-base font-medium text-gray-700 mb-3">
+                  Nama Area
+                </label>
+                <Select value={debitBank} onValueChange={setDebitBank}>
+                  <SelectTrigger className="bg-gray-50 border-gray-300 rounded-xl h-12">
+                    <SelectValue />
                   </SelectTrigger>
                   <SelectContent>
-                    <SelectItem value="bca">BCA</SelectItem>
-                    <SelectItem value="mandiri">Mandiri</SelectItem>
+                    <SelectItem value="BCA">BCA</SelectItem>
+                    <SelectItem value="Mandiri">Mandiri</SelectItem>
+                    <SelectItem value="BRI">BRI</SelectItem>
+                    <SelectItem value="BNI">BNI</SelectItem>
                   </SelectContent>
                 </Select>
               </div>
             </div>
-            <div>
-              <label className="text-sm text-gray-600 block mb-2">
-                Account Number
-              </label>
-              <Input placeholder="Enter account number" />
-            </div>
-            <div className="flex justify-between gap-4">
-              <div className="flex-1">
-                <label className="text-sm text-gray-600 block mb-2">
+
+            <div className="grid grid-cols-3 gap-4">
+              <div>
+                <label className="block text-base font-medium text-gray-700 mb-3">
+                  Account Number
+                </label>
+                <Input
+                  type="text"
+                  value={debitAccountNumber}
+                  onChange={(e) => setDebitAccountNumber(e.target.value)}
+                  placeholder="Enter Number"
+                  className="bg-gray-50 border-gray-300 rounded-xl h-12"
+                />
+              </div>
+              <div>
+                <label className="block text-base font-medium text-gray-700 mb-3">
                   EDC Machine
                 </label>
-                <Select>
-                  <SelectTrigger>
-                    <SelectValue placeholder="Select EDC machine" />
+                <Select
+                  value={debitEDCMachine}
+                  onValueChange={setDebitEDCMachine}
+                >
+                  <SelectTrigger className="bg-gray-50 border-gray-300 rounded-xl h-12">
+                    <SelectValue />
                   </SelectTrigger>
                   <SelectContent>
-                    <SelectItem value="edc1">EDC 1</SelectItem>
-                    <SelectItem value="edc2">EDC 2</SelectItem>
+                    <SelectItem value="BCA">BCA</SelectItem>
+                    <SelectItem value="Mandiri">Mandiri</SelectItem>
+                    <SelectItem value="BRI">BRI</SelectItem>
                   </SelectContent>
                 </Select>
               </div>
-              <div className="flex-1">
-                <label className="text-sm text-gray-600 block mb-2">
+              <div>
+                <label className="block text-base font-medium text-gray-700 mb-3">
                   Credit Card Type
                 </label>
-                <Select>
-                  <SelectTrigger>
-                    <SelectValue placeholder="Enter/select card type" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="visa">Visa</SelectItem>
-                    <SelectItem value="mastercard">Mastercard</SelectItem>
-                  </SelectContent>
-                </Select>
+                <Input
+                  type="text"
+                  value={debitCardType}
+                  onChange={(e) => setDebitCardType(e.target.value)}
+                  placeholder="Enter/Select"
+                  className="bg-gray-50 border-gray-300 rounded-xl h-12"
+                />
               </div>
             </div>
           </div>
-        );
-      case "debit":
-        return (
+        </div>
+
+        {/* Credit Card with Form */}
+        <div className="border border-gray-300 rounded-2xl p-4">
+          <div className="flex items-center gap-3 mb-4">
+            <div className="w-10 h-10 bg-blue-50 rounded-xl flex items-center justify-center">
+              <svg
+                className="w-6 h-6 text-blue-600"
+                fill="currentColor"
+                viewBox="0 0 24 24"
+              >
+                <path d="M4 4a2 2 0 00-2 2v1h16V6a2 2 0 00-2-2H4z" />
+                <path
+                  fillRule="evenodd"
+                  d="M18 9H2v5a2 2 0 002 2h12a2 2 0 002-2V9zM4 13a1 1 0 011-1h1a1 1 0 110 2H5a1 1 0 01-1-1zm5-1a1 1 0 100 2h1a1 1 0 100-2H9z"
+                  clipRule="evenodd"
+                />
+              </svg>
+            </div>
+            <span className="font-medium text-gray-900 text-lg">
+              Credit Card
+            </span>
+          </div>
+
           <div className="space-y-4">
-            <div className="flex justify-between gap-4">
-              <div className="flex-1">
-                <label className="text-sm text-gray-600 block mb-2">
+            <div className="grid grid-cols-2 gap-4">
+              <div>
+                <label className="block text-base font-medium text-gray-700 mb-3">
                   Amount
                 </label>
-                <Input placeholder="Enter amount" />
+                <div className="relative">
+                  <span className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-500 font-medium">
+                    Rp
+                  </span>
+                  <Input
+                    type="text"
+                    value={creditAmount}
+                    onChange={(e) => setCreditAmount(e.target.value)}
+                    placeholder="0"
+                    className="pl-10 bg-gray-50 border-gray-300 rounded-xl h-12 text-base"
+                  />
+                </div>
               </div>
-              <div className="flex-1">
-                <label className="text-sm text-gray-600 block mb-2">Bank</label>
-                <Select>
-                  <SelectTrigger>
-                    <SelectValue placeholder="Select bank" />
+              <div>
+                <label className="block text-base font-medium text-gray-700 mb-3">
+                  Nama Area
+                </label>
+                <Select value={creditBank} onValueChange={setCreditBank}>
+                  <SelectTrigger className="bg-gray-50 border-gray-300 rounded-xl h-12">
+                    <SelectValue />
                   </SelectTrigger>
                   <SelectContent>
-                    <SelectItem value="bca">BCA</SelectItem>
-                    <SelectItem value="mandiri">Mandiri</SelectItem>
+                    <SelectItem value="BCA">BCA</SelectItem>
+                    <SelectItem value="Mandiri">Mandiri</SelectItem>
+                    <SelectItem value="BRI">BRI</SelectItem>
+                    <SelectItem value="BNI">BNI</SelectItem>
                   </SelectContent>
                 </Select>
               </div>
             </div>
-            <div>
-              <label className="text-sm text-gray-600 block mb-2">
-                Account Number
-              </label>
-              <Input placeholder="Enter account number" />
-            </div>
-            <div className="flex justify-between gap-4">
-              <div className="flex-1">
-                <label className="text-sm text-gray-600 block mb-2">
+
+            <div className="grid grid-cols-3 gap-4">
+              <div>
+                <label className="block text-base font-medium text-gray-700 mb-3">
+                  Account Number
+                </label>
+                <Input
+                  type="text"
+                  value={creditAccountNumber}
+                  onChange={(e) => setCreditAccountNumber(e.target.value)}
+                  placeholder="Enter Number"
+                  className="bg-gray-50 border-gray-300 rounded-xl h-12"
+                />
+              </div>
+              <div>
+                <label className="block text-base font-medium text-gray-700 mb-3">
                   EDC Machine
                 </label>
-                <Select>
-                  <SelectTrigger>
-                    <SelectValue placeholder="Select EDC machine" />
+                <Select
+                  value={creditEDCMachine}
+                  onValueChange={setCreditEDCMachine}
+                >
+                  <SelectTrigger className="bg-gray-50 border-gray-300 rounded-xl h-12">
+                    <SelectValue />
                   </SelectTrigger>
                   <SelectContent>
-                    <SelectItem value="edc1">EDC 1</SelectItem>
-                    <SelectItem value="edc2">EDC 2</SelectItem>
+                    <SelectItem value="BCA">BCA</SelectItem>
+                    <SelectItem value="Mandiri">Mandiri</SelectItem>
+                    <SelectItem value="BRI">BRI</SelectItem>
                   </SelectContent>
                 </Select>
               </div>
-              <div className="flex-1">
-                <label className="text-sm text-gray-600 block mb-2">
-                  Debit Card Type
+              <div>
+                <label className="block text-base font-medium text-gray-700 mb-3">
+                  Credit Card Type
                 </label>
-                <Select>
-                  <SelectTrigger>
-                    <SelectValue placeholder="Enter/select card type" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="visa">Visa</SelectItem>
-                    <SelectItem value="mastercard">Mastercard</SelectItem>
-                  </SelectContent>
-                </Select>
+                <Input
+                  type="text"
+                  value={creditCardType}
+                  onChange={(e) => setCreditCardType(e.target.value)}
+                  placeholder="Enter/Select"
+                  className="bg-gray-50 border-gray-300 rounded-xl h-12"
+                />
               </div>
             </div>
           </div>
-        );
-      default:
-        return null;
-    }
+        </div>
+      </div>
+    );
   };
 
   return (
     <div className="fixed inset-0 bg-black/50 z-50 flex items-center justify-center">
-      <div className="bg-[#F5F5F5] rounded-lg w-[1100px] max-h-[90vh] flex flex-col">
-        {/* Header - Fixed at top */}
-        <div className="flex justify-between items-center p-6 border-b bg-[#F5F5F5] sticky top-0 z-10">
-          <h2 className="text-xl font-semibold">Payment</h2>
-          <button onClick={onClose}>
-            <X size={24} />
+      <div className="bg-white rounded-2xl w-full max-w-6xl max-h-[95vh] flex flex-col">
+        {/* Header */}
+        <div className="flex justify-between items-center p-6 border-b border-gray-200">
+          <h2 className="text-xl font-semibold text-gray-900">
+            Payment Option
+          </h2>
+          <button
+            onClick={onClose}
+            className="w-8 h-8 flex items-center justify-center rounded-full border border-gray-300 hover:border-gray-400 transition-colors"
+          >
+            <X className="h-4 w-4 text-gray-600" />
           </button>
         </div>
 
-        {/* Scrollable content area */}
+        {/* Content */}
         <div className="flex-1 overflow-auto">
-          {/* Main content - Two-column layout */}
-          <div className="grid grid-cols-2">
-            {/* Left Column - Order Details */}
-            <div className="p-6 border-r h-full overflow-y-auto">
-              <div className="mb-4">
-                <div className="text-base text-[#202325] mb-3 font-semibold">
-                  Customer Information
-                </div>
-                <div className="flex items-center">
-                  <div className="bg-blue-100 text-blue-800 w-10 h-10 flex items-center justify-center rounded-md text-sm font-medium mr-4">
-                    84
+          <div className="grid grid-cols-2 h-full">
+            {/* Left Column - Customer & Transaction Info */}
+            <div className="p-6">
+              {/* Customer Information */}
+              <div className="mb-6">
+                <div className="flex items-center gap-4">
+                  <div className="w-12 h-12 bg-blue-100 rounded-lg flex items-center justify-center">
+                    <span className="text-blue-800 font-semibold text-sm">
+                      84
+                    </span>
                   </div>
-                  <div>
-                    <div className="text-base text-[#202325] mb-0 font-semibold">
-                      {orderDetails.customer}
-                    </div>
-                    <div className="text-sm text-[#636566]">
-                      84 / Offline Store
-                    </div>
+                  <div className="flex-1">
+                    <h3 className="font-semibold text-gray-900">Adam Hamzah</h3>
+                    <p className="text-sm text-gray-600">+625490047055</p>
                   </div>
-                  <div className="ml-auto text-sm text-[#636566] flex flex-col items-end">
-                    <p>August 17, 2023</p>
+                  <div className="text-right text-sm text-gray-600">
+                    <p>August 17, 2025</p>
                     <p>09:52 AM</p>
                   </div>
                 </div>
               </div>
 
-              <div className="my-4">
-                <div className="bg-[#E8E8E8] rounded-2xl p-6 space-y-4">
-                  <div className="text-base text-[#202325] mb-3 font-semibold">
-                    Transaction Details
-                  </div>
+              {/* Transaction Details */}
+              <div className="border border-gray-300 rounded-2xl p-4">
+                <h4 className="font-semibold text-gray-900 text-lg mb-4">
+                  Transaction Details
+                </h4>
+
+                <div className="max-h-[240px] overflow-y-auto space-y-4">
                   {orderDetails.items.map((item, index) => (
-                    <div key={index} className="flex justify-between text-sm">
-                      <div>
-                        <div className="text-base text-[#202325] mb-1 font-medium">
-                          {item.name}
+                    <div
+                      key={index}
+                      className="flex justify-between items-start"
+                    >
+                      <div className="flex-1">
+                        <div className="flex justify-between items-center">
+                          <p className="font-medium text-gray-900">
+                            {item.name}
+                          </p>
+                          <span className="font-semibold text-gray-900">
+                            {item.quantity}x
+                          </span>
                         </div>
-                        <div className="text-base text-[#202325] mb-3 font-semibold">
-                          Rp {item.price.toLocaleString()}
-                        </div>
-                      </div>
-                      <div className="text-right text-sm text-[#202325] mb-1 font-semibold">
-                        <div>{item.quantity}x</div>
+                        <p className="font-semibold text-gray-900 mt-1">
+                          Rp {item.price.toLocaleString("id-ID")}
+                        </p>
                       </div>
                     </div>
                   ))}
-                  <div className="border-t border-[#C6C7C8] pt-4 space-y-2">
-                    <div className="flex justify-between text-sm">
-                      <span className="text-base text-[#202325] mb-3 font-semibold">
-                        Sub Total
-                      </span>
-                      <span className="text-base text-[#202325] mb-3 font-semibold">
-                        Rp {totalAmount.toLocaleString()}
-                      </span>
-                    </div>
-                    <div className="flex justify-between text-sm">
-                      <span className="text-base text-[#202325] mb-3 font-semibold">
-                        Misc
-                      </span>
-                      <span className="text-base text-[#202325] mb-3 font-semibold">
-                        Rp 0
-                      </span>
-                    </div>
-                    <div className="flex justify-between text-sm">
-                      <span className="text-base text-[#202325] mb-3 font-semibold">
-                        SC
-                      </span>
-                      <span className="text-base text-[#202325] mb-3 font-semibold">
-                        Rp 0
-                      </span>
-                    </div>
-                    <div className="flex justify-between text-sm">
-                      <span className="text-base text-[#202325] mb-3 font-semibold">
-                        Discount
-                      </span>
-                      <span className="text-base text-[#202325] mb-3 font-semibold">
-                        Rp 0
-                      </span>
-                    </div>
-                    <div className="flex justify-between text-sm">
-                      <span className="text-base text-[#202325] mb-3 font-semibold">
-                        Promo
-                      </span>
-                      <span className="text-base text-[#202325] mb-3 font-semibold">
-                        Rp 0
-                      </span>
-                    </div>
-                    <div className="flex justify-between font-semibold border-t border-[#C6C7C8] pt-5">
-                      <span className="text-xl text-[#202325]">
+                </div>
+
+                <div className="border-t border-gray-300 mt-6 pt-4 space-y-3">
+                  <div className="flex justify-between">
+                    <span className="font-medium text-gray-900">Sub Total</span>
+                    <span className="font-semibold text-gray-900">
+                      Rp {totalAmount.toLocaleString("id-ID")}
+                    </span>
+                  </div>
+                  <div className="flex justify-between">
+                    <span className="font-medium text-gray-900">Misc</span>
+                    <span className="font-semibold text-gray-900">Rp 0</span>
+                  </div>
+                  <div className="flex justify-between">
+                    <span className="font-medium text-gray-900">SC</span>
+                    <span className="font-semibold text-gray-900">Rp 0</span>
+                  </div>
+                  <div className="flex justify-between">
+                    <span className="font-medium text-gray-900">Discount</span>
+                    <span className="font-semibold text-gray-900">Rp 0</span>
+                  </div>
+                  <div className="flex justify-between">
+                    <span className="font-medium text-gray-900">Promo</span>
+                    <span className="font-semibold text-gray-900">Rp 0</span>
+                  </div>
+
+                  <div className="border-t border-gray-300 pt-4 mt-4">
+                    <div className="flex justify-between">
+                      <span className="text-lg font-bold text-gray-900">
                         Grand Total
                       </span>
-                      <span className="text-xl text-[#202325]">
-                        Rp {totalAmount.toLocaleString()}
+                      <span className="text-lg font-bold text-gray-900">
+                        Rp {totalAmount.toLocaleString("id-ID")}
                       </span>
                     </div>
                   </div>
@@ -289,77 +410,25 @@ export default function PaymentDialog({
             </div>
 
             {/* Right Column - Payment Methods */}
-            <div className="p-6 space-y-4 h-full overflow-y-auto">
-              {/* Cash Payment */}
-              <div
-                className={`border rounded-lg p-4 flex justify-between items-center cursor-pointer ${
-                  selectedPaymentMethod === "cash"
-                    ? "border-blue-500 bg-blue-50"
-                    : ""
-                }`}
-                onClick={() => setSelectedPaymentMethod("cash")}
-              >
-                <div className="flex items-center">
-                  <div className="w-8 h-8 bg-green-100 text-green-600 flex items-center justify-center rounded-md mr-3">
-                    💵
-                  </div>
-                  <span>Cash</span>
-                </div>
-                <ChevronRight />
+            <div className="p-6 flex flex-col">
+              <div className="flex-1">{renderPaymentMethodContent()}</div>
+
+              {/* Action Buttons */}
+              <div className="flex gap-3 mt-6 pt-4 border-t border-gray-200">
+                <Button
+                  variant="outline"
+                  onClick={onClose}
+                  className="flex-1 py-3 border-gray-300 text-gray-700 hover:bg-gray-50"
+                >
+                  Cancel
+                </Button>
+                <Button
+                  onClick={handlePayment}
+                  className="flex-1 py-3 bg-blue-600 hover:bg-blue-700 text-white"
+                >
+                  Pay Now
+                </Button>
               </div>
-
-              {/* Credit Card Payment */}
-              <div
-                className={`border rounded-lg p-4 flex justify-between items-center cursor-pointer ${
-                  selectedPaymentMethod === "credit"
-                    ? "border-blue-500 bg-blue-50"
-                    : ""
-                }`}
-                onClick={() => setSelectedPaymentMethod("credit")}
-              >
-                <div className="flex items-center">
-                  <div className="w-8 h-8 bg-blue-100 text-blue-600 flex items-center justify-center rounded-md mr-3">
-                    💳
-                  </div>
-                  <span>Credit Card</span>
-                </div>
-                <ChevronRight />
-              </div>
-
-              {/* Debit Card Payment */}
-              <div
-                className={`border rounded-lg p-4 flex justify-between items-center cursor-pointer ${
-                  selectedPaymentMethod === "debit"
-                    ? "border-blue-500 bg-blue-50"
-                    : ""
-                }`}
-                onClick={() => setSelectedPaymentMethod("debit")}
-              >
-                <div className="flex items-center">
-                  <div className="w-8 h-8 bg-blue-100 text-blue-600 flex items-center justify-center rounded-md mr-3">
-                    💳
-                  </div>
-                  <span>Debit Card</span>
-                </div>
-                <ChevronRight />
-              </div>
-
-              {/* Dynamic Payment Method Content */}
-              {selectedPaymentMethod && (
-                <div className="mt-4">{renderPaymentMethodContent()}</div>
-              )}
-
-              {/* Pay Now Button */}
-              <Button
-                className="w-full mt-4 bg-blue-600 hover:bg-blue-700 py-6"
-                disabled={!selectedPaymentMethod}
-                onClick={() => {
-                  // Tambahkan logika validasi pembayaran di sini jika diperlukan
-                  onPaymentSuccess();
-                }}
-              >
-                Pay Now
-              </Button>
             </div>
           </div>
         </div>

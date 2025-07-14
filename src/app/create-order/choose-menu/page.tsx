@@ -298,7 +298,7 @@ export default function ChooseMenuPage() {
         {/* Left Column */}
         <div className="w-3/4 p-4 overflow-auto">
           {/* Header - Only in left column */}
-          <div className="bg-white rounded-2xl shadow-sm border border-gray-100 p-6 mb-6">
+          <div className="bg-white rounded-2xl shadow-sm border border-gray-100 p-5 mb-6">
             <div className="flex items-center">
               <Link
                 href="/dashboard"
@@ -337,7 +337,7 @@ export default function ChooseMenuPage() {
           <div className="relative overflow-hidden">
             {/* Main Content Area with Tabs */}
             <div
-              className={`transition-all duration-500 ease-in-out ${
+              className={`transition-all duration-500 ease-in-out bg-white p-5 rounded-2xl ${
                 isCalculatorVisible ? "w-[calc(100%-296px)]" : "w-full"
               }`}
             >

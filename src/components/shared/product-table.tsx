@@ -24,7 +24,7 @@ interface DialogProduct {
 export interface Product {
   id: number;
   name: string;
-  type?: 'R/' | 'RC' | 'OTC' | string;
+  type?: "R/" | "RC" | "OTC" | string;
   price: number;
   quantity: number;
   subtotal: number;
@@ -41,14 +41,14 @@ export interface Product {
 // Currency formatting utility - Back to standard format
 const formatCurrency = (amount: number | undefined | null): string => {
   if (amount == null || isNaN(Number(amount))) {
-    return 'Rp 0';
+    return "Rp 0";
   }
-  
+
   try {
     const numAmount = Number(amount);
-    return `Rp ${numAmount.toLocaleString('id-ID')}`;
+    return `Rp ${numAmount.toLocaleString("id-ID")}`;
   } catch (error) {
-    return 'Rp 0';
+    return "Rp 0";
   }
 };
 
@@ -62,9 +62,15 @@ interface EnhancedProductTableProps {
   className?: string;
 }
 
-const ProductTypeSelector = ({ type, onChange }: { type: string; onChange: (type: string) => void }) => {
+const ProductTypeSelector = ({
+  type,
+  onChange,
+}: {
+  type: string;
+  onChange: (type: string) => void;
+}) => {
   const [isOpen, setIsOpen] = useState(false);
-  const types = ['R/', 'RC', 'OTC', 'RX'];
+  const types = ["R/", "RC", "OTC", "RX"];
 
   return (
     <div className="relative">
@@ -72,14 +78,14 @@ const ProductTypeSelector = ({ type, onChange }: { type: string; onChange: (type
         onClick={() => setIsOpen(!isOpen)}
         className="flex items-center gap-1 bg-white border border-gray-300 text-gray-700 px-3 py-1.5 rounded text-sm font-medium min-w-[60px] justify-between hover:border-gray-400 transition-colors"
       >
-        {type || 'R/'}
+        {type || "R/"}
         <ChevronDown className="w-3 h-3" />
       </button>
-      
+
       {isOpen && (
         <>
-          <div 
-            className="fixed inset-0 z-10" 
+          <div
+            className="fixed inset-0 z-10"
             onClick={() => setIsOpen(false)}
           />
           <div className="absolute top-full left-0 mt-1 bg-white border border-gray-300 rounded shadow-lg z-20 min-w-[80px]">
@@ -102,15 +108,19 @@ const ProductTypeSelector = ({ type, onChange }: { type: string; onChange: (type
   );
 };
 
-const ProductIcon = ({ productName, onBranchStockClick, onMedicationDetailsClick }: { 
-  productName: string; 
+const ProductIcon = ({
+  productName,
+  onBranchStockClick,
+  onMedicationDetailsClick,
+}: {
+  productName: string;
   onBranchStockClick: () => void;
   onMedicationDetailsClick: () => void;
 }) => {
   return (
     <div className="flex items-center gap-2">
       {/* First Icon - Package Box - CLICKABLE untuk buka Branch Wide Stock */}
-      <button 
+      <button
         className="w-8 h-8 bg-blue-100 rounded flex items-center justify-center hover:bg-blue-200 transition-colors cursor-pointer"
         onClick={onBranchStockClick}
         title="View Branch Wide Stock"
@@ -118,22 +128,22 @@ const ProductIcon = ({ productName, onBranchStockClick, onMedicationDetailsClick
         <Package className="w-5 h-5 text-blue-600" />
       </button>
       {/* Second Icon - Document/Receipt - CLICKABLE untuk buka Medication Details */}
-      <button 
+      <button
         className="w-8 h-8 bg-blue-100 rounded flex items-center justify-center hover:bg-blue-200 transition-colors cursor-pointer"
         onClick={onMedicationDetailsClick}
         title="View Medication Details"
       >
-        <svg 
-          className="w-5 h-5 text-blue-600" 
-          fill="none" 
-          stroke="currentColor" 
+        <svg
+          className="w-5 h-5 text-blue-600"
+          fill="none"
+          stroke="currentColor"
           viewBox="0 0 24 24"
         >
-          <path 
-            strokeLinecap="round" 
-            strokeLinejoin="round" 
-            strokeWidth={2} 
-            d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" 
+          <path
+            strokeLinecap="round"
+            strokeLinejoin="round"
+            strokeWidth={2}
+            d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"
           />
         </svg>
       </button>
@@ -169,7 +179,8 @@ export default function EnhancedProductTable({
 
   // Handler untuk icon Info (Branch Wide Stock) - DIPERBAIKI
   const handleBranchStockClick = (product: Product) => {
-    if (product.name) { // Hanya jika product ada nama
+    if (product.name) {
+      // Hanya jika product ada nama
       setSelectedProduct(product);
       setIsBranchStockOpen(true);
     }
@@ -177,26 +188,27 @@ export default function EnhancedProductTable({
 
   // Handler untuk icon Document (Medication Details)
   const handleMedicationDetailsClick = (product: Product) => {
-    if (product.name) { // Hanya jika product ada nama
+    if (product.name) {
+      // Hanya jika product ada nama
       setSelectedProduct(product);
       setIsMedicationDetailsOpen(true);
     }
   };
 
   // NEW: Separate search row from product rows
-  const searchProduct = products.find(p => !p.name); // First empty product for search
-  const filledProducts = products.filter(p => p.name); // Products with data
-  const emptyProducts = products.filter(p => !p.name && p !== searchProduct); // Other empty products
+  const searchProduct = products.find((p) => !p.name); // First empty product for search
+  const filledProducts = products.filter((p) => p.name); // Products with data
+  const emptyProducts = products.filter((p) => !p.name && p !== searchProduct); // Other empty products
 
   // Reorder: search first, then filled products, then empty products
   const reorderedProducts = [
     ...(searchProduct ? [searchProduct] : []),
     ...filledProducts,
-    ...emptyProducts.slice(0, 5) // Limit empty rows
+    ...emptyProducts.slice(0, 5), // Limit empty rows
   ];
 
   return (
-    <>
+    <div>
       <div className={`${className} bg-white rounded-2xl overflow-hidden`}>
         {/* Container with fixed action column */}
         <div className="relative">
@@ -206,30 +218,56 @@ export default function EnhancedProductTable({
               {/* Header */}
               <thead>
                 <tr className="bg-gray-100">
-                  <th className="text-left p-3 text-sm font-medium text-gray-600 w-[280px] rounded-tl-2xl">Product Name</th>
-                  <th className="text-left p-3 text-sm font-medium text-gray-600 w-[70px]">Type</th>
-                  <th className="text-left p-3 text-sm font-medium text-gray-600 w-[100px]">Price</th>
-                  <th className="text-center p-3 text-sm font-medium text-gray-600 w-[60px]">Qty</th>
-                  <th className="text-left p-3 text-sm font-medium text-gray-600 w-[100px]">SubTotal</th>
-                  <th className="text-center p-3 text-sm font-medium text-gray-600 w-[70px]">Disc%</th>
-                  <th className="text-left p-3 text-sm font-medium text-gray-600 w-[80px]">SC</th>
-                  <th className="text-left p-3 text-sm font-medium text-gray-600 w-[80px]">Misc</th>
-                  <th className="text-left p-3 text-sm font-medium text-gray-600 w-[80px]">Promo</th>
-                  <th className="text-center p-3 text-sm font-medium text-gray-600 w-[70px]">Promo%</th>
-                  <th className="text-center p-3 text-sm font-medium text-gray-600 w-[50px]">Up</th>
-                  <th className="text-center p-3 text-sm font-medium text-gray-600 w-[80px]">NoVoucher</th>
-                  <th className="text-left p-3 text-sm font-medium text-gray-600 w-[100px] pr-[140px]">Total</th>
+                  <th className="text-left p-3 text-sm font-medium text-gray-600 w-[280px] rounded-tl-2xl">
+                    Product Name
+                  </th>
+                  <th className="text-left p-3 text-sm font-medium text-gray-600 w-[70px]">
+                    Type
+                  </th>
+                  <th className="text-left p-3 text-sm font-medium text-gray-600 w-[100px]">
+                    Price
+                  </th>
+                  <th className="text-center p-3 text-sm font-medium text-gray-600 w-[60px]">
+                    Qty
+                  </th>
+                  <th className="text-left p-3 text-sm font-medium text-gray-600 w-[100px]">
+                    SubTotal
+                  </th>
+                  <th className="text-center p-3 text-sm font-medium text-gray-600 w-[70px]">
+                    Disc%
+                  </th>
+                  <th className="text-left p-3 text-sm font-medium text-gray-600 w-[80px]">
+                    SC
+                  </th>
+                  <th className="text-left p-3 text-sm font-medium text-gray-600 w-[80px]">
+                    Misc
+                  </th>
+                  <th className="text-left p-3 text-sm font-medium text-gray-600 w-[80px]">
+                    Promo
+                  </th>
+                  <th className="text-center p-3 text-sm font-medium text-gray-600 w-[70px]">
+                    Promo%
+                  </th>
+                  <th className="text-center p-3 text-sm font-medium text-gray-600 w-[50px]">
+                    Up
+                  </th>
+                  <th className="text-center p-3 text-sm font-medium text-gray-600 w-[80px]">
+                    NoVoucher
+                  </th>
+                  <th className="text-left p-3 text-sm font-medium text-gray-600 w-[100px] pr-[140px]">
+                    Total
+                  </th>
                 </tr>
               </thead>
-              
+
               {/* Body */}
               <tbody>
                 {reorderedProducts.map((product, index) => {
                   const isSearchRow = !product.name && index === 0;
                   const hasProductData = !!product.name;
-                  
+
                   return (
-                    <tr 
+                    <tr
                       key={product.id}
                       className={`border-b border-gray-100 hover:bg-blue-50 ${
                         index % 2 === 1 ? "bg-gray-50/30" : ""
@@ -241,15 +279,21 @@ export default function EnhancedProductTable({
                           {hasProductData ? (
                             // Product with data - show icons + name
                             <>
-                              <ProductIcon 
+                              <ProductIcon
                                 productName={product.name}
-                                onBranchStockClick={() => handleBranchStockClick(product)}
-                                onMedicationDetailsClick={() => handleMedicationDetailsClick(product)}
+                                onBranchStockClick={() =>
+                                  handleBranchStockClick(product)
+                                }
+                                onMedicationDetailsClick={() =>
+                                  handleMedicationDetailsClick(product)
+                                }
                               />
                               <div className="flex items-center gap-2">
                                 <span
                                   className="cursor-pointer hover:text-blue-600 text-sm font-medium truncate max-w-[140px]"
-                                  onClick={() => handleProductNameClick(product.id)}
+                                  onClick={() =>
+                                    handleProductNameClick(product.id)
+                                  }
                                   title={product.name}
                                 >
                                   {product.name}
@@ -262,7 +306,9 @@ export default function EnhancedProductTable({
                               <Input
                                 placeholder="Cari nama produk disini"
                                 className="border-gray-200 text-sm h-9 flex-1"
-                                onClick={() => handleProductNameClick(product.id)}
+                                onClick={() =>
+                                  handleProductNameClick(product.id)
+                                }
                                 readOnly
                               />
                             </div>
@@ -274,8 +320,10 @@ export default function EnhancedProductTable({
                       <td className="p-3">
                         {hasProductData ? (
                           <ProductTypeSelector
-                            type={product.type || 'R/'}
-                            onChange={(newType) => handleTypeChange(product.id, newType)}
+                            type={product.type || "R/"}
+                            onChange={(newType) =>
+                              handleTypeChange(product.id, newType)
+                            }
                           />
                         ) : (
                           <div className="w-[50px] h-9 bg-white border border-gray-300 rounded flex items-center justify-center">
@@ -298,7 +346,10 @@ export default function EnhancedProductTable({
                             type="number"
                             value={product.quantity || ""}
                             onChange={(e) =>
-                              onQuantityChange(product.id, parseInt(e.target.value) || 0)
+                              onQuantityChange(
+                                product.id,
+                                parseInt(e.target.value) || 0
+                              )
                             }
                             className="w-12 text-sm border-gray-200 h-9 text-center"
                             min="0"
@@ -348,13 +399,19 @@ export default function EnhancedProductTable({
                       </td>
 
                       {/* Promo % */}
-                      <td className="p-3 text-sm text-center">{product.promoPercent || 0}%</td>
+                      <td className="p-3 text-sm text-center">
+                        {product.promoPercent || 0}%
+                      </td>
 
                       {/* Up */}
-                      <td className="p-3 text-sm text-center">{product.up || 'N'}</td>
+                      <td className="p-3 text-sm text-center">
+                        {product.up || "N"}
+                      </td>
 
                       {/* No Voucher */}
-                      <td className="p-3 text-sm text-center">{product.noVoucher || 0}</td>
+                      <td className="p-3 text-sm text-center">
+                        {product.noVoucher || 0}
+                      </td>
 
                       {/* Total */}
                       <td className="p-3 text-sm font-bold pr-[140px]">
@@ -375,11 +432,11 @@ export default function EnhancedProductTable({
             <div className="bg-gray-100 p-3 text-sm font-medium text-gray-600 text-center border-b border-gray-200 rounded-tr-2xl">
               Action
             </div>
-            
+
             {/* Action Buttons */}
             {reorderedProducts.map((product, index) => {
               const hasProductData = !!product.name;
-              
+
               return (
                 <div
                   key={`action-${product.id}`}
@@ -435,6 +492,6 @@ export default function EnhancedProductTable({
         onClose={() => setIsMedicationDetailsOpen(false)}
         productName={selectedProduct?.name}
       />
-    </>
+    </div>
   );
 }

@@ -1,4 +1,4 @@
-// app/create-order/choose-menu/_components/ChooseMenuProductTable.tsx
+// app/create-order/choose-menu/_components/ChooseMenuProductTable.tsx - UPDATED WITHOUT FIXED ACTION COLUMN
 "use client";
 
 import React, { useState } from "react";
@@ -8,7 +8,6 @@ import { Plus, Trash } from "lucide-react";
 import BranchWideStockDialog from "@/components/shared/branch-wide-stock-dialog";
 import MedicationDetailsDialog from "@/components/shared/medication-details-dialog";
 import ProductTypeSelector from "@/components/shared/ProductTypeSelector";
-import ProductActionIcons from "@/components/shared/ProductActionIcons";
 import SelectProductDialog from "@/components/shared/select-product-dialog";
 import KeyboardShortcutGuide from "./KeyboardShortcutGuide";
 import UpsellDialog from "./UpsellDialog";
@@ -29,6 +28,78 @@ const formatCurrency = (amount: number | undefined | null): string => {
   } catch (error) {
     return "Rp 0";
   }
+};
+
+// Enhanced Product Action Icons with delete functionality
+const ProductActionIcons = ({
+  productName,
+  onBranchStockClick,
+  onMedicationDetailsClick,
+  onDeleteClick,
+  showIcons = true,
+}: {
+  productName: string;
+  onBranchStockClick: () => void;
+  onMedicationDetailsClick: () => void;
+  onDeleteClick: () => void;
+  showIcons?: boolean;
+}) => {
+  if (!showIcons) return null;
+
+  return (
+    <div className="flex items-center gap-2">
+      {/* Delete Icon - NEW POSITION */}
+      <button
+        className="w-8 h-8 bg-red-100 rounded flex items-center justify-center hover:bg-red-200 transition-colors cursor-pointer"
+        onClick={onDeleteClick}
+        title="Delete Product"
+      >
+        <Trash className="w-4 h-4 text-red-600" />
+      </button>
+
+      {/* Package Icon - Branch Wide Stock */}
+      <button
+        className="w-8 h-8 bg-blue-100 rounded flex items-center justify-center hover:bg-blue-200 transition-colors cursor-pointer"
+        onClick={onBranchStockClick}
+        title="View Branch Wide Stock"
+      >
+        <svg
+          className="w-5 h-5 text-blue-600"
+          fill="none"
+          stroke="currentColor"
+          viewBox="0 0 24 24"
+        >
+          <path
+            strokeLinecap="round"
+            strokeLinejoin="round"
+            strokeWidth={2}
+            d="M20 7l-8-4-8 4m16 0l-8 4m8-4v10l-8 4m0-10L4 7m8 4v10M4 7v10l8 4"
+          />
+        </svg>
+      </button>
+
+      {/* Document Icon - Medication Details */}
+      <button
+        className="w-8 h-8 bg-blue-100 rounded flex items-center justify-center hover:bg-blue-200 transition-colors cursor-pointer"
+        onClick={onMedicationDetailsClick}
+        title="View Medication Details"
+      >
+        <svg
+          className="w-5 h-5 text-blue-600"
+          fill="none"
+          stroke="currentColor"
+          viewBox="0 0 24 24"
+        >
+          <path
+            strokeLinecap="round"
+            strokeLinejoin="round"
+            strokeWidth={2}
+            d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"
+          />
+        </svg>
+      </button>
+    </div>
+  );
 };
 
 interface ChooseMenuProductTableProps {
@@ -147,14 +218,45 @@ export default function ChooseMenuProductTable({
 
   return (
     <>
-      <div className={`${className} bg-white rounded-2xl overflow-hidden`}>
-        {/* Container with fixed action column */}
-        <div className="relative">
-          {/* Main scrollable table */}
-          <div className="overflow-x-auto">
+      {/* CUSTOM SCROLLBAR STYLES */}
+      <style jsx>{`
+        .custom-scrollbar {
+          /* Custom scrollbar for webkit browsers */
+          scrollbar-width: thin;
+          scrollbar-color: #3b82f6 #f1f5f9;
+        }
+
+        .custom-scrollbar::-webkit-scrollbar {
+          width: 8px;
+          height: 8px;
+        }
+
+        .custom-scrollbar::-webkit-scrollbar-track {
+          background: #f1f5f9;
+          border-radius: 4px;
+        }
+
+        .custom-scrollbar::-webkit-scrollbar-thumb {
+          background: #3b82f6;
+          border-radius: 4px;
+          border: 1px solid #f1f5f9;
+        }
+
+        .custom-scrollbar::-webkit-scrollbar-thumb:hover {
+          background: #2563eb;
+        }
+
+        .custom-scrollbar::-webkit-scrollbar-corner {
+          background: #f1f5f9;
+        }
+      `}</style>
+      <div className="bg-white rounded-2xl p-5 mb-6">
+        <div className={`bg-white rounded-2xl overflow-hidden`}>
+          {/* Main scrollable table with max height and custom scrollbar */}
+          <div className="overflow-auto custom-scrollbar max-h-[400px]">
             <table className="w-full min-w-[1350px]">
-              {/* Header */}
-              <thead>
+              {/* Header - Sticky */}
+              <thead className="sticky top-0 z-10">
                 <tr className="bg-gray-100">
                   <th className="text-left p-3 text-sm font-medium text-gray-600 w-[50px] rounded-tl-2xl">
                     {/* Empty header for checkbox column */}
@@ -195,7 +297,7 @@ export default function ChooseMenuProductTable({
                   <th className="text-center p-3 text-sm font-medium text-gray-600 w-[80px]">
                     NoVoucher
                   </th>
-                  <th className="text-left p-3 text-sm font-medium text-gray-600 w-[100px] pr-[140px]">
+                  <th className="text-left p-3 text-sm font-medium text-gray-600 w-[100px] rounded-tr-2xl">
                     Total
                   </th>
                 </tr>
@@ -242,9 +344,12 @@ export default function ChooseMenuProductTable({
                                 onMedicationDetailsClick={() =>
                                   handleMedicationDetailsClick(product)
                                 }
+                                onDeleteClick={() =>
+                                  onRemoveProduct(product.id)
+                                }
                               />
                               <span
-                                className="cursor-pointer hover:text-blue-600 text-sm font-medium truncate max-w-[240px]"
+                                className="cursor-pointer hover:text-blue-600 text-sm font-medium truncate max-w-[180px]"
                                 onClick={() => onProductNameClick?.(product.id)}
                                 title={product.name}
                               >
@@ -253,6 +358,13 @@ export default function ChooseMenuProductTable({
                             </>
                           ) : (
                             <div className="flex items-center gap-3 w-full">
+                              <button
+                                className="w-8 h-8 bg-blue-100 rounded flex items-center justify-center hover:bg-blue-200 transition-colors cursor-pointer"
+                                onClick={handleSearchFieldClick}
+                                title="Add Product"
+                              >
+                                <Plus className="w-5 h-5 text-blue-600" />
+                              </button>
                               <Input
                                 placeholder="Cari nama produk disini"
                                 className="border-gray-200 text-sm h-9 flex-1 cursor-pointer"
@@ -357,7 +469,7 @@ export default function ChooseMenuProductTable({
                       </td>
 
                       {/* Total */}
-                      <td className="p-3 text-sm font-bold pr-[140px]">
+                      <td className="p-3 text-sm font-bold">
                         <div className="whitespace-nowrap">
                           {formatCurrency(product.total || product.subtotal)}
                         </div>
@@ -367,50 +479,6 @@ export default function ChooseMenuProductTable({
                 })}
               </tbody>
             </table>
-          </div>
-
-          {/* Fixed Action Column */}
-          <div className="absolute top-0 right-0 w-[120px] bg-white shadow-lg rounded-tr-2xl">
-            {/* Action Header */}
-            <div className="bg-gray-100 p-3 text-sm font-medium text-gray-600 text-center border-b border-gray-200 rounded-tr-2xl">
-              Action
-            </div>
-
-            {/* Action Buttons */}
-            {tableData.map((product, index) => {
-              const hasProductData = !!product.name;
-
-              return (
-                <div
-                  key={`action-${product.id}`}
-                  className={`p-4 border-b border-gray-100 flex items-center justify-center gap-2 ${
-                    index % 2 === 1 ? "bg-gray-50/30" : ""
-                  }`}
-                >
-                  {hasProductData ? (
-                    // Product with data - show only DELETE button
-                    <Button
-                      variant="destructive"
-                      size="sm"
-                      className="h-7 w-7 p-0 rounded-full bg-red-500 hover:bg-red-600"
-                      onClick={() => onRemoveProduct(product.id)}
-                    >
-                      <Trash size={14} />
-                    </Button>
-                  ) : (
-                    // Empty product - show only ADD button
-                    <Button
-                      variant="default"
-                      size="sm"
-                      className="h-7 w-7 p-0 rounded-full bg-blue-500 hover:bg-blue-600"
-                      onClick={handleSearchFieldClick}
-                    >
-                      <Plus size={14} />
-                    </Button>
-                  )}
-                </div>
-              );
-            })}
           </div>
         </div>
       </div>

@@ -12,7 +12,6 @@ body {
   }
 }
 
-
 @layer base {
   :root {
     --background: 0 0% 100%;
@@ -70,7 +69,6 @@ body {
   }
 }
 
-
 @layer base {
   * {
     @apply border-border;
@@ -78,5 +76,15 @@ body {
   body {
     @apply bg-background text-foreground;
   }
-}
 
+  /* Hide number input arrows */
+  input[type="number"]::-webkit-outer-spin-button,
+  input[type="number"]::-webkit-inner-spin-button {
+    -webkit-appearance: none;
+    margin: 0;
+  }
+
+  input[type="number"] {
+    -moz-appearance: textfield;
+  }
+}

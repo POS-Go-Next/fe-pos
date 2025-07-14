@@ -1,8 +1,8 @@
-// components/shared/select-product-dialog.tsx
+// components/shared/select-product-dialog.tsx - UPDATED TO POPUP SIZE
 "use client";
 
 import { useState, useEffect } from "react";
-import { ArrowLeft, Search, Plus, X } from "lucide-react";
+import { Search, Plus, X, Clock } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import Pagination from "./pagination";
@@ -26,7 +26,7 @@ export default function SelectProductDialog({
   const [isSearchActive, setIsSearchActive] = useState(false);
   const [apiParams, setApiParams] = useState({
     offset: 0,
-    limit: 7,
+    limit: 10, // Changed from 7 to 10 to match design
     search: "",
   });
 
@@ -38,33 +38,40 @@ export default function SelectProductDialog({
   useEffect(() => {
     if (isOpen) {
       setCurrentPage(1);
-      setApiParams({ offset: 0, limit: 7, search: "" });
+      setApiParams({ offset: 0, limit: 10, search: "" });
       setSearchInput("");
       setSearchTerm("");
       setIsSearchActive(false);
     }
   }, [isOpen]);
 
-  // Handle search
-  const handleSearch = () => {
+  // Auto search when user types 3+ characters
+  useEffect(() => {
     const trimmedSearch = searchInput.trim();
-    setSearchTerm(trimmedSearch);
-    setIsSearchActive(trimmedSearch !== "");
-    setCurrentPage(1);
-    setApiParams({
-      offset: 0,
-      limit: 7,
-      search: trimmedSearch,
-    });
-  };
 
-  // Handle search toggle (reset)
-  const handleSearchToggle = () => {
+    if (trimmedSearch.length >= 3 || trimmedSearch.length === 0) {
+      const timeoutId = setTimeout(() => {
+        setSearchTerm(trimmedSearch);
+        setIsSearchActive(trimmedSearch !== "");
+        setCurrentPage(1);
+        setApiParams({
+          offset: 0,
+          limit: 10,
+          search: trimmedSearch,
+        });
+      }, 300); // 300ms debounce
+
+      return () => clearTimeout(timeoutId);
+    }
+  }, [searchInput]);
+
+  // Handle search reset
+  const handleSearchReset = () => {
     setSearchInput("");
     setSearchTerm("");
     setIsSearchActive(false);
     setCurrentPage(1);
-    setApiParams({ offset: 0, limit: 7, search: "" });
+    setApiParams({ offset: 0, limit: 10, search: "" });
   };
 
   // Handle product selection
@@ -78,87 +85,76 @@ export default function SelectProductDialog({
     if (page < 1 || page > (totalPages || 1)) return;
 
     setCurrentPage(page);
-    const offset = (page - 1) * 7;
+    const offset = (page - 1) * 10;
     setApiParams({
       offset,
-      limit: 7,
+      limit: 10,
       search: searchTerm,
     });
   };
 
-  // Handle enter key for search
+  // Handle enter key (no longer needed for search)
   const handleKeyPress = (e: React.KeyboardEvent) => {
-    if (e.key === "Enter") {
-      handleSearch();
+    if (e.key === "Escape") {
+      onClose();
     }
   };
 
   if (!isOpen) return null;
 
   return (
-    <div className="fixed inset-0 bg-[#F5F5F5] z-50 flex items-center justify-center">
-      <div className="w-full max-w-6xl h-[90vh] flex flex-col">
-        {/* Header - Outside white background */}
-        <div className="flex items-center py-3">
-          <button
-            onClick={onClose}
-            className="mr-4 text-gray-700 hover:text-gray-900"
-          >
-            <ArrowLeft size={20} />
-          </button>
-          <h2 className="text-xl font-semibold flex-grow text-gray-900">
+    <div className="fixed inset-0 bg-black/50 z-50 flex items-center justify-center p-4">
+      {/* UPDATED: Changed to popup size with max dimensions */}
+      <div className="bg-white rounded-2xl w-full max-w-5xl max-h-[80vh] flex flex-col shadow-2xl">
+        {/* Header */}
+        <div className="flex items-center justify-between p-6 border-b border-gray-200">
+          <h2 className="text-xl font-semibold text-gray-900">
             Select Product
           </h2>
-          <Button className="bg-blue-600 hover:bg-blue-700">
-            <Plus size={16} className="mr-2" />
-            Add Product
-          </Button>
+          {/* Close Button only */}
+          <button
+            onClick={onClose}
+            className="w-8 h-8 flex items-center justify-center rounded-full border border-gray-300 hover:border-gray-400 transition-colors"
+          >
+            <X className="h-4 w-4 text-gray-600" />
+          </button>
         </div>
 
-        {/* White background container */}
-        <div className="bg-white rounded-lg overflow-hidden flex-grow flex flex-col p-4">
-          {/* Search bar */}
-          <div className="py-4">
-            <div className="relative flex">
+        {/* Search bar */}
+        <div className="p-6 border-b border-gray-200">
+          <div className="relative flex gap-3">
+            <div className="relative flex-1">
               <Input
                 type="text"
-                placeholder="Search product name, SKU, or barcode..."
-                className="pl-10 bg-[#F5F5F5] border-none flex-grow mr-2 h-10"
+                placeholder="Search SKU or Product Name (min 3 characters)"
+                className="pl-10 bg-gray-50 border-gray-200 h-10"
                 value={searchInput}
                 onChange={(e) => setSearchInput(e.target.value)}
-                onKeyPress={handleKeyPress}
               />
               <Search
                 className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400"
                 size={18}
               />
-              {isSearchActive ? (
-                <Button
-                  variant="destructive"
-                  onClick={handleSearchToggle}
-                  className="flex items-center h-10"
-                >
-                  <X size={16} className="mr-2" /> Reset
-                </Button>
-              ) : (
-                <Button
-                  variant="default"
-                  onClick={handleSearch}
-                  className="flex items-center h-10"
-                >
-                  Search
-                </Button>
-              )}
             </div>
+            {/* History Button - moved from header */}
+            <Button
+              variant="outline"
+              className="h-10 px-4 border-blue-500 text-blue-500 hover:bg-blue-50"
+            >
+              <Clock size={16} className="mr-2" />
+              History
+            </Button>
           </div>
+        </div>
 
+        {/* Table Container */}
+        <div className="flex-1 overflow-hidden flex flex-col">
           {/* Table header */}
-          <div className="grid grid-cols-12 bg-[#F5F5F5] py-2 px-4 rounded-lg font-medium text-gray-600">
-            <div className="col-span-1">#</div>
+          <div className="grid grid-cols-12 bg-gray-50 py-3 px-6 text-sm font-medium text-gray-600 border-b border-gray-200">
             <div className="col-span-1">SKU</div>
-            <div className="col-span-2">Product Name</div>
+            <div className="col-span-3">Product Name</div>
             <div className="col-span-1">Dept</div>
-            <div className="col-span-1">Satuan</div>
+            <div className="col-span-1">UOM</div>
             <div className="col-span-1">HJ Ecer</div>
             <div className="col-span-1">HJ Swalayan</div>
             <div className="col-span-1">HJ Perpack</div>
@@ -167,8 +163,8 @@ export default function SelectProductDialog({
             <div className="col-span-1">Stock</div>
           </div>
 
-          {/* Table rows */}
-          <div className="flex-grow overflow-y-auto">
+          {/* Table body */}
+          <div className="flex-1 overflow-y-auto">
             {isLoading ? (
               <div className="flex items-center justify-center h-40">
                 <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-500"></div>
@@ -191,32 +187,38 @@ export default function SelectProductDialog({
               stockList.map((product, index) => (
                 <div
                   key={product.kode_brg}
-                  className={`grid grid-cols-12 p-4 hover:bg-blue-50 cursor-pointer transition-colors ${
+                  className={`grid grid-cols-12 px-6 py-3 hover:bg-blue-50 cursor-pointer transition-colors border-b border-gray-100 ${
                     index % 2 === 1 ? "bg-gray-50/50" : ""
                   }`}
                   onClick={() => handleSelectProduct(product)}
                 >
-                  <div className="col-span-1 flex items-center">
-                    <div className="w-5 h-5 rounded-full mr-2 bg-transparent"></div>
-                    {index + 1 + (currentPage - 1) * 7}
+                  <div className="col-span-1 text-sm font-medium text-gray-900">
+                    {product.kode_brg}
                   </div>
-                  <div className="col-span-1 text-sm">{product.kode_brg}</div>
-                  <div className="col-span-2 text-sm font-medium">
+                  <div className="col-span-3 text-sm font-medium text-gray-900">
                     {product.nama_brg}
                   </div>
-                  <div className="col-span-1 text-sm">{product.id_dept}</div>
-                  <div className="col-span-1 text-sm">{product.satuan}</div>
-                  <div className="col-span-1 text-sm">
+                  <div className="col-span-1 text-sm text-gray-600">
+                    {product.id_dept}
+                  </div>
+                  <div className="col-span-1 text-sm text-gray-600">
+                    {product.satuan}
+                  </div>
+                  <div className="col-span-1 text-sm text-gray-900">
                     Rp {product.hj_ecer?.toLocaleString("id-ID") || 0}
                   </div>
-                  <div className="col-span-1 text-sm">
+                  <div className="col-span-1 text-sm text-gray-900">
                     Rp {product.hj_ecer?.toLocaleString("id-ID") || 0}
                   </div>
-                  <div className="col-span-1 text-sm">
+                  <div className="col-span-1 text-sm text-gray-900">
                     Rp {product.hj_ecer?.toLocaleString("id-ID") || 0}
                   </div>
-                  <div className="col-span-1 text-sm">{product.isi}</div>
-                  <div className="col-span-1 text-sm">{product.strip}</div>
+                  <div className="col-span-1 text-sm text-gray-600">
+                    {product.isi}
+                  </div>
+                  <div className="col-span-1 text-sm text-gray-600">
+                    {product.strip}
+                  </div>
                   <div className="col-span-1 text-sm font-medium text-green-600">
                     {product.q_bbs || 0}
                   </div>
@@ -230,24 +232,26 @@ export default function SelectProductDialog({
               </div>
             )}
           </div>
+        </div>
 
-          {/* Pagination */}
-          {stockList.length > 0 && totalPages && totalPages > 1 && (
-            <div className="p-4 flex justify-between items-center border-t">
-              <div className="text-sm text-gray-600">
-                Showing {(currentPage - 1) * 7 + 1} to{" "}
-                {Math.min(currentPage * 7, totalDocs || 0)} of {totalDocs || 0}{" "}
-                products
-              </div>
+        {/* Footer with Pagination - Always show when there's data */}
+        {stockList.length > 0 && (
+          <div className="p-6 border-t border-gray-200 flex justify-between items-center">
+            <div className="text-sm text-gray-600">
+              Showing {(currentPage - 1) * 10 + 1} to{" "}
+              {Math.min(currentPage * 10, totalDocs || 0)} of {totalDocs || 0}{" "}
+              products
+            </div>
+            {totalPages && totalPages > 1 && (
               <Pagination
                 currentPage={currentPage}
                 totalPages={totalPages}
                 onPageChange={handlePageChange}
                 size="sm"
               />
-            </div>
-          )}
-        </div>
+            )}
+          </div>
+        )}
       </div>
     </div>
   );
