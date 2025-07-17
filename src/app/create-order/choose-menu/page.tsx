@@ -4,36 +4,19 @@ import { useState, useEffect } from "react";
 import Link from "next/link";
 import { ArrowLeft, Search } from "lucide-react";
 import { Input } from "@/components/ui/input";
-import { Promo } from "@/components/shared/promo-table";
 import { ProductTableItem } from "@/types/stock";
 import type { StockData } from "@/types/stock";
 import TransactionInfo from "@/components/shared/transaction-info";
-import CustomerInfoWithDialog from "@/components/shared/customer-info-with-dialog";
 import OrderSummary from "@/components/shared/order-summary";
 import PaymentDialog from "@/components/shared/payment-dialog";
 import PaymentSuccessDialog from "@/components/shared/payment-success-dialog";
-import {
-  ProductTableSection,
-  TabNavigation,
-  PromoSection,
-  BestSellerSection,
-  SuggestionsSection,
-  CalculatorToggle,
-} from "./_components";
+import { ProductTableSection } from "./_components";
 
 export default function ChooseMenuPage() {
   const [isClient, setIsClient] = useState(false);
-  const [selectedCustomer, setSelectedCustomer] = useState<string>("");
-  const [selectedDoctor, setSelectedDoctor] = useState<string>("");
   const [isPaymentDialogOpen, setIsPaymentDialogOpen] = useState(false);
   const [isPaymentSuccessDialogOpen, setIsPaymentSuccessDialogOpen] =
     useState(false);
-
-  // Tab and calculator states
-  const [activeTab, setActiveTab] = useState<
-    "promo" | "bestseller" | "suggestions"
-  >("promo");
-  const [isCalculatorVisible, setIsCalculatorVisible] = useState(false);
 
   useEffect(() => {
     setIsClient(true);
@@ -76,73 +59,6 @@ export default function ChooseMenuPage() {
     }
   }, [products, nextId, isClient]);
 
-  // Promos state
-  const [promos] = useState<Promo[]>([
-    {
-      id: "PR001",
-      name: "Blackmores Vitamin & Minerals",
-      type: "Buy 1 Get 1 Free",
-      startDate: "05/12/24",
-      endDate: "05/12/25",
-    },
-    {
-      id: "PR002",
-      name: "Folaries asam folat 30 Capsul",
-      type: "Discount 10%",
-      startDate: "05/12/24",
-      endDate: "05/12/25",
-    },
-    {
-      id: "PR003",
-      name: "Dinosweet Syrup 100ml Jeruk",
-      type: "Discount 10%",
-      startDate: "05/12/24",
-      endDate: "05/12/25",
-    },
-    {
-      id: "PR004",
-      name: "Ibuprofen 400mg Tablets",
-      type: "Discount 15%",
-      startDate: "06/01/24",
-      endDate: "06/30/25",
-    },
-    {
-      id: "PR005",
-      name: "Paracetamol 500mg Capsules",
-      type: "Buy 2 Get 1 Free",
-      startDate: "06/15/24",
-      endDate: "07/15/25",
-    },
-    {
-      id: "PR006",
-      name: "Vitamin C 1000mg Tablets",
-      type: "Discount 20%",
-      startDate: "07/01/24",
-      endDate: "08/01/25",
-    },
-    {
-      id: "PR007",
-      name: "Omega-3 Fish Oil Capsules",
-      type: "Buy 1 Get 30% Off",
-      startDate: "07/10/24",
-      endDate: "08/10/25",
-    },
-    {
-      id: "PR008",
-      name: "Calcium + Vitamin D Tablets",
-      type: "Discount 25%",
-      startDate: "08/01/24",
-      endDate: "09/01/25",
-    },
-    {
-      id: "PR009",
-      name: "Probiotic Daily Capsules",
-      type: "Buy 2 Get 50% Off",
-      startDate: "08/15/24",
-      endDate: "09/15/25",
-    },
-  ]);
-
   // Transaction information
   const transactionInfo = {
     id: "S24073831357",
@@ -152,7 +68,7 @@ export default function ChooseMenuPage() {
 
   // Calculate total amount
   const totalAmount = isClient
-    ? products.reduce((sum, product) => sum + product.subtotal, 0)
+    ? products.reduce((sum, product) => sum + (product.subtotal || 0), 0)
     : 0;
 
   // Handle product quantity change
@@ -163,16 +79,16 @@ export default function ChooseMenuPage() {
       products.map((product) => {
         if (product.id === id) {
           const newQuantity = value < 0 ? 0 : value;
-          const newSubtotal = product.price * newQuantity;
+          const newSubtotal = (product.price || 0) * newQuantity;
           return {
             ...product,
             quantity: newQuantity,
             subtotal: newSubtotal,
             total:
               newSubtotal +
-              product.sc +
-              product.misc -
-              product.discount -
+              (product.sc || 0) +
+              (product.misc || 0) -
+              (product.discount || 0) -
               (product.promo || 0),
           };
         }
@@ -188,16 +104,6 @@ export default function ChooseMenuPage() {
     setProducts(products.filter((product) => product.id !== id));
   };
 
-  // Clear all products (optional function)
-  const clearAllProducts = () => {
-    if (!isClient) return;
-
-    setProducts([]);
-    setNextId(1);
-    localStorage.removeItem("pos-products");
-    localStorage.removeItem("pos-next-id");
-  };
-
   // Handle product name click (for existing products)
   const handleProductNameClick = (id: number) => {
     console.log(`Product name clicked for ID: ${id}`);
@@ -209,9 +115,9 @@ export default function ChooseMenuPage() {
       id: nextId,
       name: stockData.nama_brg,
       type: stockData.id_kategori === "001" ? "R/" : "RC",
-      price: stockData.hj_ecer,
+      price: stockData.hj_ecer || 0,
       quantity: 1, // Default quantity
-      subtotal: stockData.hj_ecer,
+      subtotal: stockData.hj_ecer || 0,
       discount: 0,
       sc: 0,
       misc: 0,
@@ -219,7 +125,7 @@ export default function ChooseMenuPage() {
       promoPercent: 0,
       up: "N",
       noVoucher: 0,
-      total: stockData.hj_ecer,
+      total: stockData.hj_ecer || 0,
       stockData: stockData, // Store original stock data
     };
   };
@@ -240,16 +146,16 @@ export default function ChooseMenuPage() {
         prevProducts.map((product, index) => {
           if (index === existingProductIndex) {
             const newQuantity = product.quantity + 1;
-            const newSubtotal = product.price * newQuantity;
+            const newSubtotal = (product.price || 0) * newQuantity;
             return {
               ...product,
               quantity: newQuantity,
               subtotal: newSubtotal,
               total:
                 newSubtotal +
-                product.sc +
-                product.misc -
-                product.discount -
+                (product.sc || 0) +
+                (product.misc || 0) -
+                (product.discount || 0) -
                 (product.promo || 0),
             };
           }
@@ -264,30 +170,6 @@ export default function ChooseMenuPage() {
     }
   };
 
-  // Handle customer selection
-  const handleCustomerSelect = (customerName: string) => {
-    setSelectedCustomer(customerName);
-  };
-
-  // Handle doctor selection
-  const handleDoctorSelect = (doctorName: string) => {
-    setSelectedDoctor(doctorName);
-  };
-
-  // Render tab content
-  const renderTabContent = () => {
-    switch (activeTab) {
-      case "promo":
-        return <PromoSection promos={promos} />;
-      case "bestseller":
-        return <BestSellerSection />;
-      case "suggestions":
-        return <SuggestionsSection />;
-      default:
-        return <PromoSection promos={promos} />;
-    }
-  };
-
   if (!isClient) {
     return <div className="p-4">Loading...</div>;
   }
@@ -295,9 +177,8 @@ export default function ChooseMenuPage() {
   return (
     <div className="flex flex-col h-screen bg-gradient-to-b from-blue-50 to-white">
       <div className="flex flex-1 overflow-hidden">
-        {/* Left Column */}
+        {/* Left Side - Table Area */}
         <div className="w-3/4 p-4 overflow-auto">
-          {/* Header - Only in left column */}
           <div className="bg-white rounded-2xl shadow-sm border border-gray-100 p-5 mb-6">
             <div className="flex items-center">
               <Link
@@ -305,7 +186,7 @@ export default function ChooseMenuPage() {
                 className="flex items-center text-gray-800"
               >
                 <ArrowLeft className="mr-2" size={20} />
-                <h1 className="text-lg font-semibold">Choose Product</h1>
+                <h1 className="text-lg font-semibold">POST Transaction</h1>
               </Link>
               <div className="flex-grow flex justify-end ml-4">
                 <div className="relative w-full max-w-md">
@@ -323,7 +204,6 @@ export default function ChooseMenuPage() {
             </div>
           </div>
 
-          {/* Product Table Section */}
           <ProductTableSection
             products={products}
             onQuantityChange={handleQuantityChange}
@@ -332,41 +212,10 @@ export default function ChooseMenuPage() {
             onProductSelect={handleProductSelect}
             className="mb-6"
           />
-
-          {/* Bottom section with Tab and Optional Calculator */}
-          <div className="relative overflow-hidden">
-            {/* Main Content Area with Tabs */}
-            <div
-              className={`transition-all duration-500 ease-in-out bg-white p-5 rounded-2xl ${
-                isCalculatorVisible ? "w-[calc(100%-296px)]" : "w-full"
-              }`}
-            >
-              {/* Tab Navigation */}
-              <div className="flex items-center justify-between mb-4">
-                <TabNavigation
-                  activeTab={activeTab}
-                  onTabChange={setActiveTab}
-                />
-
-                <CalculatorToggle
-                  isVisible={isCalculatorVisible}
-                  onToggle={() => setIsCalculatorVisible(!isCalculatorVisible)}
-                />
-              </div>
-
-              {/* Tab Content */}
-              <div className="bg-white rounded-xl overflow-hidden">
-                {renderTabContent()}
-              </div>
-            </div>
-
-            {/* Calculator - Fixed Position (rendered by CalculatorToggle) */}
-          </div>
         </div>
 
-        {/* Right Column */}
+        {/* Right Side - Sidebar with scroll */}
         <div className="w-1/4 p-4 bg-white shadow-md overflow-auto">
-          {/* Transaction Information */}
           <TransactionInfo
             transactionId={transactionInfo.id}
             counter={transactionInfo.counter}
@@ -375,17 +224,6 @@ export default function ChooseMenuPage() {
             className="mb-6"
           />
 
-          {/* Customer Information with Dialog */}
-          <CustomerInfoWithDialog
-            selectedCustomer={selectedCustomer}
-            selectedDoctor={selectedDoctor}
-            onSelectCustomer={handleCustomerSelect}
-            onSelectDoctor={handleDoctorSelect}
-            className="mb-6"
-            useDialog={true}
-          />
-
-          {/* Order Summary */}
           <OrderSummary
             subtotal={totalAmount}
             onPendingBill={() => console.log("Pending bill")}
@@ -394,7 +232,6 @@ export default function ChooseMenuPage() {
         </div>
       </div>
 
-      {/* Payment Dialog */}
       <PaymentDialog
         isOpen={isPaymentDialogOpen}
         onClose={() => setIsPaymentDialogOpen(false)}
@@ -404,18 +241,17 @@ export default function ChooseMenuPage() {
         }}
         totalAmount={totalAmount}
         orderDetails={{
-          customer: selectedCustomer || "Select Customer",
+          customer: "Select Customer",
           items: products
             .filter((p) => p.quantity > 0)
             .map((p) => ({
               name: p.name,
               quantity: p.quantity,
-              price: p.price,
+              price: p.price || 0,
             })),
         }}
       />
 
-      {/* Payment Success Dialog */}
       <PaymentSuccessDialog
         isOpen={isPaymentSuccessDialogOpen}
         onClose={() => setIsPaymentSuccessDialogOpen(false)}

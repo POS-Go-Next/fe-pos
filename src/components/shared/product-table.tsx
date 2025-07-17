@@ -20,7 +20,6 @@ interface DialogProduct {
   barcode: string;
 }
 
-// Export Product interface - FIX: Add export to make it available for import
 export interface Product {
   id: number;
   name: string;
@@ -38,7 +37,6 @@ export interface Product {
   total?: number;
 }
 
-// Currency formatting utility - Back to standard format
 const formatCurrency = (amount: number | undefined | null): string => {
   if (amount == null || isNaN(Number(amount))) {
     return "Rp 0";
@@ -119,7 +117,6 @@ const ProductIcon = ({
 }) => {
   return (
     <div className="flex items-center gap-2">
-      {/* First Icon - Package Box - CLICKABLE untuk buka Branch Wide Stock */}
       <button
         className="w-8 h-8 bg-blue-100 rounded flex items-center justify-center hover:bg-blue-200 transition-colors cursor-pointer"
         onClick={onBranchStockClick}
@@ -127,7 +124,6 @@ const ProductIcon = ({
       >
         <Package className="w-5 h-5 text-blue-600" />
       </button>
-      {/* Second Icon - Document/Receipt - CLICKABLE untuk buka Medication Details */}
       <button
         className="w-8 h-8 bg-blue-100 rounded flex items-center justify-center hover:bg-blue-200 transition-colors cursor-pointer"
         onClick={onMedicationDetailsClick}
@@ -160,11 +156,9 @@ export default function EnhancedProductTable({
   onProductSelect,
   className = "",
 }: EnhancedProductTableProps) {
-  // State untuk Branch Wide Stock Dialog
   const [isBranchStockOpen, setIsBranchStockOpen] = useState(false);
   const [selectedProduct, setSelectedProduct] = useState<Product | null>(null);
 
-  // State untuk Medication Details Dialog
   const [isMedicationDetailsOpen, setIsMedicationDetailsOpen] = useState(false);
 
   const handleProductNameClick = (productId: number) => {
@@ -177,45 +171,36 @@ export default function EnhancedProductTable({
     console.log(`Product ${productId} type changed to ${newType}`);
   };
 
-  // Handler untuk icon Info (Branch Wide Stock) - DIPERBAIKI
   const handleBranchStockClick = (product: Product) => {
     if (product.name) {
-      // Hanya jika product ada nama
       setSelectedProduct(product);
       setIsBranchStockOpen(true);
     }
   };
 
-  // Handler untuk icon Document (Medication Details)
   const handleMedicationDetailsClick = (product: Product) => {
     if (product.name) {
-      // Hanya jika product ada nama
       setSelectedProduct(product);
       setIsMedicationDetailsOpen(true);
     }
   };
 
-  // NEW: Separate search row from product rows
-  const searchProduct = products.find((p) => !p.name); // First empty product for search
-  const filledProducts = products.filter((p) => p.name); // Products with data
-  const emptyProducts = products.filter((p) => !p.name && p !== searchProduct); // Other empty products
+  const searchProduct = products.find((p) => !p.name);
+  const filledProducts = products.filter((p) => p.name);
+  const emptyProducts = products.filter((p) => !p.name && p !== searchProduct);
 
-  // Reorder: search first, then filled products, then empty products
   const reorderedProducts = [
     ...(searchProduct ? [searchProduct] : []),
     ...filledProducts,
-    ...emptyProducts.slice(0, 5), // Limit empty rows
+    ...emptyProducts.slice(0, 5),
   ];
 
   return (
     <div>
       <div className={`${className} bg-white rounded-2xl overflow-hidden`}>
-        {/* Container with fixed action column */}
         <div className="relative">
-          {/* Main scrollable table */}
           <div className="overflow-x-auto">
             <table className="w-full min-w-[1180px]">
-              {/* Header */}
               <thead>
                 <tr className="bg-gray-100">
                   <th className="text-left p-3 text-sm font-medium text-gray-600 w-[280px] rounded-tl-2xl">
@@ -260,7 +245,6 @@ export default function EnhancedProductTable({
                 </tr>
               </thead>
 
-              {/* Body */}
               <tbody>
                 {reorderedProducts.map((product, index) => {
                   const isSearchRow = !product.name && index === 0;
@@ -273,11 +257,9 @@ export default function EnhancedProductTable({
                         index % 2 === 1 ? "bg-gray-50/30" : ""
                       }`}
                     >
-                      {/* Product Name */}
                       <td className="p-3">
                         <div className="flex items-center gap-3">
                           {hasProductData ? (
-                            // Product with data - show icons + name
                             <>
                               <ProductIcon
                                 productName={product.name}
@@ -301,7 +283,6 @@ export default function EnhancedProductTable({
                               </div>
                             </>
                           ) : (
-                            // Empty product - no icons, just search input
                             <div className="flex items-center gap-3 w-full">
                               <Input
                                 placeholder="Cari nama produk disini"
@@ -316,7 +297,6 @@ export default function EnhancedProductTable({
                         </div>
                       </td>
 
-                      {/* Type */}
                       <td className="p-3">
                         {hasProductData ? (
                           <ProductTypeSelector
@@ -332,14 +312,12 @@ export default function EnhancedProductTable({
                         )}
                       </td>
 
-                      {/* Price */}
                       <td className="p-3 text-sm">
                         <div className="whitespace-nowrap">
                           {formatCurrency(product.price)}
                         </div>
                       </td>
 
-                      {/* Quantity */}
                       <td className="p-3">
                         <div className="flex justify-center">
                           <Input
@@ -357,14 +335,12 @@ export default function EnhancedProductTable({
                         </div>
                       </td>
 
-                      {/* Sub Total */}
                       <td className="p-3 text-sm font-semibold">
                         <div className="whitespace-nowrap">
                           {formatCurrency(product.subtotal)}
                         </div>
                       </td>
 
-                      {/* Discount % */}
                       <td className="p-3">
                         <div className="flex justify-center">
                           <Input
@@ -377,43 +353,36 @@ export default function EnhancedProductTable({
                         </div>
                       </td>
 
-                      {/* SC */}
                       <td className="p-3 text-sm">
                         <div className="whitespace-nowrap">
                           {formatCurrency(product.sc)}
                         </div>
                       </td>
 
-                      {/* Misc */}
                       <td className="p-3 text-sm">
                         <div className="whitespace-nowrap">
                           {formatCurrency(product.misc)}
                         </div>
                       </td>
 
-                      {/* Promo */}
                       <td className="p-3 text-sm">
                         <div className="whitespace-nowrap">
                           {formatCurrency(product.promo || 0)}
                         </div>
                       </td>
 
-                      {/* Promo % */}
                       <td className="p-3 text-sm text-center">
                         {product.promoPercent || 0}%
                       </td>
 
-                      {/* Up */}
                       <td className="p-3 text-sm text-center">
                         {product.up || "N"}
                       </td>
 
-                      {/* No Voucher */}
                       <td className="p-3 text-sm text-center">
                         {product.noVoucher || 0}
                       </td>
 
-                      {/* Total */}
                       <td className="p-3 text-sm font-bold pr-[140px]">
                         <div className="whitespace-nowrap">
                           {formatCurrency(product.total || product.subtotal)}
@@ -426,14 +395,11 @@ export default function EnhancedProductTable({
             </table>
           </div>
 
-          {/* Fixed Action Column with Shadow instead of Border */}
           <div className="absolute top-0 right-0 w-[120px] bg-white shadow-lg rounded-tr-2xl">
-            {/* Action Header */}
             <div className="bg-gray-100 p-3 text-sm font-medium text-gray-600 text-center border-b border-gray-200 rounded-tr-2xl">
               Action
             </div>
 
-            {/* Action Buttons */}
             {reorderedProducts.map((product, index) => {
               const hasProductData = !!product.name;
 
@@ -445,7 +411,6 @@ export default function EnhancedProductTable({
                   }`}
                 >
                   {hasProductData ? (
-                    // Product with data - show only DELETE button
                     <Button
                       variant="destructive"
                       size="sm"
@@ -455,7 +420,6 @@ export default function EnhancedProductTable({
                       <Trash size={14} />
                     </Button>
                   ) : (
-                    // Empty product - show only ADD button
                     <Button
                       variant="default"
                       size="sm"
@@ -472,7 +436,6 @@ export default function EnhancedProductTable({
         </div>
       </div>
 
-      {/* Branch Wide Stock Dialog */}
       <BranchWideStockDialog
         isOpen={isBranchStockOpen}
         onClose={() => setIsBranchStockOpen(false)}
@@ -486,7 +449,6 @@ export default function EnhancedProductTable({
         qtyFree={1}
       />
 
-      {/* Medication Details Dialog */}
       <MedicationDetailsDialog
         isOpen={isMedicationDetailsOpen}
         onClose={() => setIsMedicationDetailsOpen(false)}

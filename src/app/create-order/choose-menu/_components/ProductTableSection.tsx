@@ -1,3 +1,4 @@
+// app/create-order/choose-menu/_components/ProductTableSection.tsx
 "use client";
 
 import { FC } from "react";
@@ -22,14 +23,16 @@ const ProductTableSection: FC<ProductTableSectionProps> = ({
   className = "",
 }) => {
   return (
-    <ChooseMenuProductTable
-      products={products}
-      onQuantityChange={onQuantityChange}
-      onRemoveProduct={onRemoveProduct}
-      onProductNameClick={onProductNameClick}
-      onProductSelect={onProductSelect}
-      className={className}
-    />
+    <div className={className}>
+      <ChooseMenuProductTable
+        products={products}
+        onQuantityChange={onQuantityChange}
+        onRemoveProduct={onRemoveProduct}
+        onProductNameClick={onProductNameClick}
+        onProductSelect={onProductSelect}
+        className="h-full"
+      />
+    </div>
   );
 };
 

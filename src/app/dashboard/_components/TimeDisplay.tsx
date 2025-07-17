@@ -34,8 +34,8 @@ const TimeDisplay: FC<TimeDisplayProps> = () => {
 
   return (
     <div className="text-right">
-      <div className="text-2xl font-semibold text-[#202325]">{time}</div>
-      <div className="text-xs font-normal text-[#636566]">{date}</div>
+      <div className="text-xl font-semibold text-black">{time}</div>
+      <div className="text-sm font-normal text-[#636566]">{date}</div>
     </div>
   );
 };

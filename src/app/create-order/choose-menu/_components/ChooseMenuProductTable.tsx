@@ -1,22 +1,19 @@
-// app/create-order/choose-menu/_components/ChooseMenuProductTable.tsx - UPDATED WITHOUT FIXED ACTION COLUMN
+// Enhanced ChooseMenuProductTable.tsx - UPDATED WITH AUTO SCROLL
 "use client";
 
-import React, { useState } from "react";
-import { Input } from "@/components/ui/input";
-import { Button } from "@/components/ui/button";
-import { Plus, Trash } from "lucide-react";
 import BranchWideStockDialog from "@/components/shared/branch-wide-stock-dialog";
 import MedicationDetailsDialog from "@/components/shared/medication-details-dialog";
 import ProductTypeSelector from "@/components/shared/ProductTypeSelector";
 import SelectProductDialog from "@/components/shared/select-product-dialog";
+import { Input } from "@/components/ui/input";
+import type { ProductTableItem } from "@/types/stock";
+import { Plus, Trash } from "lucide-react";
+import React, { useState, useEffect, useRef } from "react";
 import KeyboardShortcutGuide from "./KeyboardShortcutGuide";
 import UpsellDialog from "./UpsellDialog";
-import type { ProductTableItem } from "@/types/stock";
 
-// Export Product interface for backward compatibility
 export interface Product extends ProductTableItem {}
 
-// Currency formatting utility
 const formatCurrency = (amount: number | undefined | null): string => {
   if (amount == null || isNaN(Number(amount))) {
     return "Rp 0";
@@ -30,7 +27,6 @@ const formatCurrency = (amount: number | undefined | null): string => {
   }
 };
 
-// Enhanced Product Action Icons with delete functionality
 const ProductActionIcons = ({
   productName,
   onBranchStockClick,
@@ -48,7 +44,6 @@ const ProductActionIcons = ({
 
   return (
     <div className="flex items-center gap-2">
-      {/* Delete Icon - NEW POSITION */}
       <button
         className="w-8 h-8 bg-red-100 rounded flex items-center justify-center hover:bg-red-200 transition-colors cursor-pointer"
         onClick={onDeleteClick}
@@ -57,7 +52,6 @@ const ProductActionIcons = ({
         <Trash className="w-4 h-4 text-red-600" />
       </button>
 
-      {/* Package Icon - Branch Wide Stock */}
       <button
         className="w-8 h-8 bg-blue-100 rounded flex items-center justify-center hover:bg-blue-200 transition-colors cursor-pointer"
         onClick={onBranchStockClick}
@@ -78,7 +72,6 @@ const ProductActionIcons = ({
         </svg>
       </button>
 
-      {/* Document Icon - Medication Details */}
       <button
         className="w-8 h-8 bg-blue-100 rounded flex items-center justify-center hover:bg-blue-200 transition-colors cursor-pointer"
         onClick={onMedicationDetailsClick}
@@ -119,7 +112,6 @@ export default function ChooseMenuProductTable({
   onProductSelect,
   className = "",
 }: ChooseMenuProductTableProps) {
-  // State management
   const [isSelectProductDialogOpen, setIsSelectProductDialogOpen] =
     useState(false);
   const [selectedProductId, setSelectedProductId] = useState<number | null>(
@@ -133,7 +125,23 @@ export default function ChooseMenuProductTable({
   const [isShortcutGuideOpen, setIsShortcutGuideOpen] = useState(false);
   const [isUpsellDialogOpen, setIsUpsellDialogOpen] = useState(false);
 
-  // Event handlers
+  // 🔥 NEW: Refs for scroll management
+  const tableContainerRef = useRef<HTMLDivElement>(null);
+  const tableBodyRef = useRef<HTMLTableSectionElement>(null);
+
+  // 🔥 NEW: Auto scroll to bottom when products change
+  useEffect(() => {
+    if (tableContainerRef.current && products.length > 0) {
+      // Small delay to ensure DOM is updated
+      setTimeout(() => {
+        if (tableContainerRef.current) {
+          tableContainerRef.current.scrollTop =
+            tableContainerRef.current.scrollHeight;
+        }
+      }, 100);
+    }
+  }, [products.length]); // Only trigger when products array length changes
+
   const handleSearchFieldClick = () => {
     setSelectedProductId(999);
     setIsSelectProductDialogOpen(true);
@@ -169,7 +177,6 @@ export default function ChooseMenuProductTable({
     console.log(`Product ${productId} type changed to ${newType}`);
   };
 
-  // Keyboard shortcuts
   React.useEffect(() => {
     const handleKeyDown = (event: KeyboardEvent) => {
       if (event.key === "F1" && (event.ctrlKey || event.metaKey)) {
@@ -194,7 +201,7 @@ export default function ChooseMenuProductTable({
     };
   }, [selectedRowId]);
 
-  // Create table data - search row + selected products
+  // 🔥 NEW: Organize table data with search row always at top
   const tableData = React.useMemo(() => {
     const searchRow = {
       id: 999,
@@ -213,110 +220,91 @@ export default function ChooseMenuProductTable({
       total: 0,
     };
 
-    return [searchRow, ...products];
+    // 🔥 NEW: Filter products with data (filled products)
+    const filledProducts = products.filter((p) => p.name);
+
+    // 🔥 NEW: Always put search row at top, then filled products
+    return [searchRow, ...filledProducts];
   }, [products]);
 
   return (
     <>
-      {/* CUSTOM SCROLLBAR STYLES */}
-      <style jsx>{`
-        .custom-scrollbar {
-          /* Custom scrollbar for webkit browsers */
-          scrollbar-width: thin;
-          scrollbar-color: #3b82f6 #f1f5f9;
-        }
-
-        .custom-scrollbar::-webkit-scrollbar {
-          width: 8px;
-          height: 8px;
-        }
-
-        .custom-scrollbar::-webkit-scrollbar-track {
-          background: #f1f5f9;
-          border-radius: 4px;
-        }
-
-        .custom-scrollbar::-webkit-scrollbar-thumb {
-          background: #3b82f6;
-          border-radius: 4px;
-          border: 1px solid #f1f5f9;
-        }
-
-        .custom-scrollbar::-webkit-scrollbar-thumb:hover {
-          background: #2563eb;
-        }
-
-        .custom-scrollbar::-webkit-scrollbar-corner {
-          background: #f1f5f9;
-        }
-      `}</style>
-      <div className="bg-white rounded-2xl p-5 mb-6">
-        <div className={`bg-white rounded-2xl overflow-hidden`}>
-          {/* Main scrollable table with max height and custom scrollbar */}
-          <div className="overflow-auto custom-scrollbar max-h-[400px]">
+      <div className={`bg-white rounded-2xl p-5 mb-6 ${className}`}>
+        <div className="bg-white rounded-2xl overflow-hidden">
+          {/* 🔥 NEW: Updated container with ref for scroll control */}
+          <div
+            ref={tableContainerRef}
+            className="overflow-auto custom-scrollbar max-h-[600px]"
+          >
             <table className="w-full min-w-[1350px]">
-              {/* Header - Sticky */}
-              <thead className="sticky top-0 z-10">
+              <thead className="sticky top-0 z-10 h-16">
                 <tr className="bg-gray-100">
-                  <th className="text-left p-3 text-sm font-medium text-gray-600 w-[50px] rounded-tl-2xl">
+                  <th className="text-left p-3 text-sm font-semibold text-black h-16 w-[50px] rounded-tl-2xl">
                     {/* Empty header for checkbox column */}
                   </th>
-                  <th className="text-left p-3 text-sm font-medium text-gray-600 w-[400px]">
+                  <th className="text-left p-3 text-sm font-semibold text-black h-16 w-[400px]">
                     Product Name
                   </th>
-                  <th className="text-left p-3 text-sm font-medium text-gray-600 w-[70px]">
+                  <th className="text-left p-3 text-sm font-semibold text-black h-16 w-[70px]">
                     Type
                   </th>
-                  <th className="text-left p-3 text-sm font-medium text-gray-600 w-[100px]">
+                  <th className="text-left p-3 text-sm font-semibold text-black h-16 w-[100px]">
                     Price
                   </th>
-                  <th className="text-center p-3 text-sm font-medium text-gray-600 w-[60px]">
+                  <th className="text-center p-3 text-sm font-semibold text-black h-16 w-[60px]">
                     Qty
                   </th>
-                  <th className="text-left p-3 text-sm font-medium text-gray-600 w-[100px]">
+                  <th className="text-left p-3 text-sm font-semibold text-black h-16 w-[100px]">
                     SubTotal
                   </th>
-                  <th className="text-center p-3 text-sm font-medium text-gray-600 w-[70px]">
+                  <th className="text-center p-3 text-sm font-semibold text-black h-16 w-[70px]">
                     Disc%
                   </th>
-                  <th className="text-left p-3 text-sm font-medium text-gray-600 w-[80px]">
+                  <th className="text-left p-3 text-sm font-semibold text-black h-16 w-[80px]">
                     SC
                   </th>
-                  <th className="text-left p-3 text-sm font-medium text-gray-600 w-[80px]">
+                  <th className="text-left p-3 text-sm font-semibold text-black h-16 w-[80px]">
                     Misc
                   </th>
-                  <th className="text-left p-3 text-sm font-medium text-gray-600 w-[80px]">
+                  <th className="text-left p-3 text-sm font-semibold text-black h-16 w-[80px]">
                     Promo
                   </th>
-                  <th className="text-center p-3 text-sm font-medium text-gray-600 w-[70px]">
+                  <th className="text-center p-3 text-sm font-semibold text-black h-16 w-[70px]">
                     Promo%
                   </th>
-                  <th className="text-center p-3 text-sm font-medium text-gray-600 w-[50px]">
+                  <th className="text-center p-3 text-sm font-semibold text-black h-16 w-[50px]">
                     Up
                   </th>
-                  <th className="text-center p-3 text-sm font-medium text-gray-600 w-[80px]">
+                  <th className="text-center p-3 text-sm font-semibold text-black h-16 w-[80px]">
                     NoVoucher
                   </th>
-                  <th className="text-left p-3 text-sm font-medium text-gray-600 w-[100px] rounded-tr-2xl">
+                  <th className="text-left p-3 text-sm font-semibold text-black h-16 w-[100px] rounded-tr-2xl">
                     Total
                   </th>
                 </tr>
               </thead>
 
-              {/* Body */}
-              <tbody>
+              {/* 🔥 NEW: Added ref to tbody for scroll management */}
+              <tbody ref={tableBodyRef}>
                 {tableData.map((product, index) => {
                   const hasProductData = !!product.name;
+                  const isSearchRow = product.id === 999;
 
                   return (
                     <tr
                       key={product.id}
                       className={`border-b border-gray-100 hover:bg-blue-50 cursor-pointer ${
                         selectedRowId === product.id ? "bg-blue-50" : ""
-                      } ${index % 2 === 1 ? "bg-gray-50/30" : ""}`}
+                      } ${
+                        // 🔥 NEW: Special styling for search row with blue background
+                        isSearchRow
+                          ? "bg-blue-50 sticky top-16 z-5"
+                          : index % 2 === 0
+                          ? "bg-gray-50/30"
+                          : ""
+                      }`}
                       onClick={() => handleRowClick(product, index)}
                     >
-                      {/* Checkbox */}
                       <td className="p-3">
                         {hasProductData ? (
                           <input
@@ -326,12 +314,10 @@ export default function ChooseMenuProductTable({
                             className="rounded border-gray-300 text-blue-600 focus:ring-blue-500"
                           />
                         ) : (
-                          // Empty space for search row
                           <div className="w-4 h-4"></div>
                         )}
                       </td>
 
-                      {/* Product Name */}
                       <td className="p-3">
                         <div className="flex items-center gap-3">
                           {hasProductData ? (
@@ -367,7 +353,7 @@ export default function ChooseMenuProductTable({
                               </button>
                               <Input
                                 placeholder="Cari nama produk disini"
-                                className="border-gray-200 text-sm h-9 flex-1 cursor-pointer"
+                                className="border-gray-200 text-sm h-9 flex-1 cursor-pointer bg-white"
                                 onClick={handleSearchFieldClick}
                                 readOnly
                               />
@@ -376,7 +362,6 @@ export default function ChooseMenuProductTable({
                         </div>
                       </td>
 
-                      {/* Type */}
                       <td className="p-3">
                         <ProductTypeSelector
                           type={product.type || "R/"}
@@ -387,14 +372,12 @@ export default function ChooseMenuProductTable({
                         />
                       </td>
 
-                      {/* Price */}
                       <td className="p-3 text-sm">
                         <div className="whitespace-nowrap">
                           {formatCurrency(product.price)}
                         </div>
                       </td>
 
-                      {/* Quantity */}
                       <td className="p-3">
                         <div className="flex justify-center">
                           <Input
@@ -412,14 +395,12 @@ export default function ChooseMenuProductTable({
                         </div>
                       </td>
 
-                      {/* Sub Total */}
                       <td className="p-3 text-sm font-semibold">
                         <div className="whitespace-nowrap">
                           {formatCurrency(product.subtotal)}
                         </div>
                       </td>
 
-                      {/* Discount % */}
                       <td className="p-3">
                         <div className="flex justify-center">
                           <Input
@@ -432,43 +413,36 @@ export default function ChooseMenuProductTable({
                         </div>
                       </td>
 
-                      {/* SC */}
                       <td className="p-3 text-sm">
                         <div className="whitespace-nowrap">
                           {formatCurrency(product.sc)}
                         </div>
                       </td>
 
-                      {/* Misc */}
                       <td className="p-3 text-sm">
                         <div className="whitespace-nowrap">
                           {formatCurrency(product.misc)}
                         </div>
                       </td>
 
-                      {/* Promo */}
                       <td className="p-3 text-sm">
                         <div className="whitespace-nowrap">
                           {formatCurrency(product.promo || 0)}
                         </div>
                       </td>
 
-                      {/* Promo % */}
                       <td className="p-3 text-sm text-center">
                         {product.promoPercent || 0}%
                       </td>
 
-                      {/* Up */}
                       <td className="p-3 text-sm text-center">
                         {product.up || "N"}
                       </td>
 
-                      {/* No Voucher */}
                       <td className="p-3 text-sm text-center">
                         {product.noVoucher || 0}
                       </td>
 
-                      {/* Total */}
                       <td className="p-3 text-sm font-bold">
                         <div className="whitespace-nowrap">
                           {formatCurrency(product.total || product.subtotal)}
@@ -483,7 +457,6 @@ export default function ChooseMenuProductTable({
         </div>
       </div>
 
-      {/* Dialogs */}
       <SelectProductDialog
         isOpen={isSelectProductDialogOpen}
         onClose={() => {
@@ -529,6 +502,37 @@ export default function ChooseMenuProductTable({
         }}
         productName={selectedProduct?.name}
       />
+
+      <style jsx>{`
+        .custom-scrollbar {
+          scrollbar-width: thin;
+          scrollbar-color: #3b82f6 #f1f5f9;
+        }
+
+        .custom-scrollbar::-webkit-scrollbar {
+          width: 8px;
+          height: 8px;
+        }
+
+        .custom-scrollbar::-webkit-scrollbar-track {
+          background: #f1f5f9;
+          border-radius: 4px;
+        }
+
+        .custom-scrollbar::-webkit-scrollbar-thumb {
+          background: #3b82f6;
+          border-radius: 4px;
+          border: 1px solid #f1f5f9;
+        }
+
+        .custom-scrollbar::-webkit-scrollbar-thumb:hover {
+          background: #2563eb;
+        }
+
+        .custom-scrollbar::-webkit-scrollbar-corner {
+          background: #f1f5f9;
+        }
+      `}</style>
     </>
   );
 }
