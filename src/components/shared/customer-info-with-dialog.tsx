@@ -117,7 +117,7 @@ export default function CustomerInfoWithDialog({
       </div>
 
       {/* Single Combined Dialog */}
-      <CustomerDoctorDialog
+      {/* <CustomerDoctorDialog
         isOpen={isDialogOpen}
         onClose={() => setIsDialogOpen(false)}
         onSelectCustomer={handleCustomerSelect}
@@ -125,7 +125,7 @@ export default function CustomerInfoWithDialog({
         onSubmit={handleSubmit}
         mode="both"
         initialFocus={dialogInitialFocus}
-      />
+      /> */}
     </>
   );
 }
