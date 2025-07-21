@@ -101,7 +101,7 @@ interface ChooseMenuProductTableProps {
   onRemoveProduct: (id: number) => void;
   onProductNameClick?: (id: number) => void;
   onProductSelect?: (product: any, productId: number) => void;
-  onTypeChange?: (id: number, type: string) => void; // ADDED
+  onTypeChange?: (id: number, type: string) => void;
   className?: string;
 }
 
@@ -173,8 +173,22 @@ export default function ChooseMenuProductTable({
   };
 
   const handleTypeChange = (productId: number, newType: string) => {
-    if (productId === 999) return; // Jangan update row search
-    onTypeChange?.(productId, newType);
+    console.log("🔄 ChooseMenuProductTable - Type changing:", {
+      productId,
+      newType,
+    });
+
+    if (productId === 999) {
+      console.log("⚠️ Ignoring type change for search row");
+      return;
+    }
+
+    if (onTypeChange) {
+      console.log("✅ Calling onTypeChange callback");
+      onTypeChange(productId, newType);
+    } else {
+      console.warn("❌ onTypeChange callback not provided");
+    }
   };
 
   React.useEffect(() => {
@@ -356,7 +370,7 @@ export default function ChooseMenuProductTable({
 
                       <td className="p-3">
                         <ProductTypeSelector
-                          type={product.type || ""} // default kosong
+                          type={product.type || ""}
                           onChange={(newType) =>
                             handleTypeChange(product.id, newType)
                           }

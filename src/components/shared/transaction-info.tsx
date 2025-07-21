@@ -1,7 +1,19 @@
 "use client";
 
+import { useState, useEffect } from "react";
 import { Button } from "@/components/ui/button";
 import Calculator from "./calculator";
+import { useRealTimeClock } from "@/lib/useRealTimeClock";
+
+interface UserData {
+  id: number;
+  fullname: string;
+  username: string;
+  email: string;
+  phone: string;
+  role_id: number;
+  position_id: number;
+}
 
 interface TransactionInfoProps {
   transactionId: string;
@@ -9,6 +21,7 @@ interface TransactionInfoProps {
   date: string;
   badgeNumber?: number;
   className?: string;
+  useRealTimeData?: boolean;
 }
 
 export default function TransactionInfo({
@@ -17,25 +30,68 @@ export default function TransactionInfo({
   date,
   badgeNumber,
   className = "",
+  useRealTimeData = true,
 }: TransactionInfoProps) {
+  const [userData, setUserData] = useState<UserData | null>(null);
+  const [isClient, setIsClient] = useState(false);
+  const { time: currentTime, date: currentDate } = useRealTimeClock();
+
+  useEffect(() => {
+    setIsClient(true);
+
+    if (typeof window !== "undefined") {
+      const storedUserData = localStorage.getItem("user-data");
+      if (storedUserData) {
+        try {
+          const parsedUserData = JSON.parse(storedUserData);
+          setUserData(parsedUserData);
+        } catch (error) {
+          console.error("Error parsing user data:", error);
+        }
+      }
+    }
+  }, []);
+
+  const displayTransactionId = transactionId;
+  const displayDate =
+    useRealTimeData && isClient ? `${currentDate}, ${currentTime}` : date;
+  const displayCounter =
+    useRealTimeData && isClient && userData?.username && userData?.position_id
+      ? `#${userData.username} / ${userData.position_id
+          .toString()
+          .padStart(2, "0")}`
+      : counter;
+  const displayBadge =
+    useRealTimeData && isClient && userData?.id ? userData.id : badgeNumber;
+
+  const getUserInitials = () => {
+    if (!userData?.fullname) return "??";
+    return userData.fullname
+      .split(" ")
+      .map((name) => name.charAt(0))
+      .join("")
+      .toUpperCase()
+      .slice(0, 2);
+  };
+
   return (
     <div className={className}>
       <h2 className="text-lg font-semibold mb-4">Transaction Information</h2>
 
       <div className="flex justify-between items-center mb-6">
         <div>
-          <p className="text-lg font-semibold">{transactionId}</p>
-          <p className="text-sm text-gray-600">{counter}</p>
-          <p className="text-sm text-gray-600">{date}</p>
+          <p className="text-lg font-semibold">{displayTransactionId}</p>
+          <p className="text-sm text-gray-600">{displayCounter}</p>
+          <p className="text-sm text-gray-600">{displayDate}</p>
         </div>
-        {badgeNumber && (
-          <div className="bg-blue-100 text-blue-800 font-semibold rounded-md px-3 py-1">
-            {badgeNumber}
+
+        {(displayBadge || userData) && (
+          <div className="bg-blue-100 text-blue-800 font-semibold rounded-md px-3 py-1 min-w-[3rem] text-center">
+            {displayBadge || getUserInitials()}
           </div>
         )}
       </div>
 
-      {/* Add Notes Button */}
       <Button
         variant="outline"
         className="w-full mb-6 text-left justify-start border-blue-200 text-blue-500"
@@ -56,7 +112,6 @@ export default function TransactionInfo({
         Add Notes
       </Button>
 
-      {/* Simple Calculator */}
       <div>
         <h3 className="text-lg font-semibold mb-2">Simple Calculator</h3>
         <Calculator />

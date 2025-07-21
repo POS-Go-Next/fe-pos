@@ -16,7 +16,7 @@ export async function POST(request: NextRequest) {
       method: "POST",
       headers: {
         "Content-Type": "application/json",
-        "Accept": "application/json",
+        Accept: "application/json",
       },
       body: JSON.stringify(validatedData),
     });
@@ -46,6 +46,7 @@ export async function POST(request: NextRequest) {
     }
 
     const apiUser = responseData.data.user;
+
     const userData: AppUser = {
       id: apiUser.id.toString(),
       username: apiUser.username,
@@ -53,17 +54,17 @@ export async function POST(request: NextRequest) {
       role: apiUser.role_id?.toString(),
       email: apiUser.email,
     };
-    
+
     const session = await createSession(userData.id, userData);
 
     const cookieStore = cookies();
     if (responseData.data.token) {
-      cookieStore.set('auth-token', responseData.data.token, {
+      cookieStore.set("auth-token", responseData.data.token, {
         httpOnly: true,
-        secure: process.env.NODE_ENV === 'production',
-        sameSite: 'lax',
+        secure: process.env.NODE_ENV === "production",
+        sameSite: "lax",
         maxAge: 60 * 60 * 24 * 7,
-        path: '/'
+        path: "/",
       });
     }
 
@@ -71,13 +72,12 @@ export async function POST(request: NextRequest) {
       success: true,
       message: "Login successful",
       data: {
-        user: userData,
+        user: apiUser,
         sessionId: session.id,
         expiresAt: session.expiresAt,
         token: responseData.data.token,
       },
     });
-
   } catch (error) {
     console.error("Login error:", error);
 

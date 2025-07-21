@@ -11,6 +11,7 @@ interface ProductTableSectionProps {
   onRemoveProduct: (id: number) => void;
   onProductNameClick: (id: number) => void;
   onProductSelect: (product: any, productId: number) => void;
+  onTypeChange: (id: number, type: string) => void;
   className?: string;
 }
 
@@ -20,6 +21,7 @@ const ProductTableSection: FC<ProductTableSectionProps> = ({
   onRemoveProduct,
   onProductNameClick,
   onProductSelect,
+  onTypeChange,
   className = "",
 }) => {
   return (
@@ -30,6 +32,7 @@ const ProductTableSection: FC<ProductTableSectionProps> = ({
         onRemoveProduct={onRemoveProduct}
         onProductNameClick={onProductNameClick}
         onProductSelect={onProductSelect}
+        onTypeChange={onTypeChange}
         className="h-full"
       />
     </div>

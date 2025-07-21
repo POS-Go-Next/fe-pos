@@ -1,15 +1,15 @@
 "use client";
 
-import { useState, useEffect, useMemo } from "react";
-import Link from "next/link";
-import { ArrowLeft, Search } from "lucide-react";
-import { Input } from "@/components/ui/input";
-import { ProductTableItem } from "@/types/stock";
-import type { StockData } from "@/types/stock";
-import TransactionInfo from "@/components/shared/transaction-info";
 import OrderSummary from "@/components/shared/order-summary";
 import PaymentDialog from "@/components/shared/payment-dialog";
 import PaymentSuccessDialog from "@/components/shared/payment-success-dialog";
+import TransactionInfo from "@/components/shared/transaction-info";
+import { Input } from "@/components/ui/input";
+import { useLogout } from "@/hooks/useLogout";
+import type { StockData } from "@/types/stock";
+import { ProductTableItem } from "@/types/stock";
+import { ArrowLeft, Search } from "lucide-react";
+import { useEffect, useMemo, useState } from "react";
 import { ProductTableSection } from "./_components";
 
 interface CustomerData {
@@ -41,6 +41,8 @@ export default function ChooseMenuPage() {
     useState<CustomerData | null>();
   const [selectedDoctor, setSelectedDoctor] = useState<DoctorData | null>(null);
   const [shouldFocusSearch, setShouldFocusSearch] = useState(true);
+
+  const { logout, isLoading: isLogoutLoading } = useLogout();
 
   useEffect(() => {
     setIsClient(true);
@@ -95,10 +97,8 @@ export default function ChooseMenuPage() {
     }
   }, [products, nextId, isClient]);
 
-  const transactionInfo = {
-    id: "S24073831357",
-    counter: "#Bangga / 01",
-    date: "August 17, 2023, 09:52 AM",
+  const handleLogout = async () => {
+    await logout();
   };
 
   const totals = useMemo(() => {
@@ -183,6 +183,8 @@ export default function ChooseMenuPage() {
   };
 
   const handleTypeChange = (id: number, newType: string) => {
+    console.log("🔄 Page - Updating product type:", { id, newType });
+
     setProducts((prevProducts) =>
       prevProducts.map((product) =>
         product.id === id ? { ...product, type: newType } : product
@@ -203,7 +205,7 @@ export default function ChooseMenuPage() {
     return {
       id: nextId,
       name: stockData.nama_brg,
-      type: "", // default kosong
+      type: "",
       price: stockData.hj_ecer || 0,
       quantity: 1,
       subtotal: stockData.hj_ecer || 0,
@@ -282,13 +284,14 @@ export default function ChooseMenuPage() {
         <div className="w-4/5 overflow-auto">
           <div className="bg-white rounded-2xl shadow-sm border border-gray-100 p-5 mb-6">
             <div className="flex items-center">
-              <Link
-                href="/dashboard"
-                className="flex items-center text-gray-800"
+              <button
+                onClick={handleLogout}
+                disabled={isLogoutLoading}
+                className="flex items-center text-gray-800 hover:text-gray-600 transition-colors disabled:opacity-50"
               >
                 <ArrowLeft className="mr-2" size={20} />
                 <h1 className="text-lg font-semibold">POST Transaction</h1>
-              </Link>
+              </button>
               <div className="flex-grow flex justify-end ml-4">
                 <div className="relative w-full max-w-md">
                   <Input
@@ -311,7 +314,7 @@ export default function ChooseMenuPage() {
             onRemoveProduct={handleRemoveProduct}
             onProductNameClick={handleProductNameClick}
             onProductSelect={handleProductSelect}
-            onTypeChange={handleTypeChange} // penting
+            onTypeChange={handleTypeChange}
             className="mb-6"
           />
         </div>
@@ -319,10 +322,11 @@ export default function ChooseMenuPage() {
         <div className="w-1/5">
           <div className="p-5 bg-white shadow-md overflow-auto w-full rounded-2xl">
             <TransactionInfo
-              transactionId={transactionInfo.id}
-              counter={transactionInfo.counter}
-              date={transactionInfo.date}
+              transactionId="S24073831357"
+              counter="#Guest / 01"
+              date="August 17, 2023, 09:52 AM"
               badgeNumber={84}
+              useRealTimeData={true}
               className="mb-6"
             />
 

@@ -1,79 +1,97 @@
 // hooks/useAuth.ts
-'use client';
+"use client";
 
+import { loginSchema, type LoginData } from "@/lib/schemas";
 import { useState } from "react";
-import { LoginData } from "@/lib/schemas";
-import { showSuccessAlert, showErrorAlert, showConfirmAlert } from "@/lib/swal";
+
+interface UserData {
+  id: number;
+  fullname: string;
+  username: string;
+  email: string;
+  phone: string;
+  role_id: number;
+  position_id: number;
+}
 
 interface LoginResponse {
   success: boolean;
   message: string;
   data?: {
-    user: {
-      id: string;
-      username: string;
-      name?: string;
-      role?: string;
-      email?: string;
-    };
-    sessionId: string;
-    expiresAt: Date;
-    token?: string;
+    user: UserData;
+    token: string;
   };
   errors?: Record<string, string[]>;
 }
 
 interface UseAuthReturn {
-  login: (data: LoginData) => Promise<LoginResponse>;
-  logout: () => Promise<void>;
+  login: (credentials: LoginData) => Promise<LoginResponse>;
   isLoading: boolean;
-  error: null; // SweetAlert2 handles errors now
+  error: string | null;
 }
 
-export function useAuth(): UseAuthReturn {
+export const useAuth = (): UseAuthReturn => {
   const [isLoading, setIsLoading] = useState(false);
+  const [error, setError] = useState<string | null>(null);
 
-  const login = async (data: LoginData): Promise<LoginResponse> => {
+  const login = async (credentials: LoginData): Promise<LoginResponse> => {
     setIsLoading(true);
+    setError(null);
 
     try {
+      const validatedData = loginSchema.parse(credentials);
+
       const response = await fetch("/api/auth/login", {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
         },
-        body: JSON.stringify(data),
+        body: JSON.stringify(validatedData),
       });
 
-      const result = await response.json();
+      const data: LoginResponse = await response.json();
 
       if (!response.ok) {
-        // Show error with SweetAlert2
-        await showErrorAlert(
-          'Login Failed',
-          result.message || "Login failed. Please try again.",
-          'Try Again'
-        );
-        return result;
+        return {
+          success: false,
+          message: data.message || "Login failed",
+          errors: data.errors,
+        };
       }
 
-      // Show success message
-      await showSuccessAlert(
-        'Login Successful!',
-        'Welcome to Apotek POS System',
-        1500
-      );
+      if (data.success && data.data) {
+        try {
+          localStorage.setItem("user-data", JSON.stringify(data.data.user));
+          localStorage.setItem("auth-token", data.data.token);
 
-      return result;
+          console.log("✅ Login successful - User data saved:", {
+            username: data.data.user.username,
+            fullname: data.data.user.fullname,
+            id: data.data.user.id,
+          });
+        } catch (storageError) {
+          console.error(
+            "❌ Failed to save user data to localStorage:",
+            storageError
+          );
+        }
+
+        return {
+          success: true,
+          message: data.message,
+          data: data.data,
+        };
+      }
+
+      return {
+        success: false,
+        message: data.message || "Login failed",
+        errors: data.errors,
+      };
     } catch (err) {
-      const errorMessage = "Network error. Please check your connection.";
-      
-      // Show network error with SweetAlert2
-      await showErrorAlert(
-        'Connection Error',
-        errorMessage,
-        'Retry'
-      );
+      console.error("Login error:", err);
+      const errorMessage = err instanceof Error ? err.message : "Login failed";
+      setError(errorMessage);
 
       return {
         success: false,
@@ -84,55 +102,9 @@ export function useAuth(): UseAuthReturn {
     }
   };
 
-  const logout = async (): Promise<void> => {
-    // Show confirmation dialog
-    const result = await showConfirmAlert(
-      'Confirm Logout',
-      'Are you sure you want to logout?',
-      'Yes, Logout',
-      'Cancel'
-    );
-
-    if (!result.isConfirmed) {
-      return;
-    }
-
-    setIsLoading(true);
-
-    try {
-      const response = await fetch("/api/auth/logout", {
-        method: "POST",
-      });
-
-      if (!response.ok) {
-        throw new Error("Logout failed");
-      }
-
-      // Show success message
-      await showSuccessAlert(
-        'Logged Out',
-        'You have been successfully logged out',
-        1500
-      );
-
-      // Redirect to login page or refresh
-      window.location.href = "/";
-    } catch (err) {
-      // Show error message
-      await showErrorAlert(
-        'Logout Failed',
-        'Logout failed. Please try again.',
-        'OK'
-      );
-    } finally {
-      setIsLoading(false);
-    }
-  };
-
   return {
     login,
-    logout,
     isLoading,
-    error: null, // SweetAlert2 handles error display now
+    error,
   };
-}
+};
