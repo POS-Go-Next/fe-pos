@@ -58,7 +58,7 @@ const ProductTypeSelector: React.FC<ProductTypeSelectorProps> = ({
         ref={buttonRef}
         onClick={handleToggle}
         disabled={disabled}
-        className={`flex items-center gap-1 bg-white border border-gray-300 text-gray-700 px-3 py-1.5 rounded text-sm font-medium min-w-[60px] w-full justify-between transition-colors ${
+        className={`flex items-center gap-1 bg-white border border-[#F0F0F0] text-gray-700 px-3 h-[44px] rounded-lg text-sm font-medium min-w-[72px] w-full justify-between transition-colors ${
           disabled ? "opacity-50 cursor-not-allowed" : "hover:border-gray-400"
         }`}
       >

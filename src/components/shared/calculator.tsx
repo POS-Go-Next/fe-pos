@@ -79,64 +79,124 @@ export default function Calculator({ className }: CalculatorProps) {
 
   return (
     <div className={`bg-white rounded-md ${className}`}>
-      <div className="bg-[#F5F5F5] rounded-xl px-4 py-1">
+      <div className="bg-[#F5F5F5] rounded-xl px-4 py-1 mb-2">
         <p className="text-right text-lg">{display || "0"}</p>
       </div>
 
-      <p className="text-sm text-[#636566] my-3 text-center">
-        Enter amounts or prices to calculate
-      </p>
-
       <div className="grid grid-cols-4 gap-2">
-        <Button className="text-lg" onClick={() => handleButtonClick("7")}>
+        <Button
+          variant={"ghost"}
+          className="text-lg"
+          onClick={() => handleButtonClick("7")}
+        >
           7
         </Button>
-        <Button className="text-lg" onClick={() => handleButtonClick("8")}>
+        <Button
+          variant={"ghost"}
+          className="text-lg"
+          onClick={() => handleButtonClick("8")}
+        >
           8
         </Button>
-        <Button className="text-lg" onClick={() => handleButtonClick("9")}>
+        <Button
+          variant={"ghost"}
+          className="text-lg"
+          onClick={() => handleButtonClick("9")}
+        >
           9
         </Button>
-        <Button className="text-lg" onClick={() => handleButtonClick("+")}>
+        <Button
+          variant={"ghost"}
+          className="text-lg"
+          onClick={() => handleButtonClick("+")}
+        >
           +
         </Button>
 
-        <Button className="text-lg" onClick={() => handleButtonClick("4")}>
+        <Button
+          variant={"ghost"}
+          className="text-lg"
+          onClick={() => handleButtonClick("4")}
+        >
           4
         </Button>
-        <Button className="text-lg" onClick={() => handleButtonClick("5")}>
+        <Button
+          variant={"ghost"}
+          className="text-lg"
+          onClick={() => handleButtonClick("5")}
+        >
           5
         </Button>
-        <Button className="text-lg" onClick={() => handleButtonClick("6")}>
+        <Button
+          variant={"ghost"}
+          className="text-lg"
+          onClick={() => handleButtonClick("6")}
+        >
           6
         </Button>
-        <Button className="text-lg" onClick={() => handleButtonClick("-")}>
+        <Button
+          variant={"ghost"}
+          className="text-lg"
+          onClick={() => handleButtonClick("-")}
+        >
           -
         </Button>
 
-        <Button className="text-lg" onClick={() => handleButtonClick("1")}>
+        <Button
+          variant={"ghost"}
+          className="text-lg"
+          onClick={() => handleButtonClick("1")}
+        >
           1
         </Button>
-        <Button className="text-lg" onClick={() => handleButtonClick("2")}>
+        <Button
+          variant={"ghost"}
+          className="text-lg"
+          onClick={() => handleButtonClick("2")}
+        >
           2
         </Button>
-        <Button className="text-lg" onClick={() => handleButtonClick("3")}>
+        <Button
+          variant={"ghost"}
+          className="text-lg"
+          onClick={() => handleButtonClick("3")}
+        >
           3
         </Button>
-        <Button className="text-lg" onClick={() => handleButtonClick("*")}>
+        <Button
+          variant={"ghost"}
+          className="text-lg"
+          onClick={() => handleButtonClick("*")}
+        >
           *
         </Button>
 
-        <Button className="text-lg" onClick={() => handleButtonClick("C")}>
+        <Button
+          variant={"ghost"}
+          className="text-lg"
+          onClick={() => handleButtonClick("C")}
+        >
           C
         </Button>
-        <Button className="text-lg" onClick={() => handleButtonClick("0")}>
+        <Button
+          variant={"ghost"}
+          className="text-lg"
+          onClick={() => handleButtonClick("0")}
+        >
           0
         </Button>
-        <Button className="text-lg" onClick={() => handleButtonClick("=")}>
+        <Button
+          variant={"ghost"}
+          className="text-lg"
+          onClick={() => handleButtonClick("=")}
+        >
           =
         </Button>
-        <Button className="text-lg" onClick={() => handleButtonClick("/")}>
+        <Button
+          variant={"ghost"}
+          className="text-lg"
+          onClick={() => handleButtonClick("/")}
+        >
           /
         </Button>
       </div>

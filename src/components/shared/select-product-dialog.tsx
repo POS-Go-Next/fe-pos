@@ -1,7 +1,7 @@
 // components/shared/select-product-dialog.tsx - FIXED STYLING FOR ALL COLUMNS
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 import { Search, Plus, X, Clock, ChevronDown } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -32,6 +32,9 @@ export default function SelectProductDialog({
     search: "",
   });
 
+  // Auto focus ref for search input
+  const searchInputRef = useRef<HTMLInputElement>(null);
+
   const { stockList, isLoading, error, totalPages, totalDocs, refetch } =
     useStock(apiParams);
 
@@ -45,6 +48,11 @@ export default function SelectProductDialog({
       setSearchInput("");
       setSearchTerm("");
       setIsSearchActive(false);
+
+      // Auto focus to search input when dialog opens
+      setTimeout(() => {
+        searchInputRef.current?.focus();
+      }, 100);
     }
   }, [isOpen]);
 
@@ -129,6 +137,7 @@ export default function SelectProductDialog({
             <div className="relative flex gap-3">
               <div className="relative flex-1">
                 <Input
+                  ref={searchInputRef}
                   type="text"
                   placeholder="Search SKU or Product Name (min 3 characters)"
                   className="pl-10 bg-[#F5F5F5] h-12 border-none"
@@ -150,7 +159,7 @@ export default function SelectProductDialog({
             </div>
           </div>
 
-          <div className="flex-1 flex flex-col min-h-0 rounded-2xl border-gray-500 border border-[#F5F5F5]">
+          <div className="flex-1 flex flex-col min-h-0 rounded-2xl border border-[#F5F5F5]">
             <div className="flex-1 overflow-auto min-h-0 max-h-[900px] rounded-2xl">
               <table className="w-full border-collapse rounded-lg overflow-hidden">
                 <thead className="sticky top-0 z-10">

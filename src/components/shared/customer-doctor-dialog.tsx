@@ -1,4 +1,4 @@
-// components/shared/customer-doctor-dialog.tsx - UPDATED WITH PORTAL DROPDOWN
+// components/shared/customer-doctor-dialog.tsx - UPDATED WITH SEPARATED CARDS
 "use client";
 
 import React, { useState, useEffect, useRef } from "react";
@@ -21,7 +21,10 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { useDoctor } from "@/hooks/useDoctor";
+import { useCustomer } from "@/hooks/useCustomer";
 import type { DoctorData } from "@/types/doctor";
+import type { CustomerData as CustomerApiData } from "@/types/customer";
+import { transformCustomerApiToForm } from "@/types/customer";
 
 interface CustomerData {
   id: number;
@@ -40,7 +43,6 @@ interface DoctorFormData {
   address: string;
   fee_consultation?: number;
   sip: string;
-  email?: string;
 }
 
 type DialogMode = "customer" | "doctor" | "both";
@@ -95,17 +97,29 @@ export default function CustomerDoctorDialog({
     address: "",
     fee_consultation: 0,
     sip: "",
-    email: "",
   });
 
   // Doctor dropdown states
   const [doctorSearch, setDoctorSearch] = useState("");
   const [selectedDoctorId, setSelectedDoctorId] = useState<number | null>(null);
   const [isDoctorDropdownOpen, setIsDoctorDropdownOpen] = useState(false);
-  const [buttonRect, setButtonRect] = useState<DOMRect | null>(null);
+  const [doctorButtonRect, setDoctorButtonRect] = useState<DOMRect | null>(
+    null
+  );
+
+  // Customer dropdown states
+  const [customerSearch, setCustomerSearch] = useState("");
+  const [selectedCustomerId, setSelectedCustomerId] = useState<number | null>(
+    null
+  );
+  const [isCustomerDropdownOpen, setIsCustomerDropdownOpen] = useState(false);
+  const [customerButtonRect, setCustomerButtonRect] = useState<DOMRect | null>(
+    null
+  );
 
   // Refs for portal dropdown positioning
   const doctorInputRef = useRef<HTMLDivElement>(null);
+  const customerInputRef = useRef<HTMLDivElement>(null);
 
   // Load doctors from API
   const {
@@ -120,12 +134,30 @@ export default function CustomerDoctorDialog({
     sort_order: "desc",
   });
 
+  // Load customers from API - Simple load without search params
+  const {
+    customerList,
+    isLoading: isCustomerLoading,
+    error: customerError,
+  } = useCustomer({
+    limit: 100,
+    offset: 0,
+  });
+
   // Handle doctor dropdown toggle
   const handleDoctorDropdownToggle = () => {
     if (!isDoctorDropdownOpen && doctorInputRef.current) {
-      setButtonRect(doctorInputRef.current.getBoundingClientRect());
+      setDoctorButtonRect(doctorInputRef.current.getBoundingClientRect());
     }
     setIsDoctorDropdownOpen(!isDoctorDropdownOpen);
+  };
+
+  // Handle customer dropdown toggle
+  const handleCustomerDropdownToggle = () => {
+    if (!isCustomerDropdownOpen && customerInputRef.current) {
+      setCustomerButtonRect(customerInputRef.current.getBoundingClientRect());
+    }
+    setIsCustomerDropdownOpen(!isCustomerDropdownOpen);
   };
 
   // Handle customer form changes
@@ -134,6 +166,15 @@ export default function CustomerDoctorDialog({
       ...prev,
       [field]: value,
     }));
+  };
+
+  // Handle customer selection from dropdown
+  const handleCustomerSelect = (customer: CustomerApiData) => {
+    setSelectedCustomerId(customer.kd_cust);
+    const transformedCustomer = transformCustomerApiToForm(customer);
+    setCustomerForm(transformedCustomer);
+    setIsCustomerDropdownOpen(false);
+    setCustomerSearch("");
   };
 
   // Handle doctor selection from dropdown
@@ -146,7 +187,6 @@ export default function CustomerDoctorDialog({
       address: doctor.address,
       fee_consultation: doctor.fee_consultation,
       sip: doctor.sip,
-      email: doctor.email || "",
     });
     setIsDoctorDropdownOpen(false);
     setDoctorSearch("");
@@ -170,9 +210,17 @@ export default function CustomerDoctorDialog({
   // Handle doctor input focus
   const handleDoctorInputFocus = () => {
     if (doctorInputRef.current) {
-      setButtonRect(doctorInputRef.current.getBoundingClientRect());
+      setDoctorButtonRect(doctorInputRef.current.getBoundingClientRect());
     }
     setIsDoctorDropdownOpen(true);
+  };
+
+  // Handle customer input focus
+  const handleCustomerInputFocus = () => {
+    if (customerInputRef.current) {
+      setCustomerButtonRect(customerInputRef.current.getBoundingClientRect());
+    }
+    setIsCustomerDropdownOpen(true);
   };
 
   // Handle doctor input change
@@ -181,9 +229,23 @@ export default function CustomerDoctorDialog({
     setDoctorSearch(e.target.value);
     if (!isDoctorDropdownOpen) {
       if (doctorInputRef.current) {
-        setButtonRect(doctorInputRef.current.getBoundingClientRect());
+        setDoctorButtonRect(doctorInputRef.current.getBoundingClientRect());
       }
       setIsDoctorDropdownOpen(true);
+    }
+  };
+
+  // Handle customer input change
+  const handleCustomerInputChange = (
+    e: React.ChangeEvent<HTMLInputElement>
+  ) => {
+    handleCustomerChange("name", e.target.value);
+    setCustomerSearch(e.target.value);
+    if (!isCustomerDropdownOpen) {
+      if (customerInputRef.current) {
+        setCustomerButtonRect(customerInputRef.current.getBoundingClientRect());
+      }
+      setIsCustomerDropdownOpen(true);
     }
   };
 
@@ -242,14 +304,17 @@ export default function CustomerDoctorDialog({
       address: "",
       fee_consultation: 0,
       sip: "",
-      email: "",
     });
     setCurrentFocus(initialFocus);
     setViewMode("both");
     setSelectedDoctorId(null);
     setDoctorSearch("");
     setIsDoctorDropdownOpen(false);
-    setButtonRect(null);
+    setDoctorButtonRect(null);
+    setSelectedCustomerId(null);
+    setCustomerSearch("");
+    setIsCustomerDropdownOpen(false);
+    setCustomerButtonRect(null);
   };
 
   // Get dynamic dialog title
@@ -269,7 +334,7 @@ export default function CustomerDoctorDialog({
     const handleClickOutside = (event: MouseEvent) => {
       const target = event.target as Node;
 
-      // Check if click is outside both input and dropdown
+      // Check if click is outside both input and dropdown for doctor
       if (
         doctorInputRef.current &&
         !doctorInputRef.current.contains(target) &&
@@ -277,14 +342,23 @@ export default function CustomerDoctorDialog({
       ) {
         setIsDoctorDropdownOpen(false);
       }
+
+      // Check if click is outside both input and dropdown for customer
+      if (
+        customerInputRef.current &&
+        !customerInputRef.current.contains(target) &&
+        !document.querySelector(".customer-dropdown-portal")?.contains(target)
+      ) {
+        setIsCustomerDropdownOpen(false);
+      }
     };
 
-    if (isDoctorDropdownOpen) {
+    if (isDoctorDropdownOpen || isCustomerDropdownOpen) {
       document.addEventListener("mousedown", handleClickOutside);
       return () =>
         document.removeEventListener("mousedown", handleClickOutside);
     }
-  }, [isDoctorDropdownOpen]);
+  }, [isDoctorDropdownOpen, isCustomerDropdownOpen]);
 
   // Reset focus when dialog opens
   useEffect(() => {
@@ -299,14 +373,19 @@ export default function CustomerDoctorDialog({
     doctor.fullname.toLowerCase().includes(doctorSearch.toLowerCase())
   );
 
+  // Filter customers based on search
+  const filteredCustomers = customerList.filter((customer) =>
+    customer.nm_cust.toLowerCase().includes(customerSearch.toLowerCase())
+  );
+
   if (!isOpen) return null;
 
   return (
     <>
       <div className="fixed inset-0 bg-black/50 z-50 flex items-center justify-center">
-        <div className="bg-white rounded-2xl w-full max-w-2xl max-h-[90vh] flex flex-col animate-in fade-in-0 zoom-in-95 duration-300">
+        <div className="bg-[#f5f5f5] rounded-2xl w-full max-w-3xl max-h-[95vh] flex flex-col animate-in fade-in-0 zoom-in-95 duration-300 p-5">
           {/* Header */}
-          <div className="flex justify-between items-center p-6 border-b">
+          <div className="flex justify-between items-center mb-5">
             <div className="flex items-center gap-3">
               {/* Back button when in single view mode */}
               {viewMode !== "both" && (
@@ -318,277 +397,270 @@ export default function CustomerDoctorDialog({
                   <ArrowLeft className="h-5 w-5 text-gray-600" />
                 </button>
               )}
-              <h2 className="text-xl font-semibold text-gray-900">
+              <h2 className="text-2xl font-semibold text-gray-900">
                 {getDialogTitle()}
               </h2>
             </div>
             <button
               onClick={handleClose}
-              className="text-gray-400 hover:text-gray-600 transition-colors"
+              className="w-8 h-8 flex items-center justify-center rounded-md border border-black hover:scale-105 transition-all"
             >
-              <X className="h-6 w-6" />
+              <X className="h-4 w-4 text-gray-600" />
             </button>
           </div>
 
-          {/* Content */}
-          <div className="flex-1 overflow-auto p-6">
-            {/* Customer Info Section */}
+          {/* Content with Two Separate Cards */}
+          <div className="flex-1 overflow-auto space-y-6">
+            {/* Customer Info Card */}
             <div
               className={`transition-all duration-500 ease-in-out overflow-hidden ${
                 viewMode === "doctor-only"
-                  ? "max-h-0 opacity-0 pointer-events-none -mb-8"
+                  ? "max-h-0 opacity-0 pointer-events-none"
                   : "max-h-[2000px] opacity-100"
-              } ${viewMode === "both" ? "mb-8" : ""}`}
+              }`}
             >
-              <div className="flex items-center justify-between mb-4">
-                <div className="flex items-center gap-2">
-                  <User className="h-5 w-5 text-gray-600" />
-                  <h3 className="text-lg font-medium text-gray-900">
-                    Customer Info
-                  </h3>
-                </div>
-                {viewMode === "both" && (
-                  <Button
-                    variant="default"
-                    size="sm"
-                    className="bg-blue-600 hover:bg-blue-700 transform hover:scale-105 transition-all duration-200"
-                    onClick={handleCustomerButtonClick}
-                  >
-                    <Plus className="h-4 w-4 mr-1" />
-                    Customer
-                  </Button>
-                )}
-              </div>
-
-              <div className="grid grid-cols-2 gap-4">
-                {/* Full Name */}
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-2">
-                    Full Name
-                  </label>
-                  <Input
-                    type="text"
-                    placeholder="Enter Customer Name"
-                    value={customerForm.name}
-                    onChange={(e) =>
-                      handleCustomerChange("name", e.target.value)
-                    }
-                    className="bg-gray-50 border-gray-200 focus:ring-2 focus:ring-blue-500 transition-all duration-200"
-                  />
+              <div className="bg-white rounded-2xl p-5 shadow-sm border border-gray-200">
+                <div className="flex items-center justify-between mb-4">
+                  <div className="flex items-center gap-2">
+                    <User className="h-5 w-5 text-gray-600" />
+                    <h3 className="text-lg font-medium text-gray-900">
+                      Customer Info
+                    </h3>
+                  </div>
+                  {viewMode === "both" && (
+                    <Button
+                      variant="default"
+                      size="sm"
+                      className="bg-blue-600 hover:bg-blue-700 transform hover:scale-105 transition-all duration-200"
+                      onClick={handleCustomerButtonClick}
+                    >
+                      <Plus className="h-4 w-4 mr-1" />
+                      Customer
+                    </Button>
+                  )}
                 </div>
 
-                {/* Gender */}
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-2">
-                    Gender
-                  </label>
-                  <Select
-                    value={customerForm.gender}
-                    onValueChange={(value) =>
-                      handleCustomerChange("gender", value)
-                    }
-                  >
-                    <SelectTrigger className="bg-gray-50 border-gray-200 focus:ring-2 focus:ring-blue-500 transition-all duration-200">
-                      <SelectValue placeholder="Select gender" />
-                    </SelectTrigger>
-                    <SelectContent>
-                      <SelectItem value="Female">Female</SelectItem>
-                      <SelectItem value="Male">Male</SelectItem>
-                    </SelectContent>
-                  </Select>
-                </div>
+                <div className="grid grid-cols-2 gap-4">
+                  {/* Full Name and Gender */}
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-2">
+                      Full Name
+                    </label>
+                    <div className="relative" ref={customerInputRef}>
+                      <Input
+                        type="text"
+                        placeholder="Enter Customer Name or Search"
+                        value={customerForm.name}
+                        onChange={handleCustomerInputChange}
+                        onFocus={handleCustomerInputFocus}
+                        className="bg-[#F5F5F5] border-none h-[52px] focus:ring-2 focus:ring-blue-500 transition-all duration-200 pr-10"
+                      />
+                      <button
+                        type="button"
+                        onClick={handleCustomerDropdownToggle}
+                        className="absolute right-2 top-1/2 transform -translate-y-1/2 p-1 hover:bg-gray-200 rounded"
+                      >
+                        <ChevronDown className="h-4 w-4 text-gray-500" />
+                      </button>
+                    </div>
+                  </div>
 
-                {/* Age */}
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-2">
-                    Age
-                  </label>
-                  <Input
-                    type="text"
-                    placeholder="Enter Age Customer"
-                    value={customerForm.age}
-                    onChange={(e) =>
-                      handleCustomerChange("age", e.target.value)
-                    }
-                    className="bg-gray-50 border-gray-200 focus:ring-2 focus:ring-blue-500 transition-all duration-200"
-                  />
-                </div>
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-2">
+                      Gender
+                    </label>
+                    <Select
+                      value={customerForm.gender}
+                      onValueChange={(value) =>
+                        handleCustomerChange("gender", value)
+                      }
+                    >
+                      <SelectTrigger className="bg-[#F5F5F5] border-none h-[52px] focus:ring-2 focus:ring-blue-500 transition-all duration-200">
+                        <SelectValue placeholder="Select gender" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="Female">Female</SelectItem>
+                        <SelectItem value="Male">Male</SelectItem>
+                      </SelectContent>
+                    </Select>
+                  </div>
 
-                {/* Phone Number */}
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-2">
-                    Phone Number
-                  </label>
-                  <Input
-                    type="text"
-                    placeholder="+62 6214646 5757"
-                    value={customerForm.phone}
-                    onChange={(e) =>
-                      handleCustomerChange("phone", e.target.value)
-                    }
-                    className="bg-gray-50 border-gray-200 focus:ring-2 focus:ring-blue-500 transition-all duration-200"
-                  />
-                </div>
+                  {/* Age and Phone Number */}
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-2">
+                      Age
+                    </label>
+                    <Input
+                      type="text"
+                      placeholder="Enter Age Customer"
+                      value={customerForm.age}
+                      onChange={(e) =>
+                        handleCustomerChange("age", e.target.value)
+                      }
+                      className="bg-[#F5F5F5] border-none h-[52px] focus:ring-2 focus:ring-blue-500 transition-all duration-200"
+                    />
+                  </div>
 
-                {/* Address */}
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-2">
-                    Address
-                  </label>
-                  <Input
-                    type="text"
-                    placeholder="Enter Address"
-                    value={customerForm.address}
-                    onChange={(e) =>
-                      handleCustomerChange("address", e.target.value)
-                    }
-                    className="bg-gray-50 border-gray-200 focus:ring-2 focus:ring-blue-500 transition-all duration-200"
-                  />
-                </div>
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-2">
+                      Phone Number
+                    </label>
+                    <Input
+                      type="text"
+                      placeholder="+62 6214646 5757"
+                      value={customerForm.phone}
+                      onChange={(e) =>
+                        handleCustomerChange("phone", e.target.value)
+                      }
+                      className="bg-[#F5F5F5] border-none h-[52px] focus:ring-2 focus:ring-blue-500 transition-all duration-200"
+                    />
+                  </div>
 
-                {/* Status */}
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-2">
-                    Status
-                  </label>
-                  <Select
-                    value={customerForm.status}
-                    onValueChange={(value) =>
-                      handleCustomerChange("status", value)
-                    }
-                  >
-                    <SelectTrigger className="bg-gray-50 border-gray-200 focus:ring-2 focus:ring-blue-500 transition-all duration-200">
-                      <SelectValue placeholder="Select status" />
-                    </SelectTrigger>
-                    <SelectContent>
-                      <SelectItem value="AKTIF">AKTIF</SelectItem>
-                      <SelectItem value="TIDAK AKTIF">TIDAK AKTIF</SelectItem>
-                    </SelectContent>
-                  </Select>
+                  {/* Address and Status */}
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-2">
+                      Address
+                    </label>
+                    <Input
+                      type="text"
+                      placeholder="Enter Address"
+                      value={customerForm.address}
+                      onChange={(e) =>
+                        handleCustomerChange("address", e.target.value)
+                      }
+                      className="bg-[#F5F5F5] border-none h-[52px] focus:ring-2 focus:ring-blue-500 transition-all duration-200"
+                    />
+                  </div>
+
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-2">
+                      Status
+                    </label>
+                    <Select
+                      value={customerForm.status}
+                      onValueChange={(value) =>
+                        handleCustomerChange("status", value)
+                      }
+                    >
+                      <SelectTrigger className="bg-[#F5F5F5] border-none h-[52px] focus:ring-2 focus:ring-blue-500 transition-all duration-200">
+                        <SelectValue placeholder="Select status" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="AKTIF">AKTIF</SelectItem>
+                        <SelectItem value="TIDAK AKTIF">TIDAK AKTIF</SelectItem>
+                      </SelectContent>
+                    </Select>
+                  </div>
                 </div>
               </div>
             </div>
 
-            {/* Doctor Info Section - UPDATED WITH PORTAL DROPDOWN */}
+            {/* Doctor Info Card */}
             <div
-              className={`transition-all duration-500 ease-in-out overflow-hidden pt-6 ${
+              className={`transition-all duration-500 ease-in-out overflow-hidden ${
                 viewMode === "customer-only"
                   ? "max-h-0 opacity-0 pointer-events-none"
                   : "max-h-[2000px] opacity-100"
               }`}
             >
-              <div className="flex items-center justify-between mb-4">
-                <div className="flex items-center gap-2">
-                  <Stethoscope className="h-5 w-5 text-gray-600" />
-                  <h3 className="text-lg font-medium text-gray-900">
-                    Doctor Info
-                  </h3>
+              <div className="bg-white rounded-2xl p-5 shadow-sm border border-gray-200">
+                <div className="flex items-center justify-between mb-4">
+                  <div className="flex items-center gap-2">
+                    <Stethoscope className="h-5 w-5 text-gray-600" />
+                    <h3 className="text-lg font-medium text-gray-900">
+                      Doctor Info
+                    </h3>
+                  </div>
+                  {viewMode === "both" && (
+                    <Button
+                      variant="default"
+                      size="sm"
+                      className="bg-blue-600 hover:bg-blue-700 transform hover:scale-105 transition-all duration-200"
+                      onClick={handleDoctorButtonClick}
+                    >
+                      <Plus className="h-4 w-4 mr-1" />
+                      Doctor
+                    </Button>
+                  )}
                 </div>
-                {viewMode === "both" && (
-                  <Button
-                    variant="default"
-                    size="sm"
-                    className="bg-blue-600 hover:bg-blue-700 transform hover:scale-105 transition-all duration-200"
-                    onClick={handleDoctorButtonClick}
-                  >
-                    <Plus className="h-4 w-4 mr-1" />
-                    Doctor
-                  </Button>
-                )}
-              </div>
 
-              <div className="grid grid-cols-2 gap-4">
-                {/* Full Name with Portal Dropdown */}
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-2">
-                    Full Name
-                  </label>
-                  <div className="relative" ref={doctorInputRef}>
+                <div className="grid grid-cols-2 gap-4">
+                  {/* Full Name and SIP */}
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-2">
+                      Full Name
+                    </label>
+                    <div className="relative" ref={doctorInputRef}>
+                      <Input
+                        type="text"
+                        placeholder="Enter Doctor Name or Search"
+                        value={doctorForm.fullname}
+                        onChange={handleDoctorInputChange}
+                        onFocus={handleDoctorInputFocus}
+                        className="bg-[#F5F5F5] border-none h-[52px] focus:ring-2 focus:ring-blue-500 transition-all duration-200 pr-10"
+                      />
+                      <button
+                        type="button"
+                        onClick={handleDoctorDropdownToggle}
+                        className="absolute right-2 top-1/2 transform -translate-y-1/2 p-1 hover:bg-gray-200 rounded"
+                      >
+                        <ChevronDown className="h-4 w-4 text-gray-500" />
+                      </button>
+                    </div>
+                  </div>
+
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-2">
+                      SIP
+                    </label>
                     <Input
                       type="text"
-                      placeholder="Enter Doctor Name or Search"
-                      value={doctorForm.fullname}
-                      onChange={handleDoctorInputChange}
-                      onFocus={handleDoctorInputFocus}
-                      className="bg-gray-50 border-gray-200 focus:ring-2 focus:ring-blue-500 transition-all duration-200 pr-10"
+                      placeholder="Doctor SIP"
+                      value={doctorForm.sip}
+                      onChange={(e) =>
+                        handleDoctorChange("sip", e.target.value)
+                      }
+                      className="bg-[#F5F5F5] border-none h-[52px] focus:ring-2 focus:ring-blue-500 transition-all duration-200"
                     />
-                    <button
-                      type="button"
-                      onClick={handleDoctorDropdownToggle}
-                      className="absolute right-2 top-1/2 transform -translate-y-1/2 p-1 hover:bg-gray-200 rounded"
-                    >
-                      <ChevronDown className="h-4 w-4 text-gray-500" />
-                    </button>
                   </div>
-                </div>
 
-                {/* SIP */}
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-2">
-                    SIP
-                  </label>
-                  <Input
-                    type="text"
-                    placeholder="Doctor SIP"
-                    value={doctorForm.sip}
-                    onChange={(e) => handleDoctorChange("sip", e.target.value)}
-                    className="bg-gray-50 border-gray-200 focus:ring-2 focus:ring-blue-500 transition-all duration-200"
-                  />
-                </div>
+                  {/* Phone Number and Address */}
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-2">
+                      Phone Number
+                    </label>
+                    <Input
+                      type="text"
+                      placeholder="+62 8214646 5757"
+                      value={doctorForm.phone}
+                      onChange={(e) =>
+                        handleDoctorChange("phone", e.target.value)
+                      }
+                      className="bg-[#F5F5F5] border-none h-[52px] focus:ring-2 focus:ring-blue-500 transition-all duration-200"
+                    />
+                  </div>
 
-                {/* Phone Number */}
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-2">
-                    Phone Number
-                  </label>
-                  <Input
-                    type="text"
-                    placeholder="+62 8214646 5757"
-                    value={doctorForm.phone}
-                    onChange={(e) =>
-                      handleDoctorChange("phone", e.target.value)
-                    }
-                    className="bg-gray-50 border-gray-200 focus:ring-2 focus:ring-blue-500 transition-all duration-200"
-                  />
-                </div>
-
-                {/* Email */}
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-2">
-                    Email
-                  </label>
-                  <Input
-                    type="email"
-                    placeholder="doctor@example.com"
-                    value={doctorForm.email}
-                    onChange={(e) =>
-                      handleDoctorChange("email", e.target.value)
-                    }
-                    className="bg-gray-50 border-gray-200 focus:ring-2 focus:ring-blue-500 transition-all duration-200"
-                  />
-                </div>
-
-                {/* Address */}
-                <div className="col-span-2">
-                  <label className="block text-sm font-medium text-gray-700 mb-2">
-                    Address
-                  </label>
-                  <Input
-                    type="text"
-                    placeholder="Doctor Address"
-                    value={doctorForm.address}
-                    onChange={(e) =>
-                      handleDoctorChange("address", e.target.value)
-                    }
-                    className="bg-gray-50 border-gray-200 focus:ring-2 focus:ring-blue-500 transition-all duration-200"
-                  />
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-2">
+                      Address
+                    </label>
+                    <Input
+                      type="text"
+                      placeholder="Doctor Address"
+                      value={doctorForm.address}
+                      onChange={(e) =>
+                        handleDoctorChange("address", e.target.value)
+                      }
+                      className="bg-[#F5F5F5] border-none h-[52px] focus:ring-2 focus:ring-blue-500 transition-all duration-200"
+                    />
+                  </div>
                 </div>
               </div>
             </div>
           </div>
 
           {/* Footer */}
-          <div className="flex justify-end gap-3 p-6 border-t">
+          <div className="flex justify-end gap-3 pt-6 border-t mt-6">
             <Button
               variant="outline"
               onClick={handleClose}
@@ -612,14 +684,14 @@ export default function CustomerDoctorDialog({
         </div>
       </div>
 
-      {/* Portal Dropdown positioned absolutely relative to viewport */}
-      {isDoctorDropdownOpen && buttonRect && (
+      {/* Portal Dropdown positioned absolutely relative to viewport - DOCTOR */}
+      {isDoctorDropdownOpen && doctorButtonRect && (
         <div
           className="fixed bg-white border border-gray-300 rounded-md shadow-2xl z-[9999] overflow-hidden doctor-dropdown-portal"
           style={{
-            top: buttonRect.bottom + window.scrollY + 4,
-            left: buttonRect.left + window.scrollX,
-            width: buttonRect.width,
+            top: doctorButtonRect.bottom + window.scrollY + 4,
+            left: doctorButtonRect.left + window.scrollX,
+            width: doctorButtonRect.width,
             maxHeight: "300px",
           }}
         >
@@ -666,6 +738,70 @@ export default function CustomerDoctorDialog({
                 >
                   <div className="text-sm font-medium">{doctor.fullname}</div>
                   <div className="text-xs text-gray-500">{doctor.sip}</div>
+                </button>
+              ))
+            )}
+          </div>
+        </div>
+      )}
+
+      {/* Portal Dropdown positioned absolutely relative to viewport - CUSTOMER */}
+      {isCustomerDropdownOpen && customerButtonRect && (
+        <div
+          className="fixed bg-white border border-gray-300 rounded-md shadow-2xl z-[9999] overflow-hidden customer-dropdown-portal"
+          style={{
+            top: customerButtonRect.bottom + window.scrollY + 4,
+            left: customerButtonRect.left + window.scrollX,
+            width: customerButtonRect.width,
+            maxHeight: "300px",
+          }}
+        >
+          {/* Search Header */}
+          <div className="p-2 border-b border-gray-100 bg-white sticky top-0 z-10">
+            <div className="relative">
+              <Search className="absolute left-2 top-1/2 transform -translate-y-1/2 h-4 w-4 text-gray-400" />
+              <input
+                type="text"
+                placeholder="Search customers..."
+                value={customerSearch}
+                onChange={(e) => setCustomerSearch(e.target.value)}
+                className="w-full pl-8 pr-3 py-1 text-sm border border-gray-200 rounded focus:outline-none focus:ring-1 focus:ring-blue-500"
+                autoFocus
+              />
+            </div>
+          </div>
+
+          {/* Customer List */}
+          <div className="max-h-[240px] overflow-y-auto">
+            {isCustomerLoading ? (
+              <div className="px-3 py-2 text-sm text-gray-500">
+                Loading customers...
+              </div>
+            ) : customerError ? (
+              <div className="px-3 py-2 text-sm text-red-500">
+                Error: {customerError}
+              </div>
+            ) : filteredCustomers.length === 0 ? (
+              <div className="px-3 py-2 text-sm text-gray-500">
+                No customers found
+              </div>
+            ) : (
+              filteredCustomers.map((customer) => (
+                <button
+                  key={customer.kd_cust}
+                  type="button"
+                  onClick={() => handleCustomerSelect(customer)}
+                  className={`w-full px-3 py-2 text-left hover:bg-gray-100 transition-colors ${
+                    selectedCustomerId === customer.kd_cust
+                      ? "bg-blue-50 text-blue-600"
+                      : "text-gray-900"
+                  }`}
+                >
+                  <div className="text-sm font-medium">{customer.nm_cust}</div>
+                  <div className="text-xs text-gray-500">
+                    {customer.gender === "male" ? "Male" : "Female"} •{" "}
+                    {customer.usia_cust} years old
+                  </div>
                 </button>
               ))
             )}

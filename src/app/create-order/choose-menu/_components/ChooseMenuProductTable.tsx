@@ -125,14 +125,11 @@ export default function ChooseMenuProductTable({
   const [isShortcutGuideOpen, setIsShortcutGuideOpen] = useState(false);
   const [isUpsellDialogOpen, setIsUpsellDialogOpen] = useState(false);
 
-  // 🔥 NEW: Refs for scroll management
   const tableContainerRef = useRef<HTMLDivElement>(null);
   const tableBodyRef = useRef<HTMLTableSectionElement>(null);
 
-  // 🔥 NEW: Auto scroll to bottom when products change
   useEffect(() => {
     if (tableContainerRef.current && products.length > 0) {
-      // Small delay to ensure DOM is updated
       setTimeout(() => {
         if (tableContainerRef.current) {
           tableContainerRef.current.scrollTop =
@@ -140,7 +137,7 @@ export default function ChooseMenuProductTable({
         }
       }, 100);
     }
-  }, [products.length]); // Only trigger when products array length changes
+  }, [products.length]);
 
   const handleSearchFieldClick = () => {
     setSelectedProductId(999);
@@ -201,7 +198,6 @@ export default function ChooseMenuProductTable({
     };
   }, [selectedRowId]);
 
-  // 🔥 NEW: Organize table data with search row always at top
   const tableData = React.useMemo(() => {
     const searchRow = {
       id: 999,
@@ -220,10 +216,8 @@ export default function ChooseMenuProductTable({
       total: 0,
     };
 
-    // 🔥 NEW: Filter products with data (filled products)
     const filledProducts = products.filter((p) => p.name);
 
-    // 🔥 NEW: Always put search row at top, then filled products
     return [searchRow, ...filledProducts];
   }, [products]);
 
@@ -231,60 +225,56 @@ export default function ChooseMenuProductTable({
     <>
       <div className={`bg-white rounded-2xl p-5 mb-6 ${className}`}>
         <div className="bg-white rounded-2xl overflow-hidden">
-          {/* 🔥 NEW: Updated container with ref for scroll control */}
           <div
             ref={tableContainerRef}
-            className="overflow-auto custom-scrollbar max-h-[600px]"
+            className="overflow-auto custom-scrollbar max-h-[610px]"
           >
             <table className="w-full min-w-[1350px]">
-              <thead className="sticky top-0 z-10 h-16">
+              <thead className="sticky top-0 z-10 h-[60px]">
                 <tr className="bg-gray-100">
-                  <th className="text-left p-3 text-sm font-semibold text-black h-16 w-[50px] rounded-tl-2xl">
-                    {/* Empty header for checkbox column */}
-                  </th>
-                  <th className="text-left p-3 text-sm font-semibold text-black h-16 w-[400px]">
+                  <th className="text-left px-3 text-sm font-semibold text-black w-[50px] rounded-tl-2xl"></th>
+                  <th className="text-left px-3 text-sm font-semibold text-black w-[400px]">
                     Product Name
                   </th>
-                  <th className="text-left p-3 text-sm font-semibold text-black h-16 w-[70px]">
+                  <th className="text-left px-3 text-sm font-semibold text-black w-[70px]">
                     Type
                   </th>
-                  <th className="text-left p-3 text-sm font-semibold text-black h-16 w-[100px]">
+                  <th className="text-left px-3 text-sm font-semibold text-black w-[100px]">
                     Price
                   </th>
-                  <th className="text-center p-3 text-sm font-semibold text-black h-16 w-[60px]">
+                  <th className="text-center px-3 text-sm font-semibold text-black w-[60px]">
                     Qty
                   </th>
-                  <th className="text-left p-3 text-sm font-semibold text-black h-16 w-[100px]">
+                  <th className="text-left px-3 text-sm font-semibold text-black w-[100px]">
                     SubTotal
                   </th>
-                  <th className="text-center p-3 text-sm font-semibold text-black h-16 w-[70px]">
+                  <th className="text-center px-3 text-sm font-semibold text-black w-[70px]">
                     Disc%
                   </th>
-                  <th className="text-left p-3 text-sm font-semibold text-black h-16 w-[80px]">
+                  <th className="text-left px-3 text-sm font-semibold text-black w-[80px]">
                     SC
                   </th>
-                  <th className="text-left p-3 text-sm font-semibold text-black h-16 w-[80px]">
+                  <th className="text-left px-3 text-sm font-semibold text-black w-[80px]">
                     Misc
                   </th>
-                  <th className="text-left p-3 text-sm font-semibold text-black h-16 w-[80px]">
+                  <th className="text-left px-3 text-sm font-semibold text-black w-[80px]">
                     Promo
                   </th>
-                  <th className="text-center p-3 text-sm font-semibold text-black h-16 w-[70px]">
+                  <th className="text-center px-3 text-sm font-semibold text-black w-[70px]">
                     Promo%
                   </th>
-                  <th className="text-center p-3 text-sm font-semibold text-black h-16 w-[50px]">
+                  <th className="text-center px-3 text-sm font-semibold text-black w-[50px]">
                     Up
                   </th>
-                  <th className="text-center p-3 text-sm font-semibold text-black h-16 w-[80px]">
+                  <th className="text-center px-3 text-sm font-semibold text-black w-[80px]">
                     NoVoucher
                   </th>
-                  <th className="text-left p-3 text-sm font-semibold text-black h-16 w-[100px] rounded-tr-2xl">
+                  <th className="text-left px-3 text-sm font-semibold text-black w-[100px] rounded-tr-2xl">
                     Total
                   </th>
                 </tr>
               </thead>
 
-              {/* 🔥 NEW: Added ref to tbody for scroll management */}
               <tbody ref={tableBodyRef}>
                 {tableData.map((product, index) => {
                   const hasProductData = !!product.name;
@@ -296,9 +286,8 @@ export default function ChooseMenuProductTable({
                       className={`border-b border-gray-100 hover:bg-blue-50 cursor-pointer ${
                         selectedRowId === product.id ? "bg-blue-50" : ""
                       } ${
-                        // 🔥 NEW: Special styling for search row with blue background
                         isSearchRow
-                          ? "bg-blue-50 sticky top-16 z-5"
+                          ? "bg-blue-50 sticky top-14 z-5"
                           : index % 2 === 0
                           ? "bg-gray-50/30"
                           : ""
@@ -353,7 +342,7 @@ export default function ChooseMenuProductTable({
                               </button>
                               <Input
                                 placeholder="Cari nama produk disini"
-                                className="border-gray-200 text-sm h-9 flex-1 cursor-pointer bg-white"
+                                className="border-[#F0F0F0] text-sm h-11 flex-1 cursor-pointer bg-white shadow-none"
                                 onClick={handleSearchFieldClick}
                                 readOnly
                               />
@@ -389,7 +378,7 @@ export default function ChooseMenuProductTable({
                                 parseInt(e.target.value) || 0
                               )
                             }
-                            className="w-12 text-sm border-gray-200 h-9 text-center"
+                            className="w-[76px] text-sm border-[#F0F0F0] h-11 text-center"
                             min="0"
                           />
                         </div>
@@ -406,7 +395,7 @@ export default function ChooseMenuProductTable({
                           <Input
                             type="number"
                             value={product.discount || ""}
-                            className="w-12 text-sm border-gray-200 h-9 text-center"
+                            className="w-[76px] text-sm border-[#F0F0F0] h-11 text-center"
                             min="0"
                             max="100"
                           />

@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 import Link from "next/link";
 import { ArrowLeft, Search } from "lucide-react";
 import { Input } from "@/components/ui/input";
@@ -12,21 +12,61 @@ import PaymentDialog from "@/components/shared/payment-dialog";
 import PaymentSuccessDialog from "@/components/shared/payment-success-dialog";
 import { ProductTableSection } from "./_components";
 
+interface CustomerData {
+  id: number;
+  name: string;
+  gender: string;
+  age: string;
+  phone: string;
+  address: string;
+  status: string;
+}
+
+interface DoctorData {
+  id: number;
+  fullname: string;
+  phone: string;
+  address: string;
+  fee_consultation?: number;
+  sip: string;
+  email?: string;
+}
+
 export default function ChooseMenuPage() {
   const [isClient, setIsClient] = useState(false);
   const [isPaymentDialogOpen, setIsPaymentDialogOpen] = useState(false);
   const [isPaymentSuccessDialogOpen, setIsPaymentSuccessDialogOpen] =
     useState(false);
+  const [selectedCustomer, setSelectedCustomer] = useState<CustomerData | null>(
+    null
+  );
+  const [selectedDoctor, setSelectedDoctor] = useState<DoctorData | null>(null);
+  const [shouldFocusSearch, setShouldFocusSearch] = useState(true);
 
   useEffect(() => {
     setIsClient(true);
   }, []);
 
-  // Products state - start with empty array, only search functionality
+  // Auto-focus on search input
+  useEffect(() => {
+    if (shouldFocusSearch) {
+      const timer = setTimeout(() => {
+        const productSearchInput = document.querySelector(
+          'input[placeholder="Cari nama produk disini"]'
+        ) as HTMLInputElement;
+        if (productSearchInput) {
+          productSearchInput.focus();
+        }
+        setShouldFocusSearch(false);
+      }, 100);
+
+      return () => clearTimeout(timer);
+    }
+  }, [shouldFocusSearch]);
+
   const [products, setProducts] = useState<ProductTableItem[]>([]);
   const [nextId, setNextId] = useState(1);
 
-  // Load data from localStorage on client side
   useEffect(() => {
     if (isClient) {
       const savedProducts = localStorage.getItem("pos-products");
@@ -51,7 +91,6 @@ export default function ChooseMenuPage() {
     }
   }, [isClient]);
 
-  // Save to localStorage whenever products or nextId changes
   useEffect(() => {
     if (isClient) {
       localStorage.setItem("pos-products", JSON.stringify(products));
@@ -59,19 +98,16 @@ export default function ChooseMenuPage() {
     }
   }, [products, nextId, isClient]);
 
-  // Transaction information
   const transactionInfo = {
     id: "S24073831357",
     counter: "#Bangga / 01",
     date: "August 17, 2023, 09:52 AM",
   };
 
-  // Calculate total amount
   const totalAmount = isClient
     ? products.reduce((sum, product) => sum + (product.subtotal || 0), 0)
     : 0;
 
-  // Handle product quantity change
   const handleQuantityChange = (id: number, value: number) => {
     if (!isClient) return;
 
@@ -97,26 +133,23 @@ export default function ChooseMenuPage() {
     );
   };
 
-  // Handle product removal
   const handleRemoveProduct = (id: number) => {
     if (!isClient) return;
 
     setProducts(products.filter((product) => product.id !== id));
   };
 
-  // Handle product name click (for existing products)
   const handleProductNameClick = (id: number) => {
     console.log(`Product name clicked for ID: ${id}`);
   };
 
-  // Convert StockData to ProductTableItem
   const convertStockToProduct = (stockData: StockData): ProductTableItem => {
     return {
       id: nextId,
       name: stockData.nama_brg,
       type: stockData.id_kategori === "001" ? "R/" : "RC",
       price: stockData.hj_ecer || 0,
-      quantity: 1, // Default quantity
+      quantity: 1,
       subtotal: stockData.hj_ecer || 0,
       discount: 0,
       sc: 0,
@@ -126,22 +159,19 @@ export default function ChooseMenuPage() {
       up: "N",
       noVoucher: 0,
       total: stockData.hj_ecer || 0,
-      stockData: stockData, // Store original stock data
+      stockData: stockData,
     };
   };
 
-  // Handle product selection from Select Product Dialog
   const handleProductSelect = (
     selectedStockData: StockData,
     productId: number
   ) => {
-    // Check if product already exists in the list
     const existingProductIndex = products.findIndex(
       (product) => product.stockData?.kode_brg === selectedStockData.kode_brg
     );
 
     if (existingProductIndex !== -1) {
-      // Product already exists, increment quantity
       setProducts((prevProducts) =>
         prevProducts.map((product, index) => {
           if (index === existingProductIndex) {
@@ -163,11 +193,32 @@ export default function ChooseMenuPage() {
         })
       );
     } else {
-      // Product doesn't exist, create new row
       const newProduct = convertStockToProduct(selectedStockData);
       setProducts((prevProducts) => [...prevProducts, newProduct]);
       setNextId((prevId) => prevId + 1);
     }
+
+    // Trigger focus on search input after product is added
+    setShouldFocusSearch(true);
+  };
+
+  const handlePayNow = (
+    customerData?: CustomerData,
+    doctorData?: DoctorData
+  ) => {
+    if (customerData) {
+      setSelectedCustomer(customerData);
+    }
+    if (doctorData) {
+      setSelectedDoctor(doctorData);
+    }
+
+    setIsPaymentDialogOpen(true);
+  };
+
+  const handlePaymentSuccess = () => {
+    setIsPaymentDialogOpen(false);
+    setIsPaymentSuccessDialogOpen(true);
   };
 
   if (!isClient) {
@@ -176,9 +227,8 @@ export default function ChooseMenuPage() {
 
   return (
     <div className="flex flex-col h-screen bg-gradient-to-b from-blue-50 to-white">
-      <div className="flex flex-1 overflow-hidden">
-        {/* Left Side - Table Area */}
-        <div className="w-3/4 p-4 overflow-auto">
+      <div className="flex flex-1 overflow-hidden gap-6 p-5">
+        <div className="w-4/5 overflow-auto">
           <div className="bg-white rounded-2xl shadow-sm border border-gray-100 p-5 mb-6">
             <div className="flex items-center">
               <Link
@@ -214,34 +264,32 @@ export default function ChooseMenuPage() {
           />
         </div>
 
-        {/* Right Side - Sidebar with scroll */}
-        <div className="w-1/4 p-4 bg-white shadow-md overflow-auto">
-          <TransactionInfo
-            transactionId={transactionInfo.id}
-            counter={transactionInfo.counter}
-            date={transactionInfo.date}
-            badgeNumber={84}
-            className="mb-6"
-          />
+        <div className="w-1/5">
+          <div className="p-5 bg-white shadow-md overflow-auto w-full rounded-2xl">
+            <TransactionInfo
+              transactionId={transactionInfo.id}
+              counter={transactionInfo.counter}
+              date={transactionInfo.date}
+              badgeNumber={84}
+              className="mb-6"
+            />
 
-          <OrderSummary
-            subtotal={totalAmount}
-            onPendingBill={() => console.log("Pending bill")}
-            onPayNow={() => setIsPaymentDialogOpen(true)}
-          />
+            <OrderSummary
+              subtotal={totalAmount}
+              onPendingBill={() => console.log("Pending bill")}
+              onPayNow={handlePayNow}
+            />
+          </div>
         </div>
       </div>
 
       <PaymentDialog
         isOpen={isPaymentDialogOpen}
         onClose={() => setIsPaymentDialogOpen(false)}
-        onPaymentSuccess={() => {
-          setIsPaymentDialogOpen(false);
-          setIsPaymentSuccessDialogOpen(true);
-        }}
+        onPaymentSuccess={handlePaymentSuccess}
         totalAmount={totalAmount}
         orderDetails={{
-          customer: "Select Customer",
+          customer: selectedCustomer?.name || "Select Customer",
           items: products
             .filter((p) => p.quantity > 0)
             .map((p) => ({
