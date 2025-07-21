@@ -1,4 +1,4 @@
-// Enhanced ChooseMenuProductTable.tsx - UPDATED WITH AUTO SCROLL
+// Enhanced ChooseMenuProductTable.tsx - UPDATED WITH AUTO SCROLL & TYPE FIX
 "use client";
 
 import BranchWideStockDialog from "@/components/shared/branch-wide-stock-dialog";
@@ -101,6 +101,7 @@ interface ChooseMenuProductTableProps {
   onRemoveProduct: (id: number) => void;
   onProductNameClick?: (id: number) => void;
   onProductSelect?: (product: any, productId: number) => void;
+  onTypeChange?: (id: number, type: string) => void; // ADDED
   className?: string;
 }
 
@@ -110,6 +111,7 @@ export default function ChooseMenuProductTable({
   onRemoveProduct,
   onProductNameClick,
   onProductSelect,
+  onTypeChange,
   className = "",
 }: ChooseMenuProductTableProps) {
   const [isSelectProductDialogOpen, setIsSelectProductDialogOpen] =
@@ -171,7 +173,8 @@ export default function ChooseMenuProductTable({
   };
 
   const handleTypeChange = (productId: number, newType: string) => {
-    console.log(`Product ${productId} type changed to ${newType}`);
+    if (productId === 999) return; // Jangan update row search
+    onTypeChange?.(productId, newType);
   };
 
   React.useEffect(() => {
@@ -202,7 +205,7 @@ export default function ChooseMenuProductTable({
     const searchRow = {
       id: 999,
       name: "",
-      type: "R/",
+      type: "",
       price: 0,
       quantity: 0,
       subtotal: 0,
@@ -353,11 +356,11 @@ export default function ChooseMenuProductTable({
 
                       <td className="p-3">
                         <ProductTypeSelector
-                          type={product.type || "R/"}
+                          type={product.type || ""} // default kosong
                           onChange={(newType) =>
                             handleTypeChange(product.id, newType)
                           }
-                          disabled={!product.name}
+                          disabled={isSearchRow || !hasProductData}
                         />
                       </td>
 
@@ -459,6 +462,7 @@ export default function ChooseMenuProductTable({
         isOpen={isBranchStockOpen}
         onClose={() => setIsBranchStockOpen(false)}
         productName={selectedProduct?.name}
+        productCode={selectedProduct?.stockData?.kode_brg}
         retailPrice={formatCurrency(selectedProduct?.price)}
         wholesalePrice={formatCurrency(selectedProduct?.price)}
         quantity={selectedProduct?.quantity || 0}
@@ -472,6 +476,7 @@ export default function ChooseMenuProductTable({
         isOpen={isMedicationDetailsOpen}
         onClose={() => setIsMedicationDetailsOpen(false)}
         productName={selectedProduct?.name}
+        productCode={selectedProduct?.stockData?.kode_brg}
       />
 
       <KeyboardShortcutGuide

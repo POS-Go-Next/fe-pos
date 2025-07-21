@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect, useRef } from "react";
+import { useState, useEffect, useMemo } from "react";
 import Link from "next/link";
 import { ArrowLeft, Search } from "lucide-react";
 import { Input } from "@/components/ui/input";
@@ -37,9 +37,8 @@ export default function ChooseMenuPage() {
   const [isPaymentDialogOpen, setIsPaymentDialogOpen] = useState(false);
   const [isPaymentSuccessDialogOpen, setIsPaymentSuccessDialogOpen] =
     useState(false);
-  const [selectedCustomer, setSelectedCustomer] = useState<CustomerData | null>(
-    null
-  );
+  const [selectedCustomer, setSelectedCustomer] =
+    useState<CustomerData | null>();
   const [selectedDoctor, setSelectedDoctor] = useState<DoctorData | null>(null);
   const [shouldFocusSearch, setShouldFocusSearch] = useState(true);
 
@@ -47,7 +46,6 @@ export default function ChooseMenuPage() {
     setIsClient(true);
   }, []);
 
-  // Auto-focus on search input
   useEffect(() => {
     if (shouldFocusSearch) {
       const timer = setTimeout(() => {
@@ -59,7 +57,6 @@ export default function ChooseMenuPage() {
         }
         setShouldFocusSearch(false);
       }, 100);
-
       return () => clearTimeout(timer);
     }
   }, [shouldFocusSearch]);
@@ -104,6 +101,58 @@ export default function ChooseMenuPage() {
     date: "August 17, 2023, 09:52 AM",
   };
 
+  const totals = useMemo(() => {
+    if (!isClient)
+      return {
+        subtotal: 0,
+        misc: 0,
+        serviceCharge: 0,
+        discount: 0,
+        promo: 0,
+      };
+
+    const filledProducts = products.filter((p) => p.name && p.quantity > 0);
+
+    const subtotal = filledProducts.reduce(
+      (sum, product) => sum + (product.subtotal || 0),
+      0
+    );
+    const misc = filledProducts.reduce(
+      (sum, product) => sum + (product.misc || 0),
+      0
+    );
+    const serviceCharge = filledProducts.reduce(
+      (sum, product) => sum + (product.sc || 0),
+      0
+    );
+    const discount = filledProducts.reduce(
+      (sum, product) => sum + (product.discount || 0),
+      0
+    );
+    const promo = filledProducts.reduce(
+      (sum, product) => sum + (product.promo || 0),
+      0
+    );
+
+    return {
+      subtotal,
+      misc,
+      serviceCharge,
+      discount,
+      promo,
+    };
+  }, [products, isClient]);
+
+  const paymentProducts = useMemo(() => {
+    return products
+      .filter((p) => p.name && p.quantity > 0)
+      .map((product) => ({
+        name: product.name,
+        quantity: product.quantity,
+        price: product.price || 0,
+      }));
+  }, [products]);
+
   const totalAmount = isClient
     ? products.reduce((sum, product) => sum + (product.subtotal || 0), 0)
     : 0;
@@ -133,9 +182,16 @@ export default function ChooseMenuPage() {
     );
   };
 
+  const handleTypeChange = (id: number, newType: string) => {
+    setProducts((prevProducts) =>
+      prevProducts.map((product) =>
+        product.id === id ? { ...product, type: newType } : product
+      )
+    );
+  };
+
   const handleRemoveProduct = (id: number) => {
     if (!isClient) return;
-
     setProducts(products.filter((product) => product.id !== id));
   };
 
@@ -147,7 +203,7 @@ export default function ChooseMenuPage() {
     return {
       id: nextId,
       name: stockData.nama_brg,
-      type: stockData.id_kategori === "001" ? "R/" : "RC",
+      type: "", // default kosong
       price: stockData.hj_ecer || 0,
       quantity: 1,
       subtotal: stockData.hj_ecer || 0,
@@ -197,8 +253,6 @@ export default function ChooseMenuPage() {
       setProducts((prevProducts) => [...prevProducts, newProduct]);
       setNextId((prevId) => prevId + 1);
     }
-
-    // Trigger focus on search input after product is added
     setShouldFocusSearch(true);
   };
 
@@ -206,13 +260,8 @@ export default function ChooseMenuPage() {
     customerData?: CustomerData,
     doctorData?: DoctorData
   ) => {
-    if (customerData) {
-      setSelectedCustomer(customerData);
-    }
-    if (doctorData) {
-      setSelectedDoctor(doctorData);
-    }
-
+    if (customerData) setSelectedCustomer(customerData);
+    if (doctorData) setSelectedDoctor(doctorData);
     setIsPaymentDialogOpen(true);
   };
 
@@ -221,9 +270,11 @@ export default function ChooseMenuPage() {
     setIsPaymentSuccessDialogOpen(true);
   };
 
-  if (!isClient) {
-    return <div className="p-4">Loading...</div>;
-  }
+  const handlePendingBill = () => {
+    console.log("Pending bill clicked");
+  };
+
+  if (!isClient) return <div className="p-4">Loading...</div>;
 
   return (
     <div className="flex flex-col h-screen bg-gradient-to-b from-blue-50 to-white">
@@ -260,6 +311,7 @@ export default function ChooseMenuPage() {
             onRemoveProduct={handleRemoveProduct}
             onProductNameClick={handleProductNameClick}
             onProductSelect={handleProductSelect}
+            onTypeChange={handleTypeChange} // penting
             className="mb-6"
           />
         </div>
@@ -275,8 +327,13 @@ export default function ChooseMenuPage() {
             />
 
             <OrderSummary
-              subtotal={totalAmount}
-              onPendingBill={() => console.log("Pending bill")}
+              subtotal={totals.subtotal}
+              misc={totals.misc}
+              serviceCharge={totals.serviceCharge}
+              discount={totals.discount}
+              promo={totals.promo}
+              products={paymentProducts}
+              onPendingBill={handlePendingBill}
               onPayNow={handlePayNow}
             />
           </div>
@@ -290,22 +347,14 @@ export default function ChooseMenuPage() {
         totalAmount={totalAmount}
         orderDetails={{
           customer: selectedCustomer?.name || "Select Customer",
-          items: products
-            .filter((p) => p.quantity > 0)
-            .map((p) => ({
-              name: p.name,
-              quantity: p.quantity,
-              price: p.price || 0,
-            })),
+          items: paymentProducts,
         }}
       />
 
       <PaymentSuccessDialog
         isOpen={isPaymentSuccessDialogOpen}
         onClose={() => setIsPaymentSuccessDialogOpen(false)}
-        onPrintBills={() => {
-          console.log("Print Bills");
-        }}
+        onPrintBills={() => console.log("Print Bills")}
       />
     </div>
   );

@@ -1,4 +1,4 @@
-// components/shared/customer-doctor-dialog.tsx - UPDATED WITH SEPARATED CARDS
+// components/shared/customer-doctor-dialog.tsx - UPDATED WITH MANDATORY CUSTOMER INFO
 "use client";
 
 import React, { useState, useEffect, useRef } from "react";
@@ -53,7 +53,7 @@ interface CustomerDoctorDialogProps {
   onClose: () => void;
   onSelectCustomer: (customer: CustomerData) => void;
   onSelectDoctor: (doctor: DoctorFormData) => void;
-  onSubmit: (customerData: CustomerData, doctorData: DoctorFormData) => void;
+  onSubmit: (customerData: CustomerData, doctorData?: DoctorFormData) => void; // Doctor optional
   initialCustomer?: CustomerData;
   initialDoctor?: DoctorFormData;
   mode?: DialogMode;
@@ -78,6 +78,11 @@ export default function CustomerDoctorDialog({
   // State untuk mengontrol view mode
   const [viewMode, setViewMode] = useState<ViewMode>("both");
 
+  // Validation states
+  const [validationErrors, setValidationErrors] = useState<
+    Record<string, string>
+  >({});
+
   // Customer form state
   const [customerForm, setCustomerForm] = useState<CustomerData>({
     id: 0,
@@ -89,7 +94,7 @@ export default function CustomerDoctorDialog({
     status: "AKTIF",
   });
 
-  // Doctor form state - Updated to match API response
+  // Doctor form state - Optional
   const [doctorForm, setDoctorForm] = useState<DoctorFormData>({
     id: 0,
     fullname: "",
@@ -134,7 +139,7 @@ export default function CustomerDoctorDialog({
     sort_order: "desc",
   });
 
-  // Load customers from API - Simple load without search params
+  // Load customers from API
   const {
     customerList,
     isLoading: isCustomerLoading,
@@ -144,12 +149,26 @@ export default function CustomerDoctorDialog({
     offset: 0,
   });
 
-  // Handle doctor dropdown toggle
-  const handleDoctorDropdownToggle = () => {
-    if (!isDoctorDropdownOpen && doctorInputRef.current) {
-      setDoctorButtonRect(doctorInputRef.current.getBoundingClientRect());
+  // Validation function
+  const validateCustomerForm = (): boolean => {
+    const errors: Record<string, string> = {};
+
+    // Customer name is mandatory
+    if (!customerForm.name.trim()) {
+      errors.customerName = "Customer name is required";
     }
-    setIsDoctorDropdownOpen(!isDoctorDropdownOpen);
+
+    // Phone number validation (optional but if provided should be valid)
+    if (
+      customerForm.phone &&
+      customerForm.phone !== "+62 " &&
+      customerForm.phone.length < 10
+    ) {
+      errors.customerPhone = "Please enter a valid phone number";
+    }
+
+    setValidationErrors(errors);
+    return Object.keys(errors).length === 0;
   };
 
   // Handle customer dropdown toggle
@@ -160,12 +179,32 @@ export default function CustomerDoctorDialog({
     setIsCustomerDropdownOpen(!isCustomerDropdownOpen);
   };
 
+  // Handle doctor dropdown toggle
+  const handleDoctorDropdownToggle = () => {
+    if (!isDoctorDropdownOpen && doctorInputRef.current) {
+      setDoctorButtonRect(doctorInputRef.current.getBoundingClientRect());
+    }
+    setIsDoctorDropdownOpen(!isDoctorDropdownOpen);
+  };
+
   // Handle customer form changes
   const handleCustomerChange = (field: keyof CustomerData, value: string) => {
     setCustomerForm((prev) => ({
       ...prev,
       [field]: value,
     }));
+
+    // Clear validation error when user starts typing
+    if (
+      validationErrors[
+        `customer${field.charAt(0).toUpperCase() + field.slice(1)}`
+      ]
+    ) {
+      setValidationErrors((prev) => ({
+        ...prev,
+        [`customer${field.charAt(0).toUpperCase() + field.slice(1)}`]: "",
+      }));
+    }
   };
 
   // Handle customer selection from dropdown
@@ -175,6 +214,9 @@ export default function CustomerDoctorDialog({
     setCustomerForm(transformedCustomer);
     setIsCustomerDropdownOpen(false);
     setCustomerSearch("");
+
+    // Clear validation errors when customer is selected
+    setValidationErrors({});
   };
 
   // Handle doctor selection from dropdown
@@ -268,18 +310,21 @@ export default function CustomerDoctorDialog({
 
   // Handle form submission
   const handleSubmit = () => {
+    // Validate customer form first
+    if (!validateCustomerForm()) {
+      return;
+    }
+
     if (viewMode === "customer-only" && customerForm.name) {
       onSelectCustomer(customerForm);
       onClose();
     } else if (viewMode === "doctor-only" && doctorForm.fullname) {
       onSelectDoctor(doctorForm);
       onClose();
-    } else if (
-      viewMode === "both" &&
-      customerForm.name &&
-      doctorForm.fullname
-    ) {
-      onSubmit(customerForm, doctorForm);
+    } else if (viewMode === "both" && customerForm.name) {
+      // Customer is mandatory, doctor is optional
+      const doctorData = doctorForm.fullname ? doctorForm : undefined;
+      onSubmit(customerForm, doctorData);
       onClose();
     }
   };
@@ -307,6 +352,7 @@ export default function CustomerDoctorDialog({
     });
     setCurrentFocus(initialFocus);
     setViewMode("both");
+    setValidationErrors({});
     setSelectedDoctorId(null);
     setDoctorSearch("");
     setIsDoctorDropdownOpen(false);
@@ -326,6 +372,17 @@ export default function CustomerDoctorDialog({
         return "Add Doctor";
       default:
         return "Enter Customer and Doctor Data";
+    }
+  };
+
+  // Check if form is valid for submission
+  const isFormValid = () => {
+    if (viewMode === "customer-only") {
+      return customerForm.name.trim() !== "";
+    } else if (viewMode === "doctor-only") {
+      return doctorForm.fullname.trim() !== "";
+    } else {
+      return customerForm.name.trim() !== ""; // Customer mandatory, doctor optional
     }
   };
 
@@ -365,6 +422,7 @@ export default function CustomerDoctorDialog({
     if (isOpen) {
       setCurrentFocus(initialFocus);
       setViewMode("both");
+      setValidationErrors({});
     }
   }, [isOpen, initialFocus]);
 
@@ -411,7 +469,7 @@ export default function CustomerDoctorDialog({
 
           {/* Content with Two Separate Cards */}
           <div className="flex-1 overflow-auto space-y-6">
-            {/* Customer Info Card */}
+            {/* Customer Info Card - MANDATORY */}
             <div
               className={`transition-all duration-500 ease-in-out overflow-hidden ${
                 viewMode === "doctor-only"
@@ -426,6 +484,9 @@ export default function CustomerDoctorDialog({
                     <h3 className="text-lg font-medium text-gray-900">
                       Customer Info
                     </h3>
+                    <span className="text-red-500 text-sm font-medium">
+                      *Required
+                    </span>
                   </div>
                   {viewMode === "both" && (
                     <Button
@@ -444,7 +505,7 @@ export default function CustomerDoctorDialog({
                   {/* Full Name and Gender */}
                   <div>
                     <label className="block text-sm font-medium text-gray-700 mb-2">
-                      Full Name
+                      Full Name <span className="text-red-500">*</span>
                     </label>
                     <div className="relative" ref={customerInputRef}>
                       <Input
@@ -453,7 +514,11 @@ export default function CustomerDoctorDialog({
                         value={customerForm.name}
                         onChange={handleCustomerInputChange}
                         onFocus={handleCustomerInputFocus}
-                        className="bg-[#F5F5F5] border-none h-[52px] focus:ring-2 focus:ring-blue-500 transition-all duration-200 pr-10"
+                        className={`bg-[#F5F5F5] border-none h-[52px] focus:ring-2 focus:ring-blue-500 transition-all duration-200 pr-10 ${
+                          validationErrors.customerName
+                            ? "ring-2 ring-red-500"
+                            : ""
+                        }`}
                       />
                       <button
                         type="button"
@@ -463,6 +528,11 @@ export default function CustomerDoctorDialog({
                         <ChevronDown className="h-4 w-4 text-gray-500" />
                       </button>
                     </div>
+                    {validationErrors.customerName && (
+                      <p className="text-red-500 text-sm mt-1">
+                        {validationErrors.customerName}
+                      </p>
+                    )}
                   </div>
 
                   <div>
@@ -512,8 +582,17 @@ export default function CustomerDoctorDialog({
                       onChange={(e) =>
                         handleCustomerChange("phone", e.target.value)
                       }
-                      className="bg-[#F5F5F5] border-none h-[52px] focus:ring-2 focus:ring-blue-500 transition-all duration-200"
+                      className={`bg-[#F5F5F5] border-none h-[52px] focus:ring-2 focus:ring-blue-500 transition-all duration-200 ${
+                        validationErrors.customerPhone
+                          ? "ring-2 ring-red-500"
+                          : ""
+                      }`}
                     />
+                    {validationErrors.customerPhone && (
+                      <p className="text-red-500 text-sm mt-1">
+                        {validationErrors.customerPhone}
+                      </p>
+                    )}
                   </div>
 
                   {/* Address and Status */}
@@ -555,7 +634,7 @@ export default function CustomerDoctorDialog({
               </div>
             </div>
 
-            {/* Doctor Info Card */}
+            {/* Doctor Info Card - OPTIONAL */}
             <div
               className={`transition-all duration-500 ease-in-out overflow-hidden ${
                 viewMode === "customer-only"
@@ -570,6 +649,9 @@ export default function CustomerDoctorDialog({
                     <h3 className="text-lg font-medium text-gray-900">
                       Doctor Info
                     </h3>
+                    <span className="text-gray-500 text-sm font-medium">
+                      Optional
+                    </span>
                   </div>
                   {viewMode === "both" && (
                     <Button
@@ -671,12 +753,7 @@ export default function CustomerDoctorDialog({
             <Button
               onClick={handleSubmit}
               className="px-6 bg-blue-600 hover:bg-blue-700 text-white transform hover:scale-105 transition-all duration-200"
-              disabled={
-                (viewMode === "customer-only" && !customerForm.name.trim()) ||
-                (viewMode === "doctor-only" && !doctorForm.fullname.trim()) ||
-                (viewMode === "both" &&
-                  (!customerForm.name.trim() || !doctorForm.fullname.trim()))
-              }
+              disabled={!isFormValid()}
             >
               Submit
             </Button>

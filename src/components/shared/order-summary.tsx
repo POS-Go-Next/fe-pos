@@ -1,8 +1,13 @@
+// components/shared/order-summary.tsx - FIXED WITH PRODUCTS DATA
 "use client";
 
 import { useState } from "react";
 import { Button } from "@/components/ui/button";
 import CustomerDoctorDialog from "@/components/shared/customer-doctor-dialog";
+import TransactionTypeDialog, {
+  TransactionTypeData,
+} from "@/components/shared/transaction-type-dialog";
+import PaymentDialog from "@/components/shared/payment-dialog";
 
 interface CustomerData {
   id: number;
@@ -24,6 +29,12 @@ interface DoctorData {
   email?: string;
 }
 
+interface ProductItem {
+  name: string;
+  quantity: number;
+  price: number;
+}
+
 interface OrderSummaryProps {
   subtotal: number;
   misc?: number;
@@ -33,6 +44,8 @@ interface OrderSummaryProps {
   className?: string;
   onPendingBill?: () => void;
   onPayNow?: (customerData?: CustomerData, doctorData?: DoctorData) => void;
+  // FIXED: Accept products data from parent component
+  products?: ProductItem[];
 }
 
 export default function OrderSummary({
@@ -44,34 +57,63 @@ export default function OrderSummary({
   className = "",
   onPendingBill,
   onPayNow,
+  products = [], // FIXED: Default to empty array
 }: OrderSummaryProps) {
   const [isCustomerDoctorDialogOpen, setIsCustomerDoctorDialogOpen] =
     useState(false);
+  const [isTransactionTypeDialogOpen, setIsTransactionTypeDialogOpen] =
+    useState(false);
+  const [isPaymentDialogOpen, setIsPaymentDialogOpen] = useState(false);
+
   const [selectedCustomer, setSelectedCustomer] = useState<CustomerData | null>(
     null
   );
   const [selectedDoctor, setSelectedDoctor] = useState<DoctorData | null>(null);
+  const [transactionTypeData, setTransactionTypeData] =
+    useState<TransactionTypeData | null>(null);
 
   // Calculate grand total
   const grandTotal = subtotal - discount + serviceCharge + misc - promo;
 
   const handlePayNowClick = () => {
-    // Show customer and doctor selection dialog first
+    // Step 1: Show customer and doctor selection dialog first
     setIsCustomerDoctorDialogOpen(true);
   };
 
   const handleCustomerDoctorSubmit = (
     customerData: CustomerData,
-    doctorData: DoctorData
+    doctorData?: DoctorData // Doctor is optional now
   ) => {
     setSelectedCustomer(customerData);
-    setSelectedDoctor(doctorData);
+    setSelectedDoctor(doctorData || null);
     setIsCustomerDoctorDialogOpen(false);
 
-    // Proceed to payment with customer and doctor data
+    // Step 2: Show transaction type dialog
+    setIsTransactionTypeDialogOpen(true);
+  };
+
+  const handleTransactionTypeSubmit = (
+    transactionData: TransactionTypeData
+  ) => {
+    setTransactionTypeData(transactionData);
+    setIsTransactionTypeDialogOpen(false);
+
+    // Step 3: Show payment dialog
+    setIsPaymentDialogOpen(true);
+  };
+
+  const handlePaymentSuccess = () => {
+    setIsPaymentDialogOpen(false);
+
+    // Call the original onPayNow callback if provided
     if (onPayNow) {
-      onPayNow(customerData, doctorData);
+      onPayNow(selectedCustomer || undefined, selectedDoctor || undefined);
     }
+
+    // Reset all states after successful payment
+    setSelectedCustomer(null);
+    setSelectedDoctor(null);
+    setTransactionTypeData(null);
   };
 
   const handleCustomerSelect = (customer: CustomerData) => {
@@ -80,6 +122,23 @@ export default function OrderSummary({
 
   const handleDoctorSelect = (doctor: DoctorData) => {
     setSelectedDoctor(doctor);
+  };
+
+  // Reset states when dialogs are closed
+  const handleCustomerDoctorClose = () => {
+    setIsCustomerDoctorDialogOpen(false);
+  };
+
+  const handleTransactionTypeClose = () => {
+    setIsTransactionTypeDialogOpen(false);
+  };
+
+  const handlePaymentClose = () => {
+    setIsPaymentDialogOpen(false);
+    // Reset all states if payment is cancelled
+    setSelectedCustomer(null);
+    setSelectedDoctor(null);
+    setTransactionTypeData(null);
   };
 
   return (
@@ -130,6 +189,13 @@ export default function OrderSummary({
                 {selectedDoctor.fullname}
               </div>
             )}
+            {transactionTypeData && (
+              <div className="text-sm text-gray-600 mt-1">
+                <span className="font-medium">Transaction:</span>{" "}
+                {transactionTypeData.transactionType} •{" "}
+                {transactionTypeData.medicineType}
+              </div>
+            )}
           </div>
         )}
 
@@ -152,15 +218,34 @@ export default function OrderSummary({
         </div>
       </div>
 
-      {/* Customer Doctor Dialog */}
+      {/* Step 1: Customer Doctor Dialog */}
       <CustomerDoctorDialog
         isOpen={isCustomerDoctorDialogOpen}
-        onClose={() => setIsCustomerDoctorDialogOpen(false)}
+        onClose={handleCustomerDoctorClose}
         onSelectCustomer={handleCustomerSelect}
         onSelectDoctor={handleDoctorSelect}
         onSubmit={handleCustomerDoctorSubmit}
         mode="both"
         initialFocus="customer"
+      />
+
+      {/* Step 2: Transaction Type Dialog */}
+      <TransactionTypeDialog
+        isOpen={isTransactionTypeDialogOpen}
+        onClose={handleTransactionTypeClose}
+        onSubmit={handleTransactionTypeSubmit}
+      />
+
+      {/* Step 3: Payment Dialog */}
+      <PaymentDialog
+        isOpen={isPaymentDialogOpen}
+        onClose={handlePaymentClose}
+        onPaymentSuccess={handlePaymentSuccess}
+        totalAmount={grandTotal}
+        orderDetails={{
+          customer: selectedCustomer?.name || "Unknown Customer",
+          items: products, // FIXED: Pass the products data correctly
+        }}
       />
     </>
   );

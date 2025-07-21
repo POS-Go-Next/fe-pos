@@ -1,3 +1,4 @@
+// components/shared/payment-dialog.tsx - UPDATED TO KEEP TRANSACTION DETAILS LIST
 "use client";
 
 import { useState } from "react";
@@ -332,7 +333,9 @@ export default function PaymentDialog({
                     </span>
                   </div>
                   <div className="flex-1">
-                    <h3 className="font-semibold text-gray-900">Adam Hamzah</h3>
+                    <h3 className="font-semibold text-gray-900">
+                      {orderDetails.customer}
+                    </h3>
                     <p className="text-sm text-gray-600">+625490047055</p>
                   </div>
                   <div className="text-right text-sm text-gray-600">
@@ -348,30 +351,38 @@ export default function PaymentDialog({
                   Transaction Details
                 </h4>
 
-                <div className="max-h-[240px] overflow-y-auto space-y-4">
-                  {orderDetails.items.map((item, index) => (
-                    <div
-                      key={index}
-                      className="flex justify-between items-start"
-                    >
-                      <div className="flex-1">
-                        <div className="flex justify-between items-center">
-                          <p className="font-medium text-gray-900">
-                            {item.name}
+                {/* Product Items List - KEEP THIS SECTION */}
+                <div className="max-h-[240px] overflow-y-auto space-y-4 mb-6">
+                  {orderDetails.items.length > 0 ? (
+                    orderDetails.items.map((item, index) => (
+                      <div
+                        key={index}
+                        className="flex justify-between items-start"
+                      >
+                        <div className="flex-1">
+                          <div className="flex justify-between items-center">
+                            <p className="font-medium text-gray-900">
+                              {item.name}
+                            </p>
+                            <span className="font-semibold text-gray-900 ml-4">
+                              {item.quantity}x
+                            </span>
+                          </div>
+                          <p className="font-semibold text-gray-900 mt-1">
+                            Rp {item.price.toLocaleString("id-ID")}
                           </p>
-                          <span className="font-semibold text-gray-900">
-                            {item.quantity}x
-                          </span>
                         </div>
-                        <p className="font-semibold text-gray-900 mt-1">
-                          Rp {item.price.toLocaleString("id-ID")}
-                        </p>
                       </div>
+                    ))
+                  ) : (
+                    <div className="text-center text-gray-500 py-4">
+                      No items in transaction
                     </div>
-                  ))}
+                  )}
                 </div>
 
-                <div className="border-t border-gray-300 mt-6 pt-4 space-y-3">
+                {/* Transaction Summary */}
+                <div className="border-t border-gray-300 pt-4 space-y-3">
                   <div className="flex justify-between">
                     <span className="font-medium text-gray-900">Sub Total</span>
                     <span className="font-semibold text-gray-900">

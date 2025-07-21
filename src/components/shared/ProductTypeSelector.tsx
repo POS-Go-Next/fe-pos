@@ -1,4 +1,3 @@
-// components/shared/ProductTypeSelector.tsx
 "use client";
 
 import React, { useState, useEffect, useRef } from "react";
@@ -34,7 +33,6 @@ const ProductTypeSelector: React.FC<ProductTypeSelectorProps> = ({
     setIsOpen(false);
   };
 
-  // Close dropdown when clicking outside
   useEffect(() => {
     const handleClickOutside = (event: MouseEvent) => {
       if (
@@ -62,19 +60,16 @@ const ProductTypeSelector: React.FC<ProductTypeSelectorProps> = ({
           disabled ? "opacity-50 cursor-not-allowed" : "hover:border-gray-400"
         }`}
       >
-        {type || "R/"}
+        {type || ""}
         <ChevronDown className="w-3 h-3" />
       </button>
 
-      {/* Portal dropdown to body to avoid overflow issues */}
       {isOpen && buttonRect && (
         <>
-          {/* Overlay */}
           <div
             className="fixed inset-0 z-[9998]"
             onClick={() => setIsOpen(false)}
           />
-          {/* Dropdown positioned absolutely relative to viewport */}
           <div
             className="fixed bg-white border border-gray-300 rounded-md shadow-2xl z-[9999] min-w-[80px] overflow-hidden"
             style={{
