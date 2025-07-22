@@ -18,7 +18,10 @@ export async function POST(request: NextRequest) {
         "Content-Type": "application/json",
         Accept: "application/json",
       },
-      body: JSON.stringify(validatedData),
+      body: JSON.stringify({
+        ...validatedData,
+        need_generate_token: true,
+      }),
     });
 
     const responseData = await response.json();
@@ -46,7 +49,6 @@ export async function POST(request: NextRequest) {
     }
 
     const apiUser = responseData.data.user;
-
     const userData: AppUser = {
       id: apiUser.id.toString(),
       username: apiUser.username,
@@ -72,7 +74,7 @@ export async function POST(request: NextRequest) {
       success: true,
       message: "Login successful",
       data: {
-        user: apiUser,
+        user: userData,
         sessionId: session.id,
         expiresAt: session.expiresAt,
         token: responseData.data.token,
