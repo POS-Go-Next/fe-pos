@@ -48,10 +48,13 @@ export const useLogout = (): UseLogoutReturn => {
         throw new Error("Logout failed");
       }
 
-      localStorage.removeItem("user-data");
-      localStorage.removeItem("auth-token");
-      localStorage.removeItem("pos-products");
-      localStorage.removeItem("pos-next-id");
+      // ✅ Fix: Safe localStorage access
+      if (typeof window !== "undefined") {
+        localStorage.removeItem("user-data");
+        localStorage.removeItem("auth-token");
+        localStorage.removeItem("pos-products");
+        localStorage.removeItem("pos-next-id");
+      }
 
       Swal.close();
 
@@ -61,19 +64,26 @@ export const useLogout = (): UseLogoutReturn => {
         1500
       );
 
-      window.location.href = "/";
+      if (typeof window !== "undefined") {
+        window.location.href = "/";
+      }
     } catch (error) {
       console.error("Logout error:", error);
       Swal.close();
 
-      localStorage.removeItem("user-data");
-      localStorage.removeItem("auth-token");
-      localStorage.removeItem("pos-products");
-      localStorage.removeItem("pos-next-id");
+      // ✅ Fix: Safe localStorage access
+      if (typeof window !== "undefined") {
+        localStorage.removeItem("user-data");
+        localStorage.removeItem("auth-token");
+        localStorage.removeItem("pos-products");
+        localStorage.removeItem("pos-next-id");
+      }
 
       await showSuccessAlert("Logged out", "You have been logged out.", 1500);
 
-      window.location.href = "/";
+      if (typeof window !== "undefined") {
+        window.location.href = "/";
+      }
     } finally {
       setIsLoading(false);
     }

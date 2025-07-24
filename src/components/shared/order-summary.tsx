@@ -1,4 +1,3 @@
-// components/shared/order-summary.tsx - FIXED WITH PRODUCTS DATA
 "use client";
 
 import { useState } from "react";
@@ -8,6 +7,8 @@ import TransactionTypeDialog, {
   TransactionTypeData,
 } from "@/components/shared/transaction-type-dialog";
 import PaymentDialog from "@/components/shared/payment-dialog";
+import SavePendingBillDialog from "@/components/shared/save-pending-bill-dialog";
+import PendingBillSavedDialog from "@/components/shared/pending-bill-saved-dialog";
 
 interface CustomerData {
   id: number;
@@ -44,7 +45,6 @@ interface OrderSummaryProps {
   className?: string;
   onPendingBill?: () => void;
   onPayNow?: (customerData?: CustomerData, doctorData?: DoctorData) => void;
-  // FIXED: Accept products data from parent component
   products?: ProductItem[];
 }
 
@@ -57,13 +57,17 @@ export default function OrderSummary({
   className = "",
   onPendingBill,
   onPayNow,
-  products = [], // FIXED: Default to empty array
+  products = [],
 }: OrderSummaryProps) {
   const [isCustomerDoctorDialogOpen, setIsCustomerDoctorDialogOpen] =
     useState(false);
   const [isTransactionTypeDialogOpen, setIsTransactionTypeDialogOpen] =
     useState(false);
   const [isPaymentDialogOpen, setIsPaymentDialogOpen] = useState(false);
+  const [isSavePendingBillDialogOpen, setIsSavePendingBillDialogOpen] =
+    useState(false);
+  const [isPendingBillSavedDialogOpen, setIsPendingBillSavedDialogOpen] =
+    useState(false);
 
   const [selectedCustomer, setSelectedCustomer] = useState<CustomerData | null>(
     null
@@ -72,23 +76,39 @@ export default function OrderSummary({
   const [transactionTypeData, setTransactionTypeData] =
     useState<TransactionTypeData | null>(null);
 
-  // Calculate grand total
   const grandTotal = subtotal - discount + serviceCharge + misc - promo;
 
+  const handlePendingBillClick = () => {
+    setIsSavePendingBillDialogOpen(true);
+  };
+
+  const handleSavePendingBill = () => {
+    setIsPendingBillSavedDialogOpen(true);
+
+    if (onPendingBill) {
+      onPendingBill();
+    }
+
+    setSelectedCustomer(null);
+    setSelectedDoctor(null);
+    setTransactionTypeData(null);
+  };
+
+  const handleCancelPendingBill = () => {
+    // Just close the dialog without doing anything
+  };
+
   const handlePayNowClick = () => {
-    // Step 1: Show customer and doctor selection dialog first
     setIsCustomerDoctorDialogOpen(true);
   };
 
   const handleCustomerDoctorSubmit = (
     customerData: CustomerData,
-    doctorData?: DoctorData // Doctor is optional now
+    doctorData?: DoctorData
   ) => {
     setSelectedCustomer(customerData);
     setSelectedDoctor(doctorData || null);
     setIsCustomerDoctorDialogOpen(false);
-
-    // Step 2: Show transaction type dialog
     setIsTransactionTypeDialogOpen(true);
   };
 
@@ -97,20 +117,16 @@ export default function OrderSummary({
   ) => {
     setTransactionTypeData(transactionData);
     setIsTransactionTypeDialogOpen(false);
-
-    // Step 3: Show payment dialog
     setIsPaymentDialogOpen(true);
   };
 
   const handlePaymentSuccess = () => {
     setIsPaymentDialogOpen(false);
 
-    // Call the original onPayNow callback if provided
     if (onPayNow) {
       onPayNow(selectedCustomer || undefined, selectedDoctor || undefined);
     }
 
-    // Reset all states after successful payment
     setSelectedCustomer(null);
     setSelectedDoctor(null);
     setTransactionTypeData(null);
@@ -124,7 +140,6 @@ export default function OrderSummary({
     setSelectedDoctor(doctor);
   };
 
-  // Reset states when dialogs are closed
   const handleCustomerDoctorClose = () => {
     setIsCustomerDoctorDialogOpen(false);
   };
@@ -135,10 +150,21 @@ export default function OrderSummary({
 
   const handlePaymentClose = () => {
     setIsPaymentDialogOpen(false);
-    // Reset all states if payment is cancelled
     setSelectedCustomer(null);
     setSelectedDoctor(null);
     setTransactionTypeData(null);
+  };
+
+  const handleSavePendingBillClose = () => {
+    setIsSavePendingBillDialogOpen(false);
+  };
+
+  const handlePendingBillSavedClose = () => {
+    setIsPendingBillSavedDialogOpen(false);
+  };
+
+  const handlePendingBillSavedDone = () => {
+    // Additional logic can be added here if needed
   };
 
   return (
@@ -171,7 +197,6 @@ export default function OrderSummary({
           </div>
         </div>
 
-        {/* Selected Customer and Doctor Info */}
         {(selectedCustomer || selectedDoctor) && (
           <div className="mt-4 p-3 bg-blue-50 rounded-lg border">
             <h4 className="text-sm font-medium text-gray-900 mb-2">
@@ -199,12 +224,11 @@ export default function OrderSummary({
           </div>
         )}
 
-        {/* Action Buttons */}
         <div className="mt-6 space-y-2">
           <Button
             variant="destructive"
             className="w-full p-5"
-            onClick={onPendingBill}
+            onClick={handlePendingBillClick}
           >
             Pending Bill
           </Button>
@@ -218,7 +242,19 @@ export default function OrderSummary({
         </div>
       </div>
 
-      {/* Step 1: Customer Doctor Dialog */}
+      <SavePendingBillDialog
+        isOpen={isSavePendingBillDialogOpen}
+        onClose={handleSavePendingBillClose}
+        onSave={handleSavePendingBill}
+        onCancel={handleCancelPendingBill}
+      />
+
+      <PendingBillSavedDialog
+        isOpen={isPendingBillSavedDialogOpen}
+        onClose={handlePendingBillSavedClose}
+        onDone={handlePendingBillSavedDone}
+      />
+
       <CustomerDoctorDialog
         isOpen={isCustomerDoctorDialogOpen}
         onClose={handleCustomerDoctorClose}
@@ -229,14 +265,12 @@ export default function OrderSummary({
         initialFocus="customer"
       />
 
-      {/* Step 2: Transaction Type Dialog */}
       <TransactionTypeDialog
         isOpen={isTransactionTypeDialogOpen}
         onClose={handleTransactionTypeClose}
         onSubmit={handleTransactionTypeSubmit}
       />
 
-      {/* Step 3: Payment Dialog */}
       <PaymentDialog
         isOpen={isPaymentDialogOpen}
         onClose={handlePaymentClose}
@@ -244,7 +278,7 @@ export default function OrderSummary({
         totalAmount={grandTotal}
         orderDetails={{
           customer: selectedCustomer?.name || "Unknown Customer",
-          items: products, // FIXED: Pass the products data correctly
+          items: products,
         }}
       />
     </>

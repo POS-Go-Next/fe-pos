@@ -2,13 +2,18 @@
 import { NextRequest, NextResponse } from "next/server";
 import { cookies } from "next/headers";
 
+export const runtime = "nodejs";
+export const dynamic = "force-dynamic";
+
 const API_BASE_URL = "https://api-pos.masivaguna.com/api";
 
 export async function POST(request: NextRequest) {
   try {
     const cookieStore = cookies();
-    const authToken = cookieStore.get('auth-token')?.value || request.headers.get('authorization');
-    
+    const authToken =
+      cookieStore.get("auth-token")?.value ||
+      request.headers.get("authorization");
+
     if (!authToken) {
       return NextResponse.json(
         {
@@ -20,21 +25,27 @@ export async function POST(request: NextRequest) {
     }
 
     const body = await request.json();
-    
-    console.log('Parameter upsert request body:', body);
+
+    console.log("Parameter upsert request body:", body);
 
     const response = await fetch(`${API_BASE_URL}/parameter/upsert`, {
       method: "POST",
       headers: {
         "Content-Type": "application/json",
-        "Accept": "application/json",
-        "Authorization": authToken.startsWith('Bearer ') ? authToken : `Bearer ${authToken}`,
+        Accept: "application/json",
+        Authorization: authToken.startsWith("Bearer ")
+          ? authToken
+          : `Bearer ${authToken}`,
       },
       body: JSON.stringify(body),
     });
 
     const responseData = await response.json();
-    console.log("Parameter upsert API Response:", response.status, responseData);
+    console.log(
+      "Parameter upsert API Response:",
+      response.status,
+      responseData
+    );
 
     if (!response.ok) {
       if (response.status === 401) {
@@ -51,7 +62,8 @@ export async function POST(request: NextRequest) {
         return NextResponse.json(
           {
             success: false,
-            message: "Parameter upsert endpoint not found. Please check API configuration.",
+            message:
+              "Parameter upsert endpoint not found. Please check API configuration.",
           },
           { status: 404 }
         );
@@ -83,7 +95,6 @@ export async function POST(request: NextRequest) {
       message: responseData.message || "Parameter updated successfully",
       data: responseData.data,
     });
-
   } catch (error) {
     console.error("Parameter upsert API error:", error);
 

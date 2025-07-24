@@ -1,4 +1,4 @@
-// Enhanced ChooseMenuProductTable.tsx - UPDATED WITH AUTO SCROLL & TYPE FIX
+// Enhanced ChooseMenuProductTable.tsx - UPDATED WITH useKeyboardShortcuts IMPLEMENTATION
 "use client";
 
 import BranchWideStockDialog from "@/components/shared/branch-wide-stock-dialog";
@@ -6,11 +6,16 @@ import MedicationDetailsDialog from "@/components/shared/medication-details-dial
 import ProductTypeSelector from "@/components/shared/ProductTypeSelector";
 import SelectProductDialog from "@/components/shared/select-product-dialog";
 import { Input } from "@/components/ui/input";
+import { useKeyboardShortcuts } from "@/hooks/useKeyboardShortcuts";
+import { useLogout } from "@/hooks/useLogout";
 import type { ProductTableItem } from "@/types/stock";
 import { Plus, Trash } from "lucide-react";
 import React, { useState, useEffect, useRef } from "react";
 import KeyboardShortcutGuide from "./KeyboardShortcutGuide";
 import UpsellDialog from "./UpsellDialog";
+import PrescriptionDiscountDialog from "./PrescriptionDiscountDialog";
+import ChooseMiscDialog from "./ChooseMiscDialog";
+import TransactionTypeDialog from "@/components/shared/transaction-type-dialog";
 
 export interface Product extends ProductTableItem {}
 
@@ -126,9 +131,137 @@ export default function ChooseMenuProductTable({
   const [selectedRowId, setSelectedRowId] = useState<number | null>(null);
   const [isShortcutGuideOpen, setIsShortcutGuideOpen] = useState(false);
   const [isUpsellDialogOpen, setIsUpsellDialogOpen] = useState(false);
+  const [isPrescriptionDiscountOpen, setIsPrescriptionDiscountOpen] =
+    useState(false);
+  const [isChooseMiscOpen, setIsChooseMiscOpen] = useState(false);
+  const [isTransactionTypeOpen, setIsTransactionTypeOpen] = useState(false);
 
   const tableContainerRef = useRef<HTMLDivElement>(null);
   const tableBodyRef = useRef<HTMLTableSectionElement>(null);
+  const { logout } = useLogout();
+
+  // 🔥 IMPROVED: Use useKeyboardShortcuts hook instead of manual event listeners
+  useKeyboardShortcuts({
+    shortcuts: [
+      {
+        key: "F1",
+        ctrl: true,
+        action: () => {
+          console.log("🎹 F1+Ctrl pressed - Opening Keyboard Shortcut Guide");
+          if (selectedRowId !== null) {
+            setIsShortcutGuideOpen(true);
+          } else {
+            console.log("⚠️ No row selected - F1+Ctrl requires row selection");
+          }
+        },
+        description: "Petunjuk Penggunaan Shortcut",
+        preventDefault: true,
+      },
+      {
+        key: "F2",
+        ctrl: true,
+        action: () => {
+          console.log("🎹 F2+Ctrl pressed - Opening Transaction Type Dialog");
+          setIsTransactionTypeOpen(true);
+        },
+        description: "Transaction Type",
+        preventDefault: true,
+      },
+      {
+        key: "F3",
+        ctrl: true,
+        action: () => {
+          console.log(
+            "🎹 F3+Ctrl pressed - Opening Prescription Discount Dialog"
+          );
+          if (selectedRowId !== null) {
+            setIsPrescriptionDiscountOpen(true);
+          } else {
+            console.log("⚠️ No row selected - F3+Ctrl requires row selection");
+          }
+        },
+        description: "Prescription Discount",
+        preventDefault: true,
+      },
+      {
+        key: "F6",
+        ctrl: true,
+        action: () => {
+          console.log("🎹 F6+Ctrl pressed - Opening Upselling Dialog");
+          if (selectedRowId !== null) {
+            setIsUpsellDialogOpen(true);
+          } else {
+            console.log("⚠️ No row selected for upselling");
+          }
+        },
+        description: "Up Selling",
+        preventDefault: true,
+      },
+      {
+        key: "F12",
+        ctrl: true,
+        action: () => {
+          console.log("🎹 F12+Ctrl pressed - Opening Choose Misc Dialog");
+          if (selectedRowId !== null) {
+            setIsChooseMiscOpen(true);
+          } else {
+            console.log("⚠️ No row selected - F12+Ctrl requires row selection");
+          }
+        },
+        description: "Choose Misc",
+        preventDefault: true,
+      },
+      {
+        key: "Escape",
+        ctrl: true,
+        action: async () => {
+          console.log("🎹 Ctrl+Esc pressed - Opening logout confirmation");
+          // Clear all selected rows and close dialogs first
+          setSelectedRowId(null);
+          setIsSelectProductDialogOpen(false);
+          setIsBranchStockOpen(false);
+          setIsMedicationDetailsOpen(false);
+          setIsShortcutGuideOpen(false);
+          setIsUpsellDialogOpen(false);
+          setIsPrescriptionDiscountOpen(false);
+          setIsChooseMiscOpen(false);
+          setIsTransactionTypeOpen(false);
+
+          // Show logout confirmation popup
+          await logout();
+        },
+        description: "Logout",
+        preventDefault: true,
+      },
+      // 🔥 ADDITION: Add more POS shortcuts for consistency
+      {
+        key: "F4",
+        ctrl: true,
+        action: () => {
+          console.log(
+            "🎹 F4+Ctrl pressed - Clear all products (if callback provided)"
+          );
+          // This could be passed as a prop if needed
+          // onClearAllProducts?.();
+        },
+        description: "Batal/Void (Clear Form Transaksi)",
+        preventDefault: true,
+      },
+      // Alternative shortcuts for Mac users
+      {
+        key: "D",
+        ctrl: true,
+        action: () => {
+          console.log("🎹 Ctrl+D pressed - Alternative clear shortcut");
+          // Alternative shortcut for easier access
+        },
+        description: "Alternative Clear (Ctrl+D)",
+        preventDefault: true,
+      },
+    ],
+    enabled: true,
+    debug: false, // Set to true for debugging
+  });
 
   useEffect(() => {
     if (tableContainerRef.current && products.length > 0) {
@@ -190,30 +323,6 @@ export default function ChooseMenuProductTable({
       console.warn("❌ onTypeChange callback not provided");
     }
   };
-
-  React.useEffect(() => {
-    const handleKeyDown = (event: KeyboardEvent) => {
-      if (event.key === "F1" && (event.ctrlKey || event.metaKey)) {
-        event.preventDefault();
-        if (selectedRowId !== null) {
-          setIsShortcutGuideOpen(true);
-        }
-        return;
-      }
-
-      if (event.key === "F6" && (event.ctrlKey || event.metaKey)) {
-        event.preventDefault();
-        if (selectedRowId !== null) {
-          setIsUpsellDialogOpen(true);
-        }
-      }
-    };
-
-    document.addEventListener("keydown", handleKeyDown);
-    return () => {
-      document.removeEventListener("keydown", handleKeyDown);
-    };
-  }, [selectedRowId]);
 
   const tableData = React.useMemo(() => {
     const searchRow = {
@@ -511,6 +620,33 @@ export default function ChooseMenuProductTable({
         productName={selectedProduct?.name}
       />
 
+      <PrescriptionDiscountDialog
+        isOpen={isPrescriptionDiscountOpen}
+        onClose={() => setIsPrescriptionDiscountOpen(false)}
+        onSubmit={(discountData) => {
+          console.log("✅ Prescription discount applied:", discountData);
+          setIsPrescriptionDiscountOpen(false);
+        }}
+      />
+
+      <ChooseMiscDialog
+        isOpen={isChooseMiscOpen}
+        onClose={() => setIsChooseMiscOpen(false)}
+        onSubmit={(miscData) => {
+          console.log("✅ Misc applied:", miscData);
+          setIsChooseMiscOpen(false);
+        }}
+      />
+
+      <TransactionTypeDialog
+        isOpen={isTransactionTypeOpen}
+        onClose={() => setIsTransactionTypeOpen(false)}
+        onSubmit={(transactionData) => {
+          console.log("✅ Transaction type selected:", transactionData);
+          setIsTransactionTypeOpen(false);
+        }}
+      />
+
       <style jsx>{`
         .custom-scrollbar {
           scrollbar-width: thin;
@@ -539,6 +675,22 @@ export default function ChooseMenuProductTable({
 
         .custom-scrollbar::-webkit-scrollbar-corner {
           background: #f1f5f9;
+        }
+
+        kbd {
+          background-color: #f3f4f6;
+          border: 1px solid #d1d5db;
+          border-radius: 3px;
+          box-shadow: 0 1px 0 rgba(0, 0, 0, 0.2), inset 0 0 0 2px #ffffff;
+          color: #374151;
+          display: inline-block;
+          font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto,
+            "Helvetica Neue", Arial, sans-serif;
+          font-size: 11px;
+          font-weight: 600;
+          line-height: 1;
+          padding: 2px 4px;
+          white-space: nowrap;
         }
       `}</style>
     </>

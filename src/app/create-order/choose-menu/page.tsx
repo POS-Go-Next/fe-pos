@@ -6,12 +6,14 @@ import PaymentSuccessDialog from "@/components/shared/payment-success-dialog";
 import TransactionInfo from "@/components/shared/transaction-info";
 import { Input } from "@/components/ui/input";
 import { useLogout } from "@/hooks/useLogout";
+import { usePOSKeyboardShortcuts } from "@/hooks/useKeyboardShortcuts";
 import type { StockData } from "@/types/stock";
 import { ProductTableItem } from "@/types/stock";
 import { ArrowLeft, Search } from "lucide-react";
 import { useEffect, useMemo, useState } from "react";
 import { ProductTableSection } from "./_components";
 
+// ✅ Fix: Add proper interface definitions inside the component file
 interface CustomerData {
   id: number;
   name: string;
@@ -66,8 +68,25 @@ export default function ChooseMenuPage() {
   const [products, setProducts] = useState<ProductTableItem[]>([]);
   const [nextId, setNextId] = useState(1);
 
+  const handleClearAllProducts = () => {
+    setProducts([]);
+    setNextId(1);
+    setShouldFocusSearch(true);
+  };
+
+  usePOSKeyboardShortcuts(
+    {
+      clearAllProducts: handleClearAllProducts,
+    },
+    {
+      enabled: true,
+      debug: false,
+    }
+  );
+
+  // ✅ Fix: Wrap localStorage access in client-side check
   useEffect(() => {
-    if (isClient) {
+    if (isClient && typeof window !== "undefined") {
       const savedProducts = localStorage.getItem("pos-products");
       const savedNextId = localStorage.getItem("pos-next-id");
 
@@ -91,7 +110,7 @@ export default function ChooseMenuPage() {
   }, [isClient]);
 
   useEffect(() => {
-    if (isClient) {
+    if (isClient && typeof window !== "undefined") {
       localStorage.setItem("pos-products", JSON.stringify(products));
       localStorage.setItem("pos-next-id", nextId.toString());
     }
@@ -183,8 +202,6 @@ export default function ChooseMenuPage() {
   };
 
   const handleTypeChange = (id: number, newType: string) => {
-    console.log("🔄 Page - Updating product type:", { id, newType });
-
     setProducts((prevProducts) =>
       prevProducts.map((product) =>
         product.id === id ? { ...product, type: newType } : product
@@ -273,10 +290,17 @@ export default function ChooseMenuPage() {
   };
 
   const handlePendingBill = () => {
-    console.log("Pending bill clicked");
+    handleClearAllProducts();
   };
 
-  if (!isClient) return <div className="p-4">Loading...</div>;
+  // ✅ Fix: Show loading state during SSR
+  if (!isClient) {
+    return (
+      <div className="flex justify-center items-center h-screen">
+        <div className="text-lg">Loading...</div>
+      </div>
+    );
+  }
 
   return (
     <div className="flex flex-col h-screen bg-gradient-to-b from-blue-50 to-white">

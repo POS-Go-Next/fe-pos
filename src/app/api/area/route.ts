@@ -2,13 +2,18 @@
 import { NextRequest, NextResponse } from "next/server";
 import { cookies } from "next/headers";
 
+export const runtime = "nodejs";
+export const dynamic = "force-dynamic";
+
 const API_BASE_URL = "https://api-pos.masivaguna.com/api";
 
 export async function GET(request: NextRequest) {
   try {
     const cookieStore = cookies();
-    const authToken = cookieStore.get('auth-token')?.value || request.headers.get('authorization');
-    
+    const authToken =
+      cookieStore.get("auth-token")?.value ||
+      request.headers.get("authorization");
+
     if (!authToken) {
       return NextResponse.json(
         {
@@ -33,15 +38,20 @@ export async function GET(request: NextRequest) {
       queryParams.append("search", search);
     }
 
-    const response = await fetch(`${API_BASE_URL}/area?${queryParams.toString()}`, {
-      method: "GET",
-      headers: {
-        "Content-Type": "application/json",
-        "Accept": "application/json",
-        "Authorization": authToken.startsWith('Bearer ') ? authToken : `Bearer ${authToken}`,
-      },
-      next: { revalidate: 300 }
-    });
+    const response = await fetch(
+      `${API_BASE_URL}/area?${queryParams.toString()}`,
+      {
+        method: "GET",
+        headers: {
+          "Content-Type": "application/json",
+          Accept: "application/json",
+          Authorization: authToken.startsWith("Bearer ")
+            ? authToken
+            : `Bearer ${authToken}`,
+        },
+        next: { revalidate: 300 },
+      }
+    );
 
     const responseData = await response.json();
     console.log("Area API Response:", responseData);
@@ -67,7 +77,10 @@ export async function GET(request: NextRequest) {
       );
     }
 
-    if (responseData.message !== "Get paginated area successful" || !responseData.data) {
+    if (
+      responseData.message !== "Get paginated area successful" ||
+      !responseData.data
+    ) {
       return NextResponse.json(
         {
           success: false,
@@ -82,7 +95,6 @@ export async function GET(request: NextRequest) {
       message: "Area data retrieved successfully",
       data: responseData.data,
     });
-
   } catch (error) {
     console.error("Area API error:", error);
 

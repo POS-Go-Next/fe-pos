@@ -2,13 +2,18 @@
 import { NextRequest, NextResponse } from "next/server";
 import { cookies } from "next/headers";
 
+export const runtime = "nodejs";
+export const dynamic = "force-dynamic";
+
 const API_BASE_URL = "https://api-pos.masivaguna.com/api";
 
 export async function GET(request: NextRequest) {
   try {
     const cookieStore = cookies();
-    const authToken = cookieStore.get('auth-token')?.value || request.headers.get('authorization');
-    
+    const authToken =
+      cookieStore.get("auth-token")?.value ||
+      request.headers.get("authorization");
+
     if (!authToken) {
       return NextResponse.json(
         {
@@ -23,10 +28,12 @@ export async function GET(request: NextRequest) {
       method: "GET",
       headers: {
         "Content-Type": "application/json",
-        "Accept": "application/json",
-        "Authorization": authToken.startsWith('Bearer ') ? authToken : `Bearer ${authToken}`,
+        Accept: "application/json",
+        Authorization: authToken.startsWith("Bearer ")
+          ? authToken
+          : `Bearer ${authToken}`,
       },
-      next: { revalidate: 300 }
+      next: { revalidate: 300 },
     });
 
     const responseData = await response.json();
@@ -53,11 +60,15 @@ export async function GET(request: NextRequest) {
       );
     }
 
-    if (responseData.message !== "Get parameter user logged in successful" || !responseData.data) {
+    if (
+      responseData.message !== "Get parameter user logged in successful" ||
+      !responseData.data
+    ) {
       return NextResponse.json(
         {
           success: false,
-          message: responseData.message || "Invalid response from parameter API",
+          message:
+            responseData.message || "Invalid response from parameter API",
         },
         { status: 400 }
       );
@@ -68,7 +79,6 @@ export async function GET(request: NextRequest) {
       message: "Parameter data retrieved successfully",
       data: responseData.data,
     });
-
   } catch (error) {
     console.error("Parameter API error:", error);
 

@@ -2,6 +2,9 @@
 import { NextRequest, NextResponse } from "next/server";
 import { cookies } from "next/headers";
 
+export const runtime = "nodejs";
+export const dynamic = "force-dynamic";
+
 const API_BASE_URL = "https://api-pos.masivaguna.com/api";
 
 interface CabangQueryParams {
@@ -13,8 +16,10 @@ interface CabangQueryParams {
 export async function GET(request: NextRequest) {
   try {
     const cookieStore = cookies();
-    const authToken = cookieStore.get('auth-token')?.value || request.headers.get('authorization');
-    
+    const authToken =
+      cookieStore.get("auth-token")?.value ||
+      request.headers.get("authorization");
+
     if (!authToken) {
       return NextResponse.json(
         {
@@ -39,15 +44,20 @@ export async function GET(request: NextRequest) {
       queryParams.append("search", search);
     }
 
-    const response = await fetch(`${API_BASE_URL}/cabang?${queryParams.toString()}`, {
-      method: "GET",
-      headers: {
-        "Content-Type": "application/json",
-        "Accept": "application/json",
-        "Authorization": authToken.startsWith('Bearer ') ? authToken : `Bearer ${authToken}`,
-      },
-      next: { revalidate: 300 }
-    });
+    const response = await fetch(
+      `${API_BASE_URL}/cabang?${queryParams.toString()}`,
+      {
+        method: "GET",
+        headers: {
+          "Content-Type": "application/json",
+          Accept: "application/json",
+          Authorization: authToken.startsWith("Bearer ")
+            ? authToken
+            : `Bearer ${authToken}`,
+        },
+        next: { revalidate: 300 },
+      }
+    );
 
     const responseData = await response.json();
     console.log("Cabang API Response:", responseData);
@@ -73,7 +83,10 @@ export async function GET(request: NextRequest) {
       );
     }
 
-    if (responseData.message !== "Get paginated cabang successful" || !responseData.data) {
+    if (
+      responseData.message !== "Get paginated cabang successful" ||
+      !responseData.data
+    ) {
       return NextResponse.json(
         {
           success: false,
@@ -88,7 +101,6 @@ export async function GET(request: NextRequest) {
       message: "Cabang data retrieved successfully",
       data: responseData.data,
     });
-
   } catch (error) {
     console.error("Cabang API error:", error);
 

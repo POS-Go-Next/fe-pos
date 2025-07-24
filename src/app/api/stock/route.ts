@@ -2,14 +2,19 @@
 import { NextRequest, NextResponse } from "next/server";
 import { cookies } from "next/headers";
 
+export const runtime = "nodejs";
+export const dynamic = "force-dynamic";
+
 const API_BASE_URL = "https://api-pos.masivaguna.com/api";
 
 export async function GET(request: NextRequest) {
   try {
     // Get authorization token from cookies or headers
     const cookieStore = cookies();
-    const authToken = cookieStore.get('auth-token')?.value || request.headers.get('authorization');
-    
+    const authToken =
+      cookieStore.get("auth-token")?.value ||
+      request.headers.get("authorization");
+
     if (!authToken) {
       return NextResponse.json(
         {
@@ -38,16 +43,21 @@ export async function GET(request: NextRequest) {
     }
 
     // Call external API with authorization
-    const response = await fetch(`${API_BASE_URL}/stock?${queryParams.toString()}`, {
-      method: "GET",
-      headers: {
-        "Content-Type": "application/json",
-        "Accept": "application/json",
-        "Authorization": authToken.startsWith('Bearer ') ? authToken : `Bearer ${authToken}`,
-      },
-      // Add cache settings for better performance
-      next: { revalidate: 60 } // Cache for 1 minute (stock data changes frequently)
-    });
+    const response = await fetch(
+      `${API_BASE_URL}/stock?${queryParams.toString()}`,
+      {
+        method: "GET",
+        headers: {
+          "Content-Type": "application/json",
+          Accept: "application/json",
+          Authorization: authToken.startsWith("Bearer ")
+            ? authToken
+            : `Bearer ${authToken}`,
+        },
+        // Add cache settings for better performance
+        next: { revalidate: 60 }, // Cache for 1 minute (stock data changes frequently)
+      }
+    );
 
     const responseData = await response.json();
     console.log("Stock API Response:", responseData); // Debug log
@@ -76,7 +86,10 @@ export async function GET(request: NextRequest) {
     }
 
     // Check if response was successful
-    if (responseData.message !== "Get paginated stock successful" || !responseData.data) {
+    if (
+      responseData.message !== "Get paginated stock successful" ||
+      !responseData.data
+    ) {
       return NextResponse.json(
         {
           success: false,
@@ -92,7 +105,6 @@ export async function GET(request: NextRequest) {
       message: "Stock data retrieved successfully",
       data: responseData.data,
     });
-
   } catch (error) {
     console.error("Stock API error:", error);
 

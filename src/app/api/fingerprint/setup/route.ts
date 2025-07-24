@@ -2,13 +2,18 @@
 import { NextRequest, NextResponse } from "next/server";
 import { cookies } from "next/headers";
 
+export const runtime = "nodejs";
+export const dynamic = "force-dynamic";
+
 const API_BASE_URL = "https://api-pos.masivaguna.com/api";
 
 export async function POST(request: NextRequest) {
   try {
     const cookieStore = cookies();
-    const authToken = cookieStore.get('auth-token')?.value || request.headers.get('authorization');
-    
+    const authToken =
+      cookieStore.get("auth-token")?.value ||
+      request.headers.get("authorization");
+
     if (!authToken) {
       return NextResponse.json(
         {
@@ -20,14 +25,15 @@ export async function POST(request: NextRequest) {
     }
 
     const body = await request.json();
-    
+
     const { user_id, mac_address, number_of_fingerprint } = body;
-    
+
     if (!user_id || !mac_address || !number_of_fingerprint) {
       return NextResponse.json(
         {
           success: false,
-          message: "Missing required fields: user_id, mac_address, number_of_fingerprint",
+          message:
+            "Missing required fields: user_id, mac_address, number_of_fingerprint",
         },
         { status: 400 }
       );
@@ -43,24 +49,26 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    console.log('Fingerprint setup request:', {
+    console.log("Fingerprint setup request:", {
       user_id,
       mac_address,
       number_of_fingerprint,
-      timestamp: new Date().toISOString()
+      timestamp: new Date().toISOString(),
     });
 
     const response = await fetch(`${API_BASE_URL}/fingerprint/setup`, {
       method: "POST",
       headers: {
         "Content-Type": "application/json",
-        "Accept": "application/json",
-        "Authorization": authToken.startsWith('Bearer ') ? authToken : `Bearer ${authToken}`,
+        Accept: "application/json",
+        Authorization: authToken.startsWith("Bearer ")
+          ? authToken
+          : `Bearer ${authToken}`,
       },
       body: JSON.stringify({
         user_id,
         mac_address,
-        number_of_fingerprint
+        number_of_fingerprint,
       }),
     });
 
@@ -93,7 +101,6 @@ export async function POST(request: NextRequest) {
       message: "Fingerprint setup completed successfully",
       data: responseData,
     });
-
   } catch (error) {
     console.error("Fingerprint setup API error:", error);
 
