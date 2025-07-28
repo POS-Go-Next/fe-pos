@@ -8,6 +8,8 @@ import { Product } from "./ChooseMenuProductTable";
 interface ProductTableSectionProps {
   products: Product[];
   onQuantityChange: (id: number, value: number) => void;
+  onQuantityBlur?: () => void; // ✅ NEW: Add quantity blur handler
+  onQuantityKeyPress?: (e: React.KeyboardEvent) => void; // ✅ NEW: Add quantity key press handler
   onRemoveProduct: (id: number) => void;
   onProductNameClick: (id: number) => void;
   onProductSelect: (product: any, productId: number) => void;
@@ -18,6 +20,8 @@ interface ProductTableSectionProps {
 const ProductTableSection: FC<ProductTableSectionProps> = ({
   products,
   onQuantityChange,
+  onQuantityBlur,
+  onQuantityKeyPress,
   onRemoveProduct,
   onProductNameClick,
   onProductSelect,
@@ -29,6 +33,8 @@ const ProductTableSection: FC<ProductTableSectionProps> = ({
       <ChooseMenuProductTable
         products={products}
         onQuantityChange={onQuantityChange}
+        onQuantityBlur={onQuantityBlur}
+        onQuantityKeyPress={onQuantityKeyPress}
         onRemoveProduct={onRemoveProduct}
         onProductNameClick={onProductNameClick}
         onProductSelect={onProductSelect}

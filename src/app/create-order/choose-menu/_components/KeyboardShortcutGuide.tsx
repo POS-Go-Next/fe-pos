@@ -17,30 +17,31 @@ const KeyboardShortcutGuide: React.FC<KeyboardShortcutGuideProps> = ({
 
   const shortcuts = [
     {
-      key: "Ctrl + F1",
-      description: "Petunjuk Penggunaan Shortcut (pilih data dulu)",
+      key: "F1",
+      description: "Petunjuk Penggunaan Shortcut",
     },
     { key: "F2", description: "Bayar/Hystorical Transaksi" },
     {
-      key: "Ctrl + F3",
-      description: "Prescription Discount (pilih data dulu)",
+      key: "F3",
+      description: "Discount (hanya untuk resep)",
     },
     { key: "Alt + F3", description: "Discount Global (hanya untuk resep)" },
     { key: "F4", description: "Batal/Void (Clear Form Transaksi)" },
-    { key: "Ctrl + F6", description: "Up Selling (pilih data dulu)" },
+    { key: "F5", description: "Daftar Promo Bulan Ini" },
+    { key: "Alt + F5", description: "Daftar Produk Best Seller" },
+    { key: "F6", description: "Up Selling" },
     { key: "F7", description: "Daftar Transaksi" },
     { key: "F8", description: "Koreksi Transaksi/Retur" },
     { key: "F9", description: "Tambah Bon Gantung" },
     { key: "Alt + F9", description: "Lihat Bon Gantung" },
     { key: "F10", description: "Member Corporate" },
     { key: "F11", description: "Usulan barang baru" },
-    { key: "Ctrl + F12", description: "Choose Misc (pilih data dulu)" },
+    { key: "F12", description: "Tambah Misc" },
     { key: "Alt + R", description: "Retur PerBarang" },
-    { key: "Alt + T", description: "Retur Semua Barang" },
-    { key: "Ctrl + Esc", description: "Logout (keluar dari sistem)" },
   ];
 
   const rightColumnShortcuts = [
+    { key: "Alt + T", description: "Retur Semua Barang" },
     {
       key: "Alt + K",
       description:
@@ -51,7 +52,7 @@ const KeyboardShortcutGuide: React.FC<KeyboardShortcutGuideProps> = ({
       key: "Alt + . (Alt + Titik)",
       description: "Tambahkan SC (Service & Konsultasi)",
     },
-    { key: ". . (Titik 2×)", description: "RC (Racikan)" },
+    { key: ". . (Titik 2x)", description: "RC (Racikan)" },
     { key: ", (Koma)", description: "Delete SC (Hanya Resep)" },
     {
       key: "~ (Tilde)",
@@ -61,41 +62,43 @@ const KeyboardShortcutGuide: React.FC<KeyboardShortcutGuideProps> = ({
     { key: "/ (Garis Miring)", description: "Calculator Sederhana" },
     { key: ": (Titik Dua)", description: "Setengah Resep" },
     { key: "; (Titik Koma)", description: "Dua Kali Resep" },
+    { key: "Spasi", description: "Untuk melakukan pembayaran." },
+    { key: "Tab", description: "Untuk membuka laci." },
     { key: "Esc", description: "Keluar" },
   ];
 
   return (
     <div className="fixed inset-0 bg-black/50 z-50 flex items-center justify-center p-4">
-      <div className="bg-white rounded-2xl w-full max-w-6xl max-h-[90vh] flex flex-col shadow-2xl">
+      <div className="bg-[#FCFCFC] rounded-2xl p-5 w-full max-w-6xl max-h-[95vh] flex flex-col shadow-2xl">
         {/* Header */}
-        <div className="flex justify-between items-center p-8 border-b border-gray-200">
+        <div className="flex justify-between items-center mb-5">
           <h2 className="text-2xl font-bold text-gray-900">
             Keyboard Shortcut Guide
           </h2>
           <button
             onClick={onClose}
-            className="w-8 h-8 flex items-center justify-center rounded-full border-2 border-gray-300 hover:border-gray-400 transition-colors"
+            className="w-8 h-8 flex items-center justify-center rounded-md border border-black hover:scale-105 transition-all"
           >
             <X className="w-4 h-4 text-gray-600" />
           </button>
         </div>
 
         {/* Content */}
-        <div className="flex-1 overflow-auto p-8">
-          <div className="grid grid-cols-2 gap-12">
+        <div className="flex-1 overflow-auto">
+          <div className="grid grid-cols-2 gap-6">
             {/* Left Column */}
-            <div className="space-y-1">
+            <div className="bg-[#F5F5F5] rounded-2xl p-5 shadow-sm border border-gray-200">
               {shortcuts.map((shortcut, index) => (
-                <div
-                  key={index}
-                  className="flex items-start py-2 border-b border-dotted border-gray-300 last:border-b-0"
-                >
-                  <div className="w-32 flex-shrink-0">
-                    <span className="text-sm font-medium text-gray-900 bg-gray-100 px-2 py-1 rounded">
+                <div key={index} className="flex items-start mb-4">
+                  <div className="w-20 flex-shrink-0">
+                    <span className="text-sm font-medium text-gray-900">
                       {shortcut.key}
                     </span>
                   </div>
-                  <div className="flex-1 ml-4">
+                  <div className="mx-3">
+                    <span className="text-sm text-gray-700">:</span>
+                  </div>
+                  <div className="flex-1">
                     <span className="text-sm text-gray-700">
                       {shortcut.description}
                     </span>
@@ -105,18 +108,18 @@ const KeyboardShortcutGuide: React.FC<KeyboardShortcutGuideProps> = ({
             </div>
 
             {/* Right Column */}
-            <div className="space-y-1">
+            <div className="bg-[#F5F5F5] rounded-2xl p-5 shadow-sm border border-gray-200">
               {rightColumnShortcuts.map((shortcut, index) => (
-                <div
-                  key={index}
-                  className="flex items-start py-2 border-b border-dotted border-gray-300 last:border-b-0"
-                >
+                <div key={index} className="flex items-start mb-4">
                   <div className="w-32 flex-shrink-0">
-                    <span className="text-sm font-medium text-gray-900 bg-gray-100 px-2 py-1 rounded">
+                    <span className="text-sm font-medium text-gray-900">
                       {shortcut.key}
                     </span>
                   </div>
-                  <div className="flex-1 ml-4">
+                  <div className="mx-3">
+                    <span className="text-sm text-gray-700">:</span>
+                  </div>
+                  <div className="flex-1">
                     <span className="text-sm text-gray-700 leading-relaxed">
                       {shortcut.description}
                     </span>

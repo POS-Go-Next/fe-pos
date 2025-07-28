@@ -10,7 +10,7 @@ import { usePOSKeyboardShortcuts } from "@/hooks/useKeyboardShortcuts";
 import type { StockData } from "@/types/stock";
 import { ProductTableItem } from "@/types/stock";
 import { ArrowLeft, Search } from "lucide-react";
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useState, useRef } from "react";
 import { ProductTableSection } from "./_components";
 
 // ✅ Fix: Add proper interface definitions inside the component file
@@ -43,6 +43,14 @@ export default function ChooseMenuPage() {
     useState<CustomerData | null>();
   const [selectedDoctor, setSelectedDoctor] = useState<DoctorData | null>(null);
   const [shouldFocusSearch, setShouldFocusSearch] = useState(true);
+  const [shouldFocusQuantity, setShouldFocusQuantity] = useState(false);
+  const [lastAddedProductId, setLastAddedProductId] = useState<number | null>(
+    null
+  );
+
+  // ✅ NEW: Add refs for focus management
+  const productSearchInputRef = useRef<HTMLInputElement>(null);
+  const barcodeSearchInputRef = useRef<HTMLInputElement>(null);
 
   const { logout, isLoading: isLogoutLoading } = useLogout();
 
@@ -50,27 +58,70 @@ export default function ChooseMenuPage() {
     setIsClient(true);
   }, []);
 
+  const [products, setProducts] = useState<ProductTableItem[]>([]);
+  const [nextId, setNextId] = useState(1);
+
+  // ✅ ENHANCED: Auto focus management for search input
   useEffect(() => {
-    if (shouldFocusSearch) {
+    if (shouldFocusSearch && isClient) {
       const timer = setTimeout(() => {
         const productSearchInput = document.querySelector(
           'input[placeholder="Cari nama produk disini"]'
         ) as HTMLInputElement;
         if (productSearchInput) {
           productSearchInput.focus();
+          console.log("🎯 Auto focused to product search input");
         }
         setShouldFocusSearch(false);
       }, 100);
       return () => clearTimeout(timer);
     }
-  }, [shouldFocusSearch]);
+  }, [shouldFocusSearch, isClient]);
 
-  const [products, setProducts] = useState<ProductTableItem[]>([]);
-  const [nextId, setNextId] = useState(1);
+  // ✅ NEW: Auto focus management for quantity input after product selection
+  useEffect(() => {
+    if (shouldFocusQuantity && lastAddedProductId && isClient) {
+      const timer = setTimeout(() => {
+        // Find the quantity input for the specific product that was just added
+        const quantityInput = document.querySelector(
+          `input[data-product-id="${lastAddedProductId}"]`
+        ) as HTMLInputElement;
+
+        if (quantityInput) {
+          quantityInput.focus();
+          quantityInput.select(); // Select all text for easier editing
+          console.log(
+            "🎯 Auto focused to quantity input for product:",
+            lastAddedProductId
+          );
+        } else {
+          console.log(
+            "❌ Could not find quantity input for product:",
+            lastAddedProductId
+          );
+          // Fallback: try to find the last quantity input in the table
+          const allQuantityInputs = document.querySelectorAll(
+            'input[type="number"][data-product-id]'
+          );
+          const lastQuantityInput = allQuantityInputs[
+            allQuantityInputs.length - 1
+          ] as HTMLInputElement;
+          if (lastQuantityInput) {
+            lastQuantityInput.focus();
+            lastQuantityInput.select();
+            console.log("🎯 Fallback: Auto focused to last quantity input");
+          }
+        }
+        setShouldFocusQuantity(false);
+      }, 200); // Increased timeout to ensure DOM is updated
+      return () => clearTimeout(timer);
+    }
+  }, [shouldFocusQuantity, lastAddedProductId, isClient, products]); // Added products dependency
 
   const handleClearAllProducts = () => {
     setProducts([]);
     setNextId(1);
+    setLastAddedProductId(null);
     setShouldFocusSearch(true);
   };
 
@@ -176,6 +227,7 @@ export default function ChooseMenuPage() {
     ? products.reduce((sum, product) => sum + (product.subtotal || 0), 0)
     : 0;
 
+  // ✅ ENHANCED: Handle quantity change with auto focus management
   const handleQuantityChange = (id: number, value: number) => {
     if (!isClient) return;
 
@@ -201,6 +253,25 @@ export default function ChooseMenuPage() {
     );
   };
 
+  // ✅ NEW: Handle quantity blur to return focus to search
+  const handleQuantityBlur = () => {
+    // After quantity input loses focus, return to product search
+    setTimeout(() => {
+      setShouldFocusSearch(true);
+      console.log("🎯 Quantity input blurred, returning focus to search");
+    }, 100);
+  };
+
+  // ✅ NEW: Handle Enter key on quantity input
+  const handleQuantityKeyPress = (e: React.KeyboardEvent) => {
+    if (e.key === "Enter") {
+      // When Enter is pressed on quantity, move focus back to search
+      (e.target as HTMLInputElement).blur(); // Trigger blur first
+      setShouldFocusSearch(true);
+      console.log("🎯 Enter pressed on quantity, returning focus to search");
+    }
+  };
+
   const handleTypeChange = (id: number, newType: string) => {
     setProducts((prevProducts) =>
       prevProducts.map((product) =>
@@ -212,6 +283,8 @@ export default function ChooseMenuPage() {
   const handleRemoveProduct = (id: number) => {
     if (!isClient) return;
     setProducts(products.filter((product) => product.id !== id));
+    // After removing a product, focus should return to search
+    setShouldFocusSearch(true);
   };
 
   const handleProductNameClick = (id: number) => {
@@ -238,6 +311,7 @@ export default function ChooseMenuPage() {
     };
   };
 
+  // ✅ ENHANCED: Handle product selection with auto focus management
   const handleProductSelect = (
     selectedStockData: StockData,
     productId: number
@@ -247,6 +321,7 @@ export default function ChooseMenuPage() {
     );
 
     if (existingProductIndex !== -1) {
+      // Existing product - just increase quantity
       setProducts((prevProducts) =>
         prevProducts.map((product, index) => {
           if (index === existingProductIndex) {
@@ -267,12 +342,19 @@ export default function ChooseMenuPage() {
           return product;
         })
       );
+      // For existing products, focus should go back to search
+      setShouldFocusSearch(true);
     } else {
+      // New product - add it and focus on quantity
       const newProduct = convertStockToProduct(selectedStockData);
       setProducts((prevProducts) => [...prevProducts, newProduct]);
+      setLastAddedProductId(nextId);
       setNextId((prevId) => prevId + 1);
+
+      // ✅ NEW: For new products, focus should go to quantity input
+      setShouldFocusQuantity(true);
+      console.log("🎯 New product added, will focus on quantity input");
     }
-    setShouldFocusSearch(true);
   };
 
   const handlePayNow = (
@@ -319,6 +401,7 @@ export default function ChooseMenuPage() {
               <div className="flex-grow flex justify-end ml-4">
                 <div className="relative w-full max-w-md">
                   <Input
+                    ref={barcodeSearchInputRef}
                     type="text"
                     placeholder="Scan or Search Barcode"
                     className="pl-10 bg-[#F5F5F5] border-none py-5"
@@ -335,6 +418,8 @@ export default function ChooseMenuPage() {
           <ProductTableSection
             products={products}
             onQuantityChange={handleQuantityChange}
+            onQuantityBlur={handleQuantityBlur}
+            onQuantityKeyPress={handleQuantityKeyPress}
             onRemoveProduct={handleRemoveProduct}
             onProductNameClick={handleProductNameClick}
             onProductSelect={handleProductSelect}

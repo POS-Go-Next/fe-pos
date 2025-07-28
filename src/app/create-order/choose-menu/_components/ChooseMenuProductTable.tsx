@@ -1,4 +1,4 @@
-// Enhanced ChooseMenuProductTable.tsx - UPDATED WITH useKeyboardShortcuts IMPLEMENTATION
+// Enhanced ChooseMenuProductTable.tsx - UPDATED WITH QUANTITY FOCUS MANAGEMENT
 "use client";
 
 import BranchWideStockDialog from "@/components/shared/branch-wide-stock-dialog";
@@ -16,6 +16,8 @@ import UpsellDialog from "./UpsellDialog";
 import PrescriptionDiscountDialog from "./PrescriptionDiscountDialog";
 import ChooseMiscDialog from "./ChooseMiscDialog";
 import TransactionTypeDialog from "@/components/shared/transaction-type-dialog";
+import CorporateDiscountDialog from "./CorporateDiscountDialog";
+import TransactionHistoryDialog from "./TransactionHistoryDialog";
 
 export interface Product extends ProductTableItem {}
 
@@ -103,6 +105,8 @@ const ProductActionIcons = ({
 interface ChooseMenuProductTableProps {
   products: ProductTableItem[];
   onQuantityChange: (id: number, quantity: number) => void;
+  onQuantityBlur?: () => void; // ✅ NEW: Add quantity blur handler
+  onQuantityKeyPress?: (e: React.KeyboardEvent) => void; // ✅ NEW: Add quantity key press handler
   onRemoveProduct: (id: number) => void;
   onProductNameClick?: (id: number) => void;
   onProductSelect?: (product: any, productId: number) => void;
@@ -113,6 +117,8 @@ interface ChooseMenuProductTableProps {
 export default function ChooseMenuProductTable({
   products,
   onQuantityChange,
+  onQuantityBlur,
+  onQuantityKeyPress,
   onRemoveProduct,
   onProductNameClick,
   onProductSelect,
@@ -135,6 +141,9 @@ export default function ChooseMenuProductTable({
     useState(false);
   const [isChooseMiscOpen, setIsChooseMiscOpen] = useState(false);
   const [isTransactionTypeOpen, setIsTransactionTypeOpen] = useState(false);
+  const [isCorporateDiscountOpen, setIsCorporateDiscountOpen] = useState(false);
+  const [isTransactionHistoryOpen, setIsTransactionHistoryOpen] =
+    useState(false);
 
   const tableContainerRef = useRef<HTMLDivElement>(null);
   const tableBodyRef = useRef<HTMLTableSectionElement>(null);
@@ -212,6 +221,30 @@ export default function ChooseMenuProductTable({
         preventDefault: true,
       },
       {
+        key: "F10",
+        ctrl: true,
+        action: () => {
+          console.log(
+            "🎹 F10+Ctrl pressed - Opening Corporate Discount Dialog"
+          );
+          setIsCorporateDiscountOpen(true);
+        },
+        description: "Corporate Discount",
+        preventDefault: true,
+      },
+      {
+        key: "F7",
+        ctrl: true,
+        action: () => {
+          console.log(
+            "🎹 F7+Ctrl pressed - Opening Transaction History Dialog"
+          );
+          setIsTransactionHistoryOpen(true);
+        },
+        description: "Transaction History",
+        preventDefault: true,
+      },
+      {
         key: "Escape",
         ctrl: true,
         action: async () => {
@@ -226,6 +259,8 @@ export default function ChooseMenuProductTable({
           setIsPrescriptionDiscountOpen(false);
           setIsChooseMiscOpen(false);
           setIsTransactionTypeOpen(false);
+          setIsCorporateDiscountOpen(false);
+          setIsTransactionHistoryOpen(false);
 
           // Show logout confirmation popup
           await logout();
@@ -321,6 +356,25 @@ export default function ChooseMenuProductTable({
       onTypeChange(productId, newType);
     } else {
       console.warn("❌ onTypeChange callback not provided");
+    }
+  };
+
+  // ✅ NEW: Enhanced quantity change handler with focus management
+  const handleQuantityChangeWithFocus = (id: number, value: number) => {
+    onQuantityChange(id, value);
+  };
+
+  // ✅ NEW: Handle quantity input blur
+  const handleQuantityInputBlur = () => {
+    if (onQuantityBlur) {
+      onQuantityBlur();
+    }
+  };
+
+  // ✅ NEW: Handle quantity input key press
+  const handleQuantityInputKeyPress = (e: React.KeyboardEvent) => {
+    if (onQuantityKeyPress) {
+      onQuantityKeyPress(e);
     }
   };
 
@@ -499,13 +553,16 @@ export default function ChooseMenuProductTable({
                             type="number"
                             value={product.quantity || ""}
                             onChange={(e) =>
-                              onQuantityChange(
+                              handleQuantityChangeWithFocus(
                                 product.id,
                                 parseInt(e.target.value) || 0
                               )
                             }
+                            onBlur={handleQuantityInputBlur}
+                            onKeyDown={handleQuantityInputKeyPress}
                             className="w-[76px] text-sm border-[#F0F0F0] h-11 text-center"
                             min="0"
+                            data-product-id={product.id}
                           />
                         </div>
                       </td>
@@ -645,6 +702,20 @@ export default function ChooseMenuProductTable({
           console.log("✅ Transaction type selected:", transactionData);
           setIsTransactionTypeOpen(false);
         }}
+      />
+
+      <CorporateDiscountDialog
+        isOpen={isCorporateDiscountOpen}
+        onClose={() => setIsCorporateDiscountOpen(false)}
+        onSubmit={(selectedCorporates) => {
+          console.log("✅ Corporate discount applied:", selectedCorporates);
+          setIsCorporateDiscountOpen(false);
+        }}
+      />
+
+      <TransactionHistoryDialog
+        isOpen={isTransactionHistoryOpen}
+        onClose={() => setIsTransactionHistoryOpen(false)}
       />
 
       <style jsx>{`

@@ -10,3 +10,5 @@ export { default as KeyboardShortcutGuide } from "./KeyboardShortcutGuide";
 export { default as UpsellDialog } from "./UpsellDialog";
 export { default as PrescriptionDiscountDialog } from "./PrescriptionDiscountDialog";
 export { default as ChooseMiscDialog } from "./ChooseMiscDialog";
+export { default as CorporateDiscountDialog } from "./CorporateDiscountDialog";
+export { default as TransactionHistoryDialog } from "./TransactionHistoryDialog";

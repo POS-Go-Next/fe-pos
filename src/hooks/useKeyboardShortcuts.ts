@@ -73,16 +73,10 @@ export const useKeyboardShortcuts = ({
       description: shortcut.description,
       combination: [
         shortcut.ctrl &&
-          (typeof window !== "undefined" &&
-          navigator.platform.indexOf("Mac") > -1
-            ? "Cmd"
-            : "Ctrl"),
+          (navigator.platform.indexOf("Mac") > -1 ? "Cmd" : "Ctrl"),
         shortcut.alt && "Alt",
         shortcut.shift && "Shift",
-        shortcut.key === "F4" &&
-          typeof window !== "undefined" &&
-          navigator.platform.indexOf("Mac") > -1 &&
-          "fn",
+        shortcut.key === "F4" && navigator.platform.indexOf("Mac") > -1 && "fn",
         shortcut.key,
       ]
         .filter(Boolean)
