@@ -1,4 +1,4 @@
-// Enhanced ChooseMenuProductTable.tsx - UPDATED WITH QUANTITY FOCUS MANAGEMENT
+// app/create-order/choose-menu/_components/ChooseMenuProductTable.tsx - FIXED VERSION
 "use client";
 
 import BranchWideStockDialog from "@/components/shared/branch-wide-stock-dialog";
@@ -105,8 +105,8 @@ const ProductActionIcons = ({
 interface ChooseMenuProductTableProps {
   products: ProductTableItem[];
   onQuantityChange: (id: number, quantity: number) => void;
-  onQuantityBlur?: () => void; // ✅ NEW: Add quantity blur handler
-  onQuantityKeyPress?: (e: React.KeyboardEvent) => void; // ✅ NEW: Add quantity key press handler
+  onQuantityBlur?: () => void;
+  onQuantityKeyPress?: (e: React.KeyboardEvent) => void;
   onRemoveProduct: (id: number) => void;
   onProductNameClick?: (id: number) => void;
   onProductSelect?: (product: any, productId: number) => void;
@@ -125,6 +125,7 @@ export default function ChooseMenuProductTable({
   onTypeChange,
   className = "",
 }: ChooseMenuProductTableProps) {
+  const [isClient, setIsClient] = useState(false);
   const [isSelectProductDialogOpen, setIsSelectProductDialogOpen] =
     useState(false);
   const [selectedProductId, setSelectedProductId] = useState<number | null>(
@@ -148,6 +149,11 @@ export default function ChooseMenuProductTable({
   const tableContainerRef = useRef<HTMLDivElement>(null);
   const tableBodyRef = useRef<HTMLTableSectionElement>(null);
   const { logout } = useLogout();
+
+  // ✅ Safe client-side initialization
+  useEffect(() => {
+    setIsClient(true);
+  }, []);
 
   // 🔥 IMPROVED: Use useKeyboardShortcuts hook instead of manual event listeners
   useKeyboardShortcuts({
@@ -268,7 +274,6 @@ export default function ChooseMenuProductTable({
         description: "Logout",
         preventDefault: true,
       },
-      // 🔥 ADDITION: Add more POS shortcuts for consistency
       {
         key: "F4",
         ctrl: true,
@@ -276,30 +281,26 @@ export default function ChooseMenuProductTable({
           console.log(
             "🎹 F4+Ctrl pressed - Clear all products (if callback provided)"
           );
-          // This could be passed as a prop if needed
-          // onClearAllProducts?.();
         },
         description: "Batal/Void (Clear Form Transaksi)",
         preventDefault: true,
       },
-      // Alternative shortcuts for Mac users
       {
         key: "D",
         ctrl: true,
         action: () => {
           console.log("🎹 Ctrl+D pressed - Alternative clear shortcut");
-          // Alternative shortcut for easier access
         },
         description: "Alternative Clear (Ctrl+D)",
         preventDefault: true,
       },
     ],
-    enabled: true,
-    debug: false, // Set to true for debugging
+    enabled: isClient,
+    debug: false,
   });
 
   useEffect(() => {
-    if (tableContainerRef.current && products.length > 0) {
+    if (tableContainerRef.current && products.length > 0 && isClient) {
       setTimeout(() => {
         if (tableContainerRef.current) {
           tableContainerRef.current.scrollTop =
@@ -307,7 +308,7 @@ export default function ChooseMenuProductTable({
         }
       }, 100);
     }
-  }, [products.length]);
+  }, [products.length, isClient]);
 
   const handleSearchFieldClick = () => {
     setSelectedProductId(999);
@@ -359,19 +360,16 @@ export default function ChooseMenuProductTable({
     }
   };
 
-  // ✅ NEW: Enhanced quantity change handler with focus management
   const handleQuantityChangeWithFocus = (id: number, value: number) => {
     onQuantityChange(id, value);
   };
 
-  // ✅ NEW: Handle quantity input blur
   const handleQuantityInputBlur = () => {
     if (onQuantityBlur) {
       onQuantityBlur();
     }
   };
 
-  // ✅ NEW: Handle quantity input key press
   const handleQuantityInputKeyPress = (e: React.KeyboardEvent) => {
     if (onQuantityKeyPress) {
       onQuantityKeyPress(e);
@@ -400,6 +398,15 @@ export default function ChooseMenuProductTable({
 
     return [searchRow, ...filledProducts];
   }, [products]);
+
+  // Don't render until client is ready
+  if (!isClient) {
+    return (
+      <div className="flex justify-center items-center h-64">
+        <div className="text-lg">Loading...</div>
+      </div>
+    );
+  }
 
   return (
     <>

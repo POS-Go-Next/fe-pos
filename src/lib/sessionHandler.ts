@@ -61,13 +61,19 @@ export const showSessionExpiredAlert = () => {
 
 // Handle session expired action
 export const handleSessionExpired = () => {
-  // ✅ Fix: Safe localStorage access
+  // ✅ Fix: Safe localStorage access with client-side check
   if (typeof window !== "undefined") {
-    localStorage.removeItem("user-data");
-    localStorage.removeItem("auth-token");
+    try {
+      localStorage.removeItem("user-data");
+      localStorage.removeItem("auth-token");
 
-    // Redirect to login page or dashboard
-    window.location.href = "/";
+      // Redirect to login page or dashboard
+      window.location.href = "/";
+    } catch (error) {
+      console.error("Error clearing localStorage:", error);
+      // Still redirect even if localStorage fails
+      window.location.href = "/";
+    }
   }
 };
 
@@ -108,14 +114,21 @@ export const isSessionExpired = (response: Response, data?: any): boolean => {
   );
 };
 
-// Silent session check without popup
+// Silent session check without popup - with safe browser API access
 export const checkAuthenticationStatus = (): boolean => {
-  if (typeof window === "undefined") return false;
+  if (typeof window === "undefined" || typeof document === "undefined") {
+    return false;
+  }
 
-  const authToken = document.cookie
-    .split("; ")
-    .find((row) => row.startsWith("auth-token="))
-    ?.split("=")[1];
+  try {
+    const authToken = document.cookie
+      .split("; ")
+      .find((row) => row.startsWith("auth-token="))
+      ?.split("=")[1];
 
-  return !!authToken;
+    return !!authToken;
+  } catch (error) {
+    console.error("Error checking authentication status:", error);
+    return false;
+  }
 };

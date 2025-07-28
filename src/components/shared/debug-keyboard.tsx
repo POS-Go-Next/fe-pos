@@ -1,4 +1,4 @@
-// components/shared/debug-keyboard.tsx - UPDATED WITH MAC INSTRUCTIONS
+// components/shared/debug-keyboard.tsx - FIXED VERSION
 "use client";
 
 import { useState, useEffect } from "react";
@@ -11,13 +11,20 @@ const DebugKeyboard: React.FC<DebugKeyboardProps> = ({ enabled = false }) => {
   const [lastKey, setLastKey] = useState<string>("");
   const [keyInfo, setKeyInfo] = useState<any>(null);
   const [isMac, setIsMac] = useState(false);
+  const [isClient, setIsClient] = useState(false);
 
+  // ✅ Safe client-side initialization
   useEffect(() => {
-    setIsMac(navigator.platform.includes("Mac"));
+    setIsClient(true);
+
+    // ✅ Safe navigator access after client mount
+    if (typeof window !== "undefined" && typeof navigator !== "undefined") {
+      setIsMac(navigator.platform.includes("Mac"));
+    }
   }, []);
 
   useEffect(() => {
-    if (!enabled) return;
+    if (!enabled || !isClient) return;
 
     const handleKeyDown = (event: KeyboardEvent) => {
       const info = {
@@ -28,8 +35,10 @@ const DebugKeyboard: React.FC<DebugKeyboardProps> = ({ enabled = false }) => {
         metaKey: event.metaKey,
         altKey: event.altKey,
         shiftKey: event.shiftKey,
-        platform: navigator.platform,
-        userAgent: navigator.userAgent,
+        platform:
+          typeof navigator !== "undefined" ? navigator.platform : "Unknown",
+        userAgent:
+          typeof navigator !== "undefined" ? navigator.userAgent : "Unknown",
         timestamp: new Date().toLocaleTimeString(),
       };
 
@@ -43,7 +52,8 @@ const DebugKeyboard: React.FC<DebugKeyboardProps> = ({ enabled = false }) => {
         console.log("🔥 F4 PRESSED!", {
           withCtrl: event.ctrlKey,
           withCmd: event.metaKey,
-          platform: navigator.platform,
+          platform:
+            typeof navigator !== "undefined" ? navigator.platform : "Unknown",
           keyCode: event.keyCode,
         });
       }
@@ -68,9 +78,10 @@ const DebugKeyboard: React.FC<DebugKeyboardProps> = ({ enabled = false }) => {
       document.removeEventListener("keydown", handleKeyDown);
       document.removeEventListener("keyup", handleKeyUp);
     };
-  }, [enabled]);
+  }, [enabled, isClient]);
 
-  if (!enabled) return null;
+  // ✅ Don't render until client-side hydration is complete
+  if (!enabled || !isClient) return null;
 
   return (
     <div className="fixed bottom-4 right-4 bg-black/90 text-white p-4 rounded-lg text-xs font-mono max-w-sm z-50 border border-white/20">

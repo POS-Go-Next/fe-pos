@@ -1,4 +1,4 @@
-// components/shared/customer-doctor-dialog.tsx - UPDATED WITH MANDATORY CUSTOMER INFO
+// components/shared/customer-doctor-dialog.tsx - FIXED VERSION
 "use client";
 
 import React, { useState, useEffect, useRef } from "react";
@@ -74,6 +74,7 @@ export default function CustomerDoctorDialog({
   const [currentFocus, setCurrentFocus] = useState<"customer" | "doctor">(
     initialFocus
   );
+  const [isClient, setIsClient] = useState(false);
 
   // State untuk mengontrol view mode
   const [viewMode, setViewMode] = useState<ViewMode>("both");
@@ -126,6 +127,11 @@ export default function CustomerDoctorDialog({
   const doctorInputRef = useRef<HTMLDivElement>(null);
   const customerInputRef = useRef<HTMLDivElement>(null);
 
+  // ✅ Safe client-side initialization
+  useEffect(() => {
+    setIsClient(true);
+  }, []);
+
   // Load doctors from API
   const {
     doctorList,
@@ -173,6 +179,8 @@ export default function CustomerDoctorDialog({
 
   // Handle customer dropdown toggle
   const handleCustomerDropdownToggle = () => {
+    if (!isClient) return;
+
     if (!isCustomerDropdownOpen && customerInputRef.current) {
       setCustomerButtonRect(customerInputRef.current.getBoundingClientRect());
     }
@@ -181,6 +189,8 @@ export default function CustomerDoctorDialog({
 
   // Handle doctor dropdown toggle
   const handleDoctorDropdownToggle = () => {
+    if (!isClient) return;
+
     if (!isDoctorDropdownOpen && doctorInputRef.current) {
       setDoctorButtonRect(doctorInputRef.current.getBoundingClientRect());
     }
@@ -251,17 +261,17 @@ export default function CustomerDoctorDialog({
 
   // Handle doctor input focus
   const handleDoctorInputFocus = () => {
-    if (doctorInputRef.current) {
-      setDoctorButtonRect(doctorInputRef.current.getBoundingClientRect());
-    }
+    if (!isClient || !doctorInputRef.current) return;
+
+    setDoctorButtonRect(doctorInputRef.current.getBoundingClientRect());
     setIsDoctorDropdownOpen(true);
   };
 
   // Handle customer input focus
   const handleCustomerInputFocus = () => {
-    if (customerInputRef.current) {
-      setCustomerButtonRect(customerInputRef.current.getBoundingClientRect());
-    }
+    if (!isClient || !customerInputRef.current) return;
+
+    setCustomerButtonRect(customerInputRef.current.getBoundingClientRect());
     setIsCustomerDropdownOpen(true);
   };
 
@@ -269,7 +279,7 @@ export default function CustomerDoctorDialog({
   const handleDoctorInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     handleDoctorChange("fullname", e.target.value);
     setDoctorSearch(e.target.value);
-    if (!isDoctorDropdownOpen) {
+    if (!isDoctorDropdownOpen && isClient) {
       if (doctorInputRef.current) {
         setDoctorButtonRect(doctorInputRef.current.getBoundingClientRect());
       }
@@ -283,7 +293,7 @@ export default function CustomerDoctorDialog({
   ) => {
     handleCustomerChange("name", e.target.value);
     setCustomerSearch(e.target.value);
-    if (!isCustomerDropdownOpen) {
+    if (!isCustomerDropdownOpen && isClient) {
       if (customerInputRef.current) {
         setCustomerButtonRect(customerInputRef.current.getBoundingClientRect());
       }
@@ -388,6 +398,8 @@ export default function CustomerDoctorDialog({
 
   // Close dropdown when clicking outside
   useEffect(() => {
+    if (!isClient) return;
+
     const handleClickOutside = (event: MouseEvent) => {
       const target = event.target as Node;
 
@@ -415,7 +427,7 @@ export default function CustomerDoctorDialog({
       return () =>
         document.removeEventListener("mousedown", handleClickOutside);
     }
-  }, [isDoctorDropdownOpen, isCustomerDropdownOpen]);
+  }, [isDoctorDropdownOpen, isCustomerDropdownOpen, isClient]);
 
   // Reset focus when dialog opens
   useEffect(() => {
@@ -762,12 +774,17 @@ export default function CustomerDoctorDialog({
       </div>
 
       {/* Portal Dropdown positioned absolutely relative to viewport - DOCTOR */}
-      {isDoctorDropdownOpen && doctorButtonRect && (
+      {isClient && isDoctorDropdownOpen && doctorButtonRect && (
         <div
           className="fixed bg-white border border-gray-300 rounded-md shadow-2xl z-[9999] overflow-hidden doctor-dropdown-portal"
           style={{
-            top: doctorButtonRect.bottom + window.scrollY + 4,
-            left: doctorButtonRect.left + window.scrollX,
+            top:
+              doctorButtonRect.bottom +
+              (typeof window !== "undefined" ? window.scrollY : 0) +
+              4,
+            left:
+              doctorButtonRect.left +
+              (typeof window !== "undefined" ? window.scrollX : 0),
             width: doctorButtonRect.width,
             maxHeight: "300px",
           }}
@@ -823,12 +840,17 @@ export default function CustomerDoctorDialog({
       )}
 
       {/* Portal Dropdown positioned absolutely relative to viewport - CUSTOMER */}
-      {isCustomerDropdownOpen && customerButtonRect && (
+      {isClient && isCustomerDropdownOpen && customerButtonRect && (
         <div
           className="fixed bg-white border border-gray-300 rounded-md shadow-2xl z-[9999] overflow-hidden customer-dropdown-portal"
           style={{
-            top: customerButtonRect.bottom + window.scrollY + 4,
-            left: customerButtonRect.left + window.scrollX,
+            top:
+              customerButtonRect.bottom +
+              (typeof window !== "undefined" ? window.scrollY : 0) +
+              4,
+            left:
+              customerButtonRect.left +
+              (typeof window !== "undefined" ? window.scrollX : 0),
             width: customerButtonRect.width,
             maxHeight: "300px",
           }}

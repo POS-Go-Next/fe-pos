@@ -1,6 +1,7 @@
+// hooks/useKeyboardShortcuts.ts - FIXED VERSION
 "use client";
 
-import { useEffect } from "react";
+import { useEffect, useState } from "react";
 
 export interface KeyboardShortcut {
   key: string;
@@ -24,8 +25,15 @@ export const useKeyboardShortcuts = ({
   enabled = true,
   debug = false,
 }: UseKeyboardShortcutsOptions) => {
+  const [isClient, setIsClient] = useState(false);
+
+  // ✅ Safe client-side initialization
   useEffect(() => {
-    if (!enabled) return;
+    setIsClient(true);
+  }, []);
+
+  useEffect(() => {
+    if (!enabled || !isClient) return;
 
     const handleKeyDown = (event: KeyboardEvent) => {
       for (const shortcut of shortcuts) {
@@ -61,7 +69,7 @@ export const useKeyboardShortcuts = ({
     return () => {
       document.removeEventListener("keydown", handleKeyDown);
     };
-  }, [shortcuts, enabled, debug]);
+  }, [shortcuts, enabled, debug, isClient]);
 
   return {
     shortcuts: shortcuts.map((shortcut) => ({
@@ -73,10 +81,18 @@ export const useKeyboardShortcuts = ({
       description: shortcut.description,
       combination: [
         shortcut.ctrl &&
-          (navigator.platform.indexOf("Mac") > -1 ? "Cmd" : "Ctrl"),
+          (isClient &&
+          typeof navigator !== "undefined" &&
+          navigator.platform.indexOf("Mac") > -1
+            ? "Cmd"
+            : "Ctrl"),
         shortcut.alt && "Alt",
         shortcut.shift && "Shift",
-        shortcut.key === "F4" && navigator.platform.indexOf("Mac") > -1 && "fn",
+        shortcut.key === "F4" &&
+          isClient &&
+          typeof navigator !== "undefined" &&
+          navigator.platform.indexOf("Mac") > -1 &&
+          "fn",
         shortcut.key,
       ]
         .filter(Boolean)

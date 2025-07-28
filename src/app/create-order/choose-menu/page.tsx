@@ -1,3 +1,4 @@
+// app/create-order/choose-menu/page.tsx
 "use client";
 
 import OrderSummary from "@/components/shared/order-summary";
@@ -54,6 +55,7 @@ export default function ChooseMenuPage() {
 
   const { logout, isLoading: isLogoutLoading } = useLogout();
 
+  // ✅ FIX: Safe client-side initialization
   useEffect(() => {
     setIsClient(true);
   }, []);
@@ -135,9 +137,9 @@ export default function ChooseMenuPage() {
     }
   );
 
-  // ✅ Fix: Wrap localStorage access in client-side check
+  // ✅ Fix: Wrap localStorage access in client-side check and useEffect
   useEffect(() => {
-    if (isClient && typeof window !== "undefined") {
+    if (isClient) {
       const savedProducts = localStorage.getItem("pos-products");
       const savedNextId = localStorage.getItem("pos-next-id");
 
@@ -160,8 +162,9 @@ export default function ChooseMenuPage() {
     }
   }, [isClient]);
 
+  // ✅ Fix: Safe localStorage update
   useEffect(() => {
-    if (isClient && typeof window !== "undefined") {
+    if (isClient) {
       localStorage.setItem("pos-products", JSON.stringify(products));
       localStorage.setItem("pos-next-id", nextId.toString());
     }
@@ -375,7 +378,7 @@ export default function ChooseMenuPage() {
     handleClearAllProducts();
   };
 
-  // ✅ Fix: Show loading state during SSR
+  // ✅ Fix: Show loading state during SSR/hydration
   if (!isClient) {
     return (
       <div className="flex justify-center items-center h-screen">

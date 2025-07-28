@@ -1,3 +1,4 @@
+// components/shared/transaction-info.tsx - FIXED VERSION
 "use client";
 
 import { useState, useEffect } from "react";
@@ -36,18 +37,20 @@ export default function TransactionInfo({
   const [isClient, setIsClient] = useState(false);
   const { time: currentTime, date: currentDate } = useRealTimeClock();
 
+  // ✅ Safe client-side initialization
   useEffect(() => {
     setIsClient(true);
 
+    // ✅ Safe localStorage access after client mount
     if (typeof window !== "undefined") {
-      const storedUserData = localStorage.getItem("user-data");
-      if (storedUserData) {
-        try {
+      try {
+        const storedUserData = localStorage.getItem("user-data");
+        if (storedUserData) {
           const parsedUserData = JSON.parse(storedUserData);
           setUserData(parsedUserData);
-        } catch (error) {
-          console.error("Error parsing user data:", error);
         }
+      } catch (error) {
+        console.error("Error parsing user data:", error);
       }
     }
   }, []);
@@ -56,13 +59,13 @@ export default function TransactionInfo({
   const displayDate =
     useRealTimeData && isClient ? `${currentDate}, ${currentTime}` : date;
   const displayCounter =
-    useRealTimeData && isClient && userData?.username && userData?.position_id
+    isClient && useRealTimeData && userData?.username && userData?.position_id
       ? `#${userData.username} / ${userData.position_id
           .toString()
           .padStart(2, "0")}`
       : counter;
   const displayBadge =
-    useRealTimeData && isClient && userData?.id ? userData.id : badgeNumber;
+    isClient && useRealTimeData && userData?.id ? userData.id : badgeNumber;
 
   const getUserInitials = () => {
     if (!userData?.fullname) return "??";
@@ -85,9 +88,9 @@ export default function TransactionInfo({
           <p className="text-sm text-gray-600">{displayDate}</p>
         </div>
 
-        {(displayBadge || userData) && (
+        {(displayBadge || (isClient && userData)) && (
           <div className="bg-blue-100 text-blue-800 font-semibold rounded-md px-3 py-1 min-w-[3rem] text-center">
-            {displayBadge || getUserInitials()}
+            {displayBadge || (isClient ? getUserInitials() : "??")}
           </div>
         )}
       </div>
