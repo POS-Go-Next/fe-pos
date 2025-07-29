@@ -3,17 +3,18 @@
 
 import { FC } from "react";
 import { ChooseMenuProductTable } from "./";
-import { Product } from "./ChooseMenuProductTable";
+import type { ProductTableItem } from "@/types/stock";
 
 interface ProductTableSectionProps {
-  products: Product[];
+  products: ProductTableItem[];
   onQuantityChange: (id: number, value: number) => void;
-  onQuantityBlur?: () => void; // ✅ NEW: Add quantity blur handler
-  onQuantityKeyPress?: (e: React.KeyboardEvent) => void; // ✅ NEW: Add quantity key press handler
+  onQuantityBlur?: () => void;
+  onQuantityKeyPress?: (e: React.KeyboardEvent) => void;
   onRemoveProduct: (id: number) => void;
   onProductNameClick: (id: number) => void;
   onProductSelect: (product: any, productId: number) => void;
   onTypeChange: (id: number, type: string) => void;
+  onDiscountChange?: (id: number, discount: number) => void;
   className?: string;
 }
 
@@ -26,6 +27,7 @@ const ProductTableSection: FC<ProductTableSectionProps> = ({
   onProductNameClick,
   onProductSelect,
   onTypeChange,
+  onDiscountChange,
   className = "",
 }) => {
   return (
@@ -39,6 +41,7 @@ const ProductTableSection: FC<ProductTableSectionProps> = ({
         onProductNameClick={onProductNameClick}
         onProductSelect={onProductSelect}
         onTypeChange={onTypeChange}
+        onDiscountChange={onDiscountChange}
         className="h-full"
       />
     </div>

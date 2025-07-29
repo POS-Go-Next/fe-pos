@@ -1,4 +1,4 @@
-// app/create-order/choose-menu/_components/ChooseMenuProductTable.tsx - FIXED VERSION
+// app/create-order/choose-menu/_components/ChooseMenuProductTable.tsx - COMPLETE VERSION
 "use client";
 
 import BranchWideStockDialog from "@/components/shared/branch-wide-stock-dialog";
@@ -111,6 +111,7 @@ interface ChooseMenuProductTableProps {
   onProductNameClick?: (id: number) => void;
   onProductSelect?: (product: any, productId: number) => void;
   onTypeChange?: (id: number, type: string) => void;
+  onDiscountChange?: (id: number, discount: number) => void;
   className?: string;
 }
 
@@ -123,6 +124,7 @@ export default function ChooseMenuProductTable({
   onProductNameClick,
   onProductSelect,
   onTypeChange,
+  onDiscountChange,
   className = "",
 }: ChooseMenuProductTableProps) {
   const [isClient, setIsClient] = useState(false);
@@ -150,23 +152,18 @@ export default function ChooseMenuProductTable({
   const tableBodyRef = useRef<HTMLTableSectionElement>(null);
   const { logout } = useLogout();
 
-  // ✅ Safe client-side initialization
   useEffect(() => {
     setIsClient(true);
   }, []);
 
-  // 🔥 IMPROVED: Use useKeyboardShortcuts hook instead of manual event listeners
   useKeyboardShortcuts({
     shortcuts: [
       {
         key: "F1",
         ctrl: true,
         action: () => {
-          console.log("🎹 F1+Ctrl pressed - Opening Keyboard Shortcut Guide");
           if (selectedRowId !== null) {
             setIsShortcutGuideOpen(true);
-          } else {
-            console.log("⚠️ No row selected - F1+Ctrl requires row selection");
           }
         },
         description: "Petunjuk Penggunaan Shortcut",
@@ -176,7 +173,6 @@ export default function ChooseMenuProductTable({
         key: "F2",
         ctrl: true,
         action: () => {
-          console.log("🎹 F2+Ctrl pressed - Opening Transaction Type Dialog");
           setIsTransactionTypeOpen(true);
         },
         description: "Transaction Type",
@@ -186,13 +182,14 @@ export default function ChooseMenuProductTable({
         key: "F3",
         ctrl: true,
         action: () => {
-          console.log(
-            "🎹 F3+Ctrl pressed - Opening Prescription Discount Dialog"
-          );
           if (selectedRowId !== null) {
+            const currentSelectedProduct = products.find(
+              (p) => p.id === selectedRowId
+            );
+            if (currentSelectedProduct) {
+              setSelectedProduct(currentSelectedProduct);
+            }
             setIsPrescriptionDiscountOpen(true);
-          } else {
-            console.log("⚠️ No row selected - F3+Ctrl requires row selection");
           }
         },
         description: "Prescription Discount",
@@ -202,11 +199,8 @@ export default function ChooseMenuProductTable({
         key: "F6",
         ctrl: true,
         action: () => {
-          console.log("🎹 F6+Ctrl pressed - Opening Upselling Dialog");
           if (selectedRowId !== null) {
             setIsUpsellDialogOpen(true);
-          } else {
-            console.log("⚠️ No row selected for upselling");
           }
         },
         description: "Up Selling",
@@ -216,11 +210,8 @@ export default function ChooseMenuProductTable({
         key: "F12",
         ctrl: true,
         action: () => {
-          console.log("🎹 F12+Ctrl pressed - Opening Choose Misc Dialog");
           if (selectedRowId !== null) {
             setIsChooseMiscOpen(true);
-          } else {
-            console.log("⚠️ No row selected - F12+Ctrl requires row selection");
           }
         },
         description: "Choose Misc",
@@ -230,9 +221,6 @@ export default function ChooseMenuProductTable({
         key: "F10",
         ctrl: true,
         action: () => {
-          console.log(
-            "🎹 F10+Ctrl pressed - Opening Corporate Discount Dialog"
-          );
           setIsCorporateDiscountOpen(true);
         },
         description: "Corporate Discount",
@@ -242,9 +230,6 @@ export default function ChooseMenuProductTable({
         key: "F7",
         ctrl: true,
         action: () => {
-          console.log(
-            "🎹 F7+Ctrl pressed - Opening Transaction History Dialog"
-          );
           setIsTransactionHistoryOpen(true);
         },
         description: "Transaction History",
@@ -254,8 +239,6 @@ export default function ChooseMenuProductTable({
         key: "Escape",
         ctrl: true,
         action: async () => {
-          console.log("🎹 Ctrl+Esc pressed - Opening logout confirmation");
-          // Clear all selected rows and close dialogs first
           setSelectedRowId(null);
           setIsSelectProductDialogOpen(false);
           setIsBranchStockOpen(false);
@@ -267,8 +250,6 @@ export default function ChooseMenuProductTable({
           setIsTransactionTypeOpen(false);
           setIsCorporateDiscountOpen(false);
           setIsTransactionHistoryOpen(false);
-
-          // Show logout confirmation popup
           await logout();
         },
         description: "Logout",
@@ -278,9 +259,7 @@ export default function ChooseMenuProductTable({
         key: "F4",
         ctrl: true,
         action: () => {
-          console.log(
-            "🎹 F4+Ctrl pressed - Clear all products (if callback provided)"
-          );
+          console.log("Clear all products");
         },
         description: "Batal/Void (Clear Form Transaksi)",
         preventDefault: true,
@@ -289,7 +268,7 @@ export default function ChooseMenuProductTable({
         key: "D",
         ctrl: true,
         action: () => {
-          console.log("🎹 Ctrl+D pressed - Alternative clear shortcut");
+          console.log("Alternative clear shortcut");
         },
         description: "Alternative Clear (Ctrl+D)",
         preventDefault: true,
@@ -338,25 +317,23 @@ export default function ChooseMenuProductTable({
   };
 
   const handleRowClick = (product: ProductTableItem, index: number) => {
-    setSelectedRowId(selectedRowId === product.id ? null : product.id);
+    const newSelectedRowId = selectedRowId === product.id ? null : product.id;
+    setSelectedRowId(newSelectedRowId);
+
+    if (newSelectedRowId !== null && product.name) {
+      setSelectedProduct(product);
+    } else {
+      setSelectedProduct(null);
+    }
   };
 
   const handleTypeChange = (productId: number, newType: string) => {
-    console.log("🔄 ChooseMenuProductTable - Type changing:", {
-      productId,
-      newType,
-    });
-
     if (productId === 999) {
-      console.log("⚠️ Ignoring type change for search row");
       return;
     }
 
     if (onTypeChange) {
-      console.log("✅ Calling onTypeChange callback");
       onTypeChange(productId, newType);
-    } else {
-      console.warn("❌ onTypeChange callback not provided");
     }
   };
 
@@ -399,7 +376,6 @@ export default function ChooseMenuProductTable({
     return [searchRow, ...filledProducts];
   }, [products]);
 
-  // Don't render until client is ready
   if (!isClient) {
     return (
       <div className="flex justify-center items-center h-64">
@@ -582,13 +558,9 @@ export default function ChooseMenuProductTable({
 
                       <td className="p-3">
                         <div className="flex justify-center">
-                          <Input
-                            type="number"
-                            value={product.discount || ""}
-                            className="w-[76px] text-sm border-[#F0F0F0] h-11 text-center"
-                            min="0"
-                            max="100"
-                          />
+                          <span className="w-[76px] text-sm text-center py-2">
+                            {product.discount || 0}%
+                          </span>
                         </div>
                       </td>
 
@@ -624,7 +596,14 @@ export default function ChooseMenuProductTable({
 
                       <td className="p-3 text-sm font-bold">
                         <div className="whitespace-nowrap">
-                          {formatCurrency(product.total || product.subtotal)}
+                          {formatCurrency(
+                            hasProductData &&
+                              product.subtotal &&
+                              product.discount
+                              ? product.subtotal -
+                                  product.subtotal * (product.discount / 100)
+                              : product.total || product.subtotal
+                          )}
                         </div>
                       </td>
                     </tr>
@@ -687,9 +666,16 @@ export default function ChooseMenuProductTable({
       <PrescriptionDiscountDialog
         isOpen={isPrescriptionDiscountOpen}
         onClose={() => setIsPrescriptionDiscountOpen(false)}
-        onSubmit={(discountData) => {
-          console.log("✅ Prescription discount applied:", discountData);
+        onSubmit={(productId, discount) => {
+          if (onDiscountChange) {
+            onDiscountChange(productId, discount);
+          }
           setIsPrescriptionDiscountOpen(false);
+        }}
+        selectedProduct={{
+          id: selectedProduct?.id || 0,
+          kode_brg: selectedProduct?.stockData?.kode_brg || "",
+          nama_brg: selectedProduct?.name || "",
         }}
       />
 

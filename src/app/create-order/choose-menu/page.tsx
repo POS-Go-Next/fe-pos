@@ -199,7 +199,8 @@ export default function ChooseMenuPage() {
       0
     );
     const discount = filledProducts.reduce(
-      (sum, product) => sum + (product.discount || 0),
+      (sum, product) =>
+        sum + (product.subtotal || 0) * ((product.discount || 0) / 100),
       0
     );
     const promo = filledProducts.reduce(
@@ -280,6 +281,37 @@ export default function ChooseMenuPage() {
       prevProducts.map((product) =>
         product.id === id ? { ...product, type: newType } : product
       )
+    );
+  };
+
+  // ✅ FIX: Handle discount change - Store percentage, not amount
+  const handleDiscountChange = (
+    productId: number,
+    discountPercentage: number
+  ) => {
+    if (!isClient) return;
+
+    setProducts((prevProducts) =>
+      prevProducts.map((product) => {
+        if (product.id === productId) {
+          // Store the percentage in the discount field
+          const discountAmount =
+            (product.subtotal || 0) * (discountPercentage / 100);
+          const newTotal =
+            (product.subtotal || 0) +
+            (product.sc || 0) +
+            (product.misc || 0) -
+            discountAmount -
+            (product.promo || 0);
+
+          return {
+            ...product,
+            discount: discountPercentage, // Store percentage, NOT amount
+            total: Math.max(0, newTotal),
+          };
+        }
+        return product;
+      })
     );
   };
 
@@ -427,6 +459,7 @@ export default function ChooseMenuPage() {
             onProductNameClick={handleProductNameClick}
             onProductSelect={handleProductSelect}
             onTypeChange={handleTypeChange}
+            onDiscountChange={handleDiscountChange}
             className="mb-6"
           />
         </div>

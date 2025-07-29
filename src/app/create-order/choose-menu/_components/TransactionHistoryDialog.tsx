@@ -1,34 +1,18 @@
-// app/create-order/choose-menu/_components/TransactionHistoryDialog.tsx
+// app/create-order/choose-menu/_components/TransactionHistoryDialog.tsx - FIXED VERSION
 "use client";
 
 import React, { useState, useEffect } from "react";
-import { X, Search, Calendar, Download, ChevronDown } from "lucide-react";
-import { Button } from "@/components/ui/button";
+import { X, Search, ChevronDown } from "lucide-react";
 import { Input } from "@/components/ui/input";
 import Pagination from "@/components/shared/pagination";
+import { DateRangePicker } from "@/components/ui/date-range-picker";
+import { useTransaction } from "@/hooks/useTransaction";
+import { useTransactionDetail } from "@/hooks/useTransactionDetail";
+import type { TransactionData, TransactionItem } from "@/types/transaction";
 
-interface TransactionData {
-  receiptId: string;
-  date: string;
-  time: string;
-  cashierName: string;
-  kassa: number;
-  shift: number;
-  customerName: string;
-  address: string;
-  phone: string;
-}
-
-interface TransactionProduct {
-  productId: string;
-  productName: string;
-  qty: number;
-  unitsIsi: number;
-  subTotal: number;
-  misc: number;
-  discPercent: number;
-  discRp: number;
-  ru: number;
+interface DateRange {
+  from?: Date;
+  to?: Date;
 }
 
 interface TransactionHistoryDialogProps {
@@ -47,312 +31,63 @@ const TransactionHistoryDialog: React.FC<TransactionHistoryDialogProps> = ({
   const [isPageSizeOpen, setIsPageSizeOpen] = useState(false);
   const [selectedTransaction, setSelectedTransaction] =
     useState<TransactionData | null>(null);
-  const [selectedDate, setSelectedDate] = useState("06/07/2024");
-  const [isLoading, setIsLoading] = useState(false);
+  // 🔥 FIXED: Separate pending and applied date ranges
+  const [pendingDateRange, setPendingDateRange] = useState<
+    DateRange | undefined
+  >();
+  const [appliedDateRange, setAppliedDateRange] = useState<
+    DateRange | undefined
+  >();
 
   // Product table pagination states
   const [productCurrentPage, setProductCurrentPage] = useState(1);
   const [productPageSize, setProductPageSize] = useState(5);
   const [isProductPageSizeOpen, setIsProductPageSizeOpen] = useState(false);
 
-  // Mock transaction data
-  const mockTransactions: TransactionData[] = [
-    {
-      receiptId: "G2240425217",
-      date: "05/12/2024",
-      time: "23:03:12",
-      cashierName: "Ahmad Isco",
-      kassa: 1,
-      shift: 2,
-      customerName: "Agis Grant Mcdaniel",
-      address: "Jl. Merdeka No. 12, Jakarta Pusat",
-      phone: "+62812",
-    },
-    {
-      receiptId: "G2240425218",
-      date: "05/12/2024",
-      time: "23:03:14",
-      cashierName: "Abdul Rahman",
-      kassa: 1,
-      shift: 2,
-      customerName: "Rachel Avila Suyono",
-      address: "Jl. Sisingamangaraja No. 5, M...",
-      phone: "+62813",
-    },
-    {
-      receiptId: "G2240425219",
-      date: "05/12/2024",
-      time: "23:04:27",
-      cashierName: "Paulina Maldini",
-      kassa: 1,
-      shift: 2,
-      customerName: "Barbara Gardner Lim",
-      address: "Jl. Pahlawan No. 20, Surabaya",
-      phone: "+62814",
-    },
-    {
-      receiptId: "G2240425256",
-      date: "05/12/2024",
-      time: "23:04:27",
-      cashierName: "Maul Assenio",
-      kassa: 1,
-      shift: 2,
-      customerName: "Ahmad Marta Murray",
-      address: "Jl. Asia Afrika No. 33, Bandung",
-      phone: "+62815",
-    },
-    {
-      receiptId: "G2240425257",
-      date: "05/12/2024",
-      time: "23:04:27",
-      cashierName: "Cristiano Udino",
-      kassa: 1,
-      shift: 2,
-      customerName: "Ryan Nur Schultz",
-      address: "Jl. Diponegoro No. 11, Semara...",
-      phone: "+62816",
-    },
-    // Additional data for pagination testing
-    {
-      receiptId: "G2240425258",
-      date: "05/12/2024",
-      time: "23:05:10",
-      cashierName: "John Doe",
-      kassa: 2,
-      shift: 1,
-      customerName: "Alice Johnson",
-      address: "Jl. Sudirman No. 45, Jakarta",
-      phone: "+62817",
-    },
-    {
-      receiptId: "G2240425259",
-      date: "05/12/2024",
-      time: "23:05:25",
-      cashierName: "Jane Smith",
-      kassa: 2,
-      shift: 1,
-      customerName: "Bob Wilson",
-      address: "Jl. Thamrin No. 67, Jakarta",
-      phone: "+62818",
-    },
-    {
-      receiptId: "G2240425260",
-      date: "05/12/2024",
-      time: "23:06:00",
-      cashierName: "Mike Johnson",
-      kassa: 1,
-      shift: 2,
-      customerName: "Carol Brown",
-      address: "Jl. Gatot Subroto No. 89, Jakarta",
-      phone: "+62819",
-    },
-    {
-      receiptId: "G2240425261",
-      date: "05/12/2024",
-      time: "23:06:15",
-      cashierName: "Sarah Davis",
-      kassa: 3,
-      shift: 1,
-      customerName: "David Miller",
-      address: "Jl. Casablanca No. 12, Jakarta",
-      phone: "+62820",
-    },
-    {
-      receiptId: "G2240425262",
-      date: "05/12/2024",
-      time: "23:06:30",
-      cashierName: "Tom Wilson",
-      kassa: 2,
-      shift: 2,
-      customerName: "Eva Garcia",
-      address: "Jl. Kuningan No. 34, Jakarta",
-      phone: "+62821",
-    },
-    {
-      receiptId: "G2240425263",
-      date: "05/12/2024",
-      time: "23:07:00",
-      cashierName: "Lisa Anderson",
-      kassa: 1,
-      shift: 1,
-      customerName: "Frank Martinez",
-      address: "Jl. Senayan No. 56, Jakarta",
-      phone: "+62822",
-    },
-    {
-      receiptId: "G2240425264",
-      date: "05/12/2024",
-      time: "23:07:15",
-      cashierName: "Chris Taylor",
-      kassa: 3,
-      shift: 2,
-      customerName: "Grace Lee",
-      address: "Jl. Menteng No. 78, Jakarta",
-      phone: "+62823",
-    },
-  ];
-
-  // Mock product data for selected transaction - extended for pagination
-  const mockProducts: TransactionProduct[] = [
-    {
-      productId: "123987",
-      productName: "Jamu Tolak Angin + Madu",
-      qty: 1,
-      unitsIsi: 2,
-      subTotal: 12000,
-      misc: 0,
-      discPercent: 0,
-      discRp: 0,
-      ru: 0,
-    },
-    {
-      productId: "187675",
-      productName: "Blackmores Multivitamin",
-      qty: 1,
-      unitsIsi: 2,
-      subTotal: 56000,
-      misc: 0,
-      discPercent: 0,
-      discRp: 0,
-      ru: 0,
-    },
-    {
-      productId: "199687",
-      productName: "Kurukumes Syrup 60ml",
-      qty: 1,
-      unitsIsi: 2,
-      subTotal: 67000,
-      misc: 0,
-      discPercent: 0,
-      discRp: 0,
-      ru: 0,
-    },
-    {
-      productId: "197325",
-      productName: "Alami Biscuit Seaweed",
-      qty: 1,
-      unitsIsi: 2,
-      subTotal: 82500,
-      misc: 0,
-      discPercent: 0,
-      discRp: 0,
-      ru: 0,
-    },
-    // Additional products for pagination testing
-    {
-      productId: "201234",
-      productName: "Vitamin D3 1000IU",
-      qty: 2,
-      unitsIsi: 1,
-      subTotal: 45000,
-      misc: 0,
-      discPercent: 0,
-      discRp: 0,
-      ru: 0,
-    },
-    {
-      productId: "205678",
-      productName: "Omega 3 Fish Oil",
-      qty: 1,
-      unitsIsi: 3,
-      subTotal: 89000,
-      misc: 0,
-      discPercent: 5,
-      discRp: 4450,
-      ru: 0,
-    },
-    {
-      productId: "209876",
-      productName: "Probiotics Capsules",
-      qty: 1,
-      unitsIsi: 2,
-      subTotal: 125000,
-      misc: 0,
-      discPercent: 0,
-      discRp: 0,
-      ru: 0,
-    },
-    {
-      productId: "213456",
-      productName: "Calcium + Magnesium",
-      qty: 3,
-      unitsIsi: 1,
-      subTotal: 67500,
-      misc: 0,
-      discPercent: 10,
-      discRp: 6750,
-      ru: 0,
-    },
-    {
-      productId: "217890",
-      productName: "Iron Supplement",
-      qty: 2,
-      unitsIsi: 2,
-      subTotal: 34000,
-      misc: 0,
-      discPercent: 0,
-      discRp: 0,
-      ru: 0,
-    },
-    {
-      productId: "221234",
-      productName: "B-Complex Vitamins",
-      qty: 1,
-      unitsIsi: 1,
-      subTotal: 78000,
-      misc: 0,
-      discPercent: 0,
-      discRp: 0,
-      ru: 0,
-    },
-    {
-      productId: "225678",
-      productName: "Zinc Tablets",
-      qty: 2,
-      unitsIsi: 3,
-      subTotal: 23000,
-      misc: 0,
-      discPercent: 0,
-      discRp: 0,
-      ru: 0,
-    },
-    {
-      productId: "229876",
-      productName: "Coenzyme Q10",
-      qty: 1,
-      unitsIsi: 2,
-      subTotal: 156000,
-      misc: 0,
-      discPercent: 15,
-      discRp: 23400,
-      ru: 0,
-    },
-  ];
-
   const pageSizeOptions = [5, 10, 25, 50];
 
-  // Filter and paginate transaction data
-  const filteredTransactions = mockTransactions.filter(
-    (transaction) =>
-      transaction.customerName
-        .toLowerCase()
-        .includes(searchTerm.toLowerCase()) ||
-      transaction.receiptId.toLowerCase().includes(searchTerm.toLowerCase())
-  );
+  // Calculate offset for API
+  const offset = (currentPage - 1) * pageSize;
 
-  const totalPages = Math.ceil(filteredTransactions.length / pageSize);
-  const startIndex = (currentPage - 1) * pageSize;
-  const paginatedTransactions = filteredTransactions.slice(
-    startIndex,
-    startIndex + pageSize
-  );
+  // Format dates for API
+  const formatDateForAPI = (date: Date): string => {
+    return date.toISOString().split("T")[0];
+  };
 
-  // Product pagination
-  const productTotalPages = Math.ceil(mockProducts.length / productPageSize);
-  const productStartIndex = (productCurrentPage - 1) * productPageSize;
-  const paginatedProducts = mockProducts.slice(
-    productStartIndex,
-    productStartIndex + productPageSize
+  // 🔥 FIXED: Use appliedDateRange for API calls (not pendingDateRange)
+  const {
+    transactionList,
+    isLoading,
+    error,
+    refetch,
+    totalPages = 0,
+    totalDocs = 0,
+  } = useTransaction({
+    limit: pageSize,
+    offset,
+    from_date: appliedDateRange?.from
+      ? formatDateForAPI(appliedDateRange.from)
+      : "",
+    to_date: appliedDateRange?.to ? formatDateForAPI(appliedDateRange.to) : "",
+  });
+
+  // Use transaction detail hook for selected transaction
+  const {
+    transactionDetail,
+    isLoading: isDetailLoading,
+    error: detailError,
+  } = useTransactionDetail({
+    invoice_number: selectedTransaction?.invoice_number || null,
+    enabled: !!selectedTransaction,
+  });
+
+  // Paginate transaction items
+  const transactionItems = transactionDetail?.items || [];
+  const itemTotalPages = Math.ceil(transactionItems.length / productPageSize);
+  const itemStartIndex = (productCurrentPage - 1) * productPageSize;
+  const paginatedItems = transactionItems.slice(
+    itemStartIndex,
+    itemStartIndex + productPageSize
   );
 
   useEffect(() => {
@@ -363,6 +98,8 @@ const TransactionHistoryDialog: React.FC<TransactionHistoryDialogProps> = ({
       setSearchTerm("");
       setSelectedTransaction(null);
       setIsPageSizeOpen(false);
+      // 🔥 FIXED: Reset applied date range
+      setAppliedDateRange(undefined);
       // Reset product pagination
       setProductCurrentPage(1);
       setProductPageSize(5);
@@ -370,20 +107,87 @@ const TransactionHistoryDialog: React.FC<TransactionHistoryDialogProps> = ({
     }
   }, [isOpen]);
 
+  // Search effect with 3 character minimum
   useEffect(() => {
-    const timeoutId = setTimeout(() => {
-      setSearchTerm(searchInput.trim());
-      setCurrentPage(1);
-    }, 300);
+    const trimmedSearch = searchInput.trim();
 
-    return () => clearTimeout(timeoutId);
+    if (trimmedSearch.length >= 3 || trimmedSearch.length === 0) {
+      const timeoutId = setTimeout(() => {
+        setSearchTerm(trimmedSearch);
+        setCurrentPage(1);
+      }, 300);
+
+      return () => clearTimeout(timeoutId);
+    }
   }, [searchInput]);
+
+  // Filter transactions based on search term (client-side filtering)
+  const filteredTransactions = React.useMemo(() => {
+    if (!searchTerm) return transactionList;
+
+    return transactionList.filter((transaction) => {
+      const customerName = transaction.customer_name?.toLowerCase() || "";
+      const invoiceNumber = transaction.invoice_number?.toLowerCase() || "";
+      const searchLower = searchTerm.toLowerCase();
+
+      return (
+        customerName.includes(searchLower) ||
+        invoiceNumber.includes(searchLower)
+      );
+    });
+  }, [transactionList, searchTerm]);
+
+  // Helper function to format date for display
+  const formatDateForDisplay = (dateString: string): string => {
+    try {
+      const date = new Date(dateString);
+      return date.toLocaleDateString("en-GB", {
+        day: "2-digit",
+        month: "2-digit",
+        year: "numeric",
+      });
+    } catch {
+      return dateString;
+    }
+  };
+
+  // Helper function to format time for display
+  const formatTimeForDisplay = (dateString: string): string => {
+    try {
+      const date = new Date(dateString);
+      return date.toLocaleTimeString("en-GB", {
+        hour: "2-digit",
+        minute: "2-digit",
+        second: "2-digit",
+        hour12: false,
+      });
+    } catch {
+      return dateString;
+    }
+  };
+
+  // Helper function to format currency
+  const formatCurrency = (amount: number) => {
+    return `Rp ${amount.toLocaleString("id-ID")}`;
+  };
+
+  // Helper function to clean string (remove extra spaces)
+  const cleanString = (str: string): string => {
+    return str.trim();
+  };
+
+  // 🔥 FIXED: Handle date range change - trigger API only when needed
+  const handleDateRangeChange = (range: DateRange | undefined) => {
+    setAppliedDateRange(range);
+    setCurrentPage(1);
+    console.log("✅ Date range applied (triggered by Apply button):", range);
+  };
 
   if (!isOpen) return null;
 
   const handleRowClick = (transaction: TransactionData) => {
     setSelectedTransaction(
-      selectedTransaction?.receiptId === transaction.receiptId
+      selectedTransaction?.invoice_number === transaction.invoice_number
         ? null
         : transaction
     );
@@ -403,7 +207,7 @@ const TransactionHistoryDialog: React.FC<TransactionHistoryDialogProps> = ({
   };
 
   const handleProductPageChange = (page: number) => {
-    if (page < 1 || page > productTotalPages) return;
+    if (page < 1 || page > itemTotalPages) return;
     setProductCurrentPage(page);
   };
 
@@ -413,8 +217,87 @@ const TransactionHistoryDialog: React.FC<TransactionHistoryDialogProps> = ({
     setIsProductPageSizeOpen(false);
   };
 
-  const formatCurrency = (amount: number) => {
-    return `Rp ${amount.toLocaleString("id-ID")}`;
+  // 🔥 FIXED: Handle pending date range change (doesn't trigger API call)
+  const handlePendingDateRangeChange = (range: DateRange | undefined) => {
+    setPendingDateRange(range);
+    // Don't set appliedDateRange here - wait for Apply button
+    console.log("🔄 Date range selected (pending):", range);
+  };
+
+  // 🔥 FIXED: Custom date range component with manual Apply/Reset control
+  const CustomDateRangePicker = () => {
+    const [isCalendarOpen, setIsCalendarOpen] = useState(false);
+
+    const handleApply = () => {
+      setAppliedDateRange(pendingDateRange);
+      setCurrentPage(1);
+      setIsCalendarOpen(false);
+      console.log("✅ Date range applied:", pendingDateRange);
+    };
+
+    const handleReset = () => {
+      setPendingDateRange(undefined);
+      setAppliedDateRange(undefined);
+      setCurrentPage(1);
+      setIsCalendarOpen(false);
+      console.log("🔄 Date range reset");
+    };
+
+    const formatDisplayDate = (range: DateRange | undefined) => {
+      if (!range?.from) return "Select date range";
+      if (!range.to) return range.from.toLocaleDateString();
+      return `${range.from.toLocaleDateString()} - ${range.to.toLocaleDateString()}`;
+    };
+
+    return (
+      <div className="relative">
+        <button
+          onClick={() => setIsCalendarOpen(!isCalendarOpen)}
+          className="flex items-center gap-2 px-3 py-2 border border-gray-300 rounded-lg bg-white hover:bg-gray-50 text-sm min-w-[200px] justify-between"
+        >
+          <span className="text-gray-700">
+            {formatDisplayDate(appliedDateRange)}
+          </span>
+          <svg
+            className="w-4 h-4 text-gray-400"
+            fill="none"
+            stroke="currentColor"
+            viewBox="0 0 24 24"
+          >
+            <path
+              strokeLinecap="round"
+              strokeLinejoin="round"
+              strokeWidth={2}
+              d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z"
+            />
+          </svg>
+        </button>
+
+        {isCalendarOpen && (
+          <div className="absolute top-full mt-2 right-0 bg-white border border-gray-200 rounded-lg shadow-lg z-50 p-4">
+            <DateRangePicker
+              value={pendingDateRange}
+              onChange={handlePendingDateRangeChange}
+              placeholder="Select date range"
+            />
+            <div className="flex items-center gap-2 mt-4 pt-4 border-t border-gray-200">
+              <button
+                onClick={handleReset}
+                className="px-4 py-2 text-sm border border-gray-300 rounded-lg hover:bg-gray-50"
+              >
+                Reset
+              </button>
+              <button
+                onClick={handleApply}
+                className="px-4 py-2 text-sm bg-blue-600 text-white rounded-lg hover:bg-blue-700"
+              >
+                Apply
+              </button>
+            </div>
+          </div>
+        )}
+      </div>
+    );
   };
 
   return (
@@ -439,7 +322,7 @@ const TransactionHistoryDialog: React.FC<TransactionHistoryDialogProps> = ({
             <div className="relative flex-1">
               <Input
                 type="text"
-                placeholder="Search Customer Name or Receipt ID"
+                placeholder="Search Customer Name or Invoice Number (min 3 characters)"
                 className="pl-10 bg-[#F5F5F5] border-none h-12"
                 value={searchInput}
                 onChange={(e) => setSearchInput(e.target.value)}
@@ -449,35 +332,34 @@ const TransactionHistoryDialog: React.FC<TransactionHistoryDialogProps> = ({
                 size={18}
               />
             </div>
-            <div className="flex items-center gap-2">
-              <Calendar className="w-5 h-5 text-gray-400" />
-              <Input
-                type="text"
-                value={selectedDate}
-                onChange={(e) => setSelectedDate(e.target.value)}
-                className="w-32 h-12"
-                placeholder="DD/MM/YYYY"
-              />
-            </div>
-            <Button
-              variant="outline"
-              className="h-12 px-4 bg-blue-500 hover:bg-blue-600 text-white hover:text-white"
-            >
-              <Download size={16} className="mr-2" />
-              Export
-            </Button>
+
+            {/* Date Range Picker */}
+            <DateRangePicker
+              value={appliedDateRange}
+              onChange={handleDateRangeChange}
+              placeholder="Select date range"
+            />
           </div>
         </div>
 
         {/* Content */}
         <div className="flex-1 overflow-auto p-6">
+          {/* Error State */}
+          {error && (
+            <div className="bg-red-50 border border-red-200 rounded-lg p-4 mb-6">
+              <div className="text-red-700 text-sm">
+                Error loading transactions: {error}
+              </div>
+            </div>
+          )}
+
           {/* Transactions Table */}
           <div className="rounded-lg border border-gray-200 overflow-hidden mb-6">
             <table className="w-full">
               <thead className="sticky top-0 z-10">
                 <tr className="bg-[#F5F5F5] border-b border-gray-200">
-                  <th className="text-left h-[48px] px-4 text-sm font-medium text-gray-600 w-[130px]">
-                    Receipt ID
+                  <th className="text-left h-[48px] px-4 text-sm font-medium text-gray-600 w-[150px]">
+                    Invoice Number
                   </th>
                   <th className="text-left h-[48px] px-4 text-sm font-medium text-gray-600 w-[100px]">
                     Date
@@ -486,22 +368,22 @@ const TransactionHistoryDialog: React.FC<TransactionHistoryDialogProps> = ({
                     Time
                   </th>
                   <th className="text-left h-[48px] px-4 text-sm font-medium text-gray-600 w-[120px]">
-                    Cashier Name
+                    Customer
                   </th>
-                  <th className="text-left h-[48px] px-4 text-sm font-medium text-gray-600 w-[80px]">
-                    Kassa
-                  </th>
-                  <th className="text-left h-[48px] px-4 text-sm font-medium text-gray-600 w-[80px]">
-                    Shift
-                  </th>
-                  <th className="text-left h-[48px] px-4 text-sm font-medium text-gray-600 min-w-[150px]">
-                    Customer Name
-                  </th>
-                  <th className="text-left h-[48px] px-4 text-sm font-medium text-gray-600 min-w-[200px]">
-                    Address
+                  <th className="text-left h-[48px] px-4 text-sm font-medium text-gray-600 w-[120px]">
+                    Doctor
                   </th>
                   <th className="text-left h-[48px] px-4 text-sm font-medium text-gray-600 w-[100px]">
-                    Phone
+                    Cashier
+                  </th>
+                  <th className="text-left h-[48px] px-4 text-sm font-medium text-gray-600 w-[80px]">
+                    Items
+                  </th>
+                  <th className="text-left h-[48px] px-4 text-sm font-medium text-gray-600 w-[120px]">
+                    Grand Total
+                  </th>
+                  <th className="text-left h-[48px] px-4 text-sm font-medium text-gray-600 w-[100px]">
+                    Payment
                   </th>
                 </tr>
               </thead>
@@ -517,46 +399,44 @@ const TransactionHistoryDialog: React.FC<TransactionHistoryDialogProps> = ({
                       </div>
                     </td>
                   </tr>
-                ) : paginatedTransactions.length > 0 ? (
-                  paginatedTransactions.map((transaction, index) => (
+                ) : filteredTransactions.length > 0 ? (
+                  filteredTransactions.map((transaction, index) => (
                     <tr
-                      key={transaction.receiptId}
+                      key={transaction.invoice_number}
                       className={`border-b border-gray-100 hover:bg-blue-50 cursor-pointer transition-colors ${
-                        selectedTransaction?.receiptId === transaction.receiptId
+                        selectedTransaction?.invoice_number ===
+                        transaction.invoice_number
                           ? "bg-blue-50 border-2 border-blue-400"
                           : "border-2 border-transparent"
                       }`}
                       onClick={() => handleRowClick(transaction)}
                     >
                       <td className="h-[48px] px-4 text-sm font-medium text-gray-900">
-                        {transaction.receiptId}
+                        {cleanString(transaction.invoice_number)}
                       </td>
                       <td className="h-[48px] px-4 text-sm text-gray-600">
-                        {transaction.date}
+                        {formatDateForDisplay(transaction.transaction_date)}
                       </td>
                       <td className="h-[48px] px-4 text-sm text-gray-600">
-                        {transaction.time}
-                      </td>
-                      <td className="h-[48px] px-4 text-sm text-gray-600">
-                        {transaction.cashierName}
-                      </td>
-                      <td className="h-[48px] px-4 text-sm text-gray-600">
-                        {transaction.kassa}
-                      </td>
-                      <td className="h-[48px] px-4 text-sm text-gray-600">
-                        {transaction.shift}
+                        {formatTimeForDisplay(transaction.transaction_date)}
                       </td>
                       <td className="h-[48px] px-4 text-sm text-gray-900">
-                        {transaction.customerName}
-                      </td>
-                      <td
-                        className="h-[48px] px-4 text-sm text-gray-600"
-                        title={transaction.address}
-                      >
-                        {transaction.address}
+                        {cleanString(transaction.customer_name) || "-"}
                       </td>
                       <td className="h-[48px] px-4 text-sm text-gray-600">
-                        {transaction.phone}
+                        {cleanString(transaction.doctor_name) || "-"}
+                      </td>
+                      <td className="h-[48px] px-4 text-sm text-gray-600">
+                        {cleanString(transaction.cashier)}
+                      </td>
+                      <td className="h-[48px] px-4 text-sm text-gray-600">
+                        {transaction.total_items}
+                      </td>
+                      <td className="h-[48px] px-4 text-sm font-semibold text-gray-900">
+                        {formatCurrency(transaction.grand_total)}
+                      </td>
+                      <td className="h-[48px] px-4 text-sm text-gray-600">
+                        {transaction.payment_type}
                       </td>
                     </tr>
                   ))
@@ -574,7 +454,7 @@ const TransactionHistoryDialog: React.FC<TransactionHistoryDialogProps> = ({
           </div>
 
           {/* Pagination for transactions */}
-          {paginatedTransactions.length > 0 && (
+          {filteredTransactions.length > 0 && (
             <div className="mb-6 flex justify-between items-center">
               <div className="flex items-center gap-4">
                 <div className="flex items-center gap-2">
@@ -606,7 +486,7 @@ const TransactionHistoryDialog: React.FC<TransactionHistoryDialogProps> = ({
                     )}
                   </div>
                   <span className="text-sm text-gray-600">
-                    from {filteredTransactions.length}
+                    from {totalDocs}
                   </span>
                 </div>
               </div>
@@ -621,141 +501,169 @@ const TransactionHistoryDialog: React.FC<TransactionHistoryDialogProps> = ({
             </div>
           )}
 
-          {/* Product Details */}
+          {/* Transaction Details - Same as before */}
           {selectedTransaction && (
             <div className="rounded-lg border border-gray-200 overflow-hidden">
+              {/* Transaction Summary Header */}
               <div className="bg-gray-50 px-4 py-3 border-b border-gray-200">
                 <h3 className="text-lg font-semibold text-gray-900">
-                  Transaction Details - {selectedTransaction.receiptId}
+                  Transaction Details -{" "}
+                  {cleanString(selectedTransaction.invoice_number)}
                 </h3>
               </div>
-              <table className="w-full">
-                <thead className="sticky top-0 bg-[#F5F5F5]">
-                  <tr className="border-b border-gray-200">
-                    <th className="text-left h-[40px] px-4 text-sm font-medium text-gray-600 w-[60px]">
-                      R
-                    </th>
-                    <th className="text-left h-[40px] px-4 text-sm font-medium text-gray-600 w-[100px]">
-                      Product ID
-                    </th>
-                    <th className="text-left h-[40px] px-4 text-sm font-medium text-gray-600 min-w-[200px]">
-                      Product Name
-                    </th>
-                    <th className="text-left h-[40px] px-4 text-sm font-medium text-gray-600 w-[60px]">
-                      Qty
-                    </th>
-                    <th className="text-left h-[40px] px-4 text-sm font-medium text-gray-600 w-[80px]">
-                      Units (Isi)
-                    </th>
-                    <th className="text-left h-[40px] px-4 text-sm font-medium text-gray-600 w-[100px]">
-                      Sub Total
-                    </th>
-                    <th className="text-left h-[40px] px-4 text-sm font-medium text-gray-600 w-[80px]">
-                      Misc
-                    </th>
-                    <th className="text-left h-[40px] px-4 text-sm font-medium text-gray-600 w-[80px]">
-                      Disc (%)
-                    </th>
-                    <th className="text-left h-[40px] px-4 text-sm font-medium text-gray-600 w-[80px]">
-                      Disc (Rp)
-                    </th>
-                    <th className="text-left h-[40px] px-4 text-sm font-medium text-gray-600 w-[80px]">
-                      RU
-                    </th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {paginatedProducts.map((product, index) => (
-                    <tr
-                      key={product.productId}
-                      className="border-b border-gray-100"
-                    >
-                      <td className="h-[40px] px-4 text-sm text-gray-600">
-                        {productStartIndex + index + 1}
-                      </td>
-                      <td className="h-[40px] px-4 text-sm font-medium text-gray-900">
-                        {product.productId}
-                      </td>
-                      <td className="h-[40px] px-4 text-sm text-gray-900">
-                        {product.productName}
-                      </td>
-                      <td className="h-[40px] px-4 text-sm text-gray-600">
-                        {product.qty}
-                      </td>
-                      <td className="h-[40px] px-4 text-sm text-gray-600">
-                        {product.unitsIsi}
-                      </td>
-                      <td className="h-[40px] px-4 text-sm text-gray-900">
-                        {formatCurrency(product.subTotal)}
-                      </td>
-                      <td className="h-[40px] px-4 text-sm text-gray-600">
-                        {formatCurrency(product.misc)}
-                      </td>
-                      <td className="h-[40px] px-4 text-sm text-gray-600">
-                        {product.discPercent}%
-                      </td>
-                      <td className="h-[40px] px-4 text-sm text-gray-600">
-                        {formatCurrency(product.discRp)}
-                      </td>
-                      <td className="h-[40px] px-4 text-sm text-gray-600">
-                        {formatCurrency(product.ru)}
-                      </td>
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
 
-              {/* Product Pagination */}
-              {mockProducts.length > 0 && (
-                <div className="p-4 border-t border-gray-200 flex justify-between items-center bg-gray-50">
-                  <div className="flex items-center gap-4">
-                    <div className="flex items-center gap-2">
-                      <span className="text-sm text-gray-600">Show</span>
-                      <div className="relative">
-                        <button
-                          onClick={() =>
-                            setIsProductPageSizeOpen(!isProductPageSizeOpen)
-                          }
-                          className="flex items-center gap-1 px-3 py-1 border border-gray-300 rounded bg-white hover:bg-gray-50 text-sm"
-                        >
-                          {productPageSize}
-                          <ChevronDown size={14} />
-                        </button>
-                        {isProductPageSizeOpen && (
-                          <div className="absolute bottom-full mb-1 left-0 bg-white border border-gray-200 rounded shadow-lg z-10">
-                            {pageSizeOptions.map((option) => (
-                              <button
-                                key={option}
-                                onClick={() =>
-                                  handleProductPageSizeChange(option)
-                                }
-                                className={`block w-full px-4 py-2 text-left text-sm hover:bg-gray-50 ${
-                                  option === productPageSize
-                                    ? "bg-blue-50 text-blue-600"
-                                    : ""
-                                }`}
-                              >
-                                {option}
-                              </button>
-                            ))}
-                          </div>
-                        )}
-                      </div>
-                      <span className="text-sm text-gray-600">
-                        from {mockProducts.length}
-                      </span>
-                    </div>
+              {/* Loading State for Details */}
+              {isDetailLoading && (
+                <div className="p-8 text-center">
+                  <div className="flex items-center justify-center">
+                    <div className="animate-spin rounded-full h-6 w-6 border-b-2 border-blue-500"></div>
+                    <span className="ml-2 text-gray-600">
+                      Loading transaction details...
+                    </span>
                   </div>
-                  {productTotalPages > 1 && (
-                    <Pagination
-                      currentPage={productCurrentPage}
-                      totalPages={productTotalPages}
-                      onPageChange={handleProductPageChange}
-                      size="sm"
-                    />
-                  )}
                 </div>
               )}
+
+              {/* Error State for Details */}
+              {detailError && (
+                <div className="p-4 bg-red-50 border-t border-red-200">
+                  <div className="text-red-700 text-sm">
+                    Error loading transaction details: {detailError}
+                  </div>
+                </div>
+              )}
+
+              {/* Items Table */}
+              {transactionDetail &&
+                transactionDetail.items &&
+                transactionDetail.items.length > 0 && (
+                  <>
+                    <table className="w-full">
+                      <thead className="sticky top-0 bg-[#F5F5F5]">
+                        <tr className="border-b border-gray-200">
+                          <th className="text-left h-[40px] px-4 text-sm font-medium text-gray-600 w-[60px]">
+                            No
+                          </th>
+                          <th className="text-left h-[40px] px-4 text-sm font-medium text-gray-600 w-[120px]">
+                            Product Code
+                          </th>
+                          <th className="text-left h-[40px] px-4 text-sm font-medium text-gray-600 min-w-[250px]">
+                            Product Name
+                          </th>
+                          <th className="text-left h-[40px] px-4 text-sm font-medium text-gray-600 w-[80px]">
+                            Qty
+                          </th>
+                          <th className="text-left h-[40px] px-4 text-sm font-medium text-gray-600 w-[120px]">
+                            Unit Price
+                          </th>
+                          <th className="text-left h-[40px] px-4 text-sm font-medium text-gray-600 w-[100px]">
+                            Discount
+                          </th>
+                          <th className="text-left h-[40px] px-4 text-sm font-medium text-gray-600 w-[120px]">
+                            Sub Total
+                          </th>
+                        </tr>
+                      </thead>
+                      <tbody>
+                        {paginatedItems.map(
+                          (item: TransactionItem, index: number) => (
+                            <tr
+                              key={`${item.product_code}-${index}`}
+                              className="border-b border-gray-100"
+                            >
+                              <td className="h-[40px] px-4 text-sm text-gray-600">
+                                {itemStartIndex + index + 1}
+                              </td>
+                              <td className="h-[40px] px-4 text-sm font-medium text-gray-900">
+                                {cleanString(item.product_code)}
+                              </td>
+                              <td className="h-[40px] px-4 text-sm text-gray-900">
+                                {cleanString(item.product_name)}
+                              </td>
+                              <td className="h-[40px] px-4 text-sm text-gray-600">
+                                {item.quantity}
+                              </td>
+                              <td className="h-[40px] px-4 text-sm text-gray-900">
+                                {formatCurrency(item.price)}
+                              </td>
+                              <td className="h-[40px] px-4 text-sm text-gray-600">
+                                {item.discount > 0
+                                  ? formatCurrency(item.discount)
+                                  : "-"}
+                              </td>
+                              <td className="h-[40px] px-4 text-sm font-semibold text-gray-900">
+                                {formatCurrency(item.sub_total)}
+                              </td>
+                            </tr>
+                          )
+                        )}
+                      </tbody>
+                    </table>
+
+                    {/* Item Pagination */}
+                    {transactionItems.length > productPageSize && (
+                      <div className="p-4 border-t border-gray-200 flex justify-between items-center bg-gray-50">
+                        <div className="flex items-center gap-4">
+                          <div className="flex items-center gap-2">
+                            <span className="text-sm text-gray-600">Show</span>
+                            <div className="relative">
+                              <button
+                                onClick={() =>
+                                  setIsProductPageSizeOpen(
+                                    !isProductPageSizeOpen
+                                  )
+                                }
+                                className="flex items-center gap-1 px-3 py-1 border border-gray-300 rounded bg-white hover:bg-gray-50 text-sm"
+                              >
+                                {productPageSize}
+                                <ChevronDown size={14} />
+                              </button>
+                              {isProductPageSizeOpen && (
+                                <div className="absolute bottom-full mb-1 left-0 bg-white border border-gray-200 rounded shadow-lg z-10">
+                                  {pageSizeOptions.map((option) => (
+                                    <button
+                                      key={option}
+                                      onClick={() =>
+                                        handleProductPageSizeChange(option)
+                                      }
+                                      className={`block w-full px-4 py-2 text-left text-sm hover:bg-gray-50 ${
+                                        option === productPageSize
+                                          ? "bg-blue-50 text-blue-600"
+                                          : ""
+                                      }`}
+                                    >
+                                      {option}
+                                    </button>
+                                  ))}
+                                </div>
+                              )}
+                            </div>
+                            <span className="text-sm text-gray-600">
+                              from {transactionItems.length}
+                            </span>
+                          </div>
+                        </div>
+                        {itemTotalPages > 1 && (
+                          <Pagination
+                            currentPage={productCurrentPage}
+                            totalPages={itemTotalPages}
+                            onPageChange={handleProductPageChange}
+                            size="sm"
+                          />
+                        )}
+                      </div>
+                    )}
+                  </>
+                )}
+
+              {/* No Items Found */}
+              {transactionDetail &&
+                (!transactionDetail.items ||
+                  transactionDetail.items.length === 0) && (
+                  <div className="p-8 text-center text-gray-500">
+                    No items found for this transaction.
+                  </div>
+                )}
             </div>
           )}
         </div>
