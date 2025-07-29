@@ -21,8 +21,45 @@ export default function DashboardPage() {
   const [isFingerprintDialogOpen, setIsFingerprintDialogOpen] = useState(false);
   const [isParameterDialogOpen, setIsParameterDialogOpen] = useState(false);
 
+  // ✅ NEW: Check if user has valid token
+  const checkAuthToken = (): boolean => {
+    if (typeof window === "undefined") return false;
+
+    try {
+      // Check localStorage for auth token and user data
+      const authToken = localStorage.getItem("auth-token");
+      const userData = localStorage.getItem("user-data");
+
+      console.log("🔍 Checking auth token:", {
+        hasAuthToken: !!authToken,
+        hasUserData: !!userData,
+        authTokenLength: authToken?.length || 0,
+        userDataExists: !!userData,
+      });
+
+      return !!(authToken && userData);
+    } catch (error) {
+      console.error("Error checking auth token:", error);
+      return false;
+    }
+  };
+
+  // ✅ UPDATED: Modified handleStartSelling to check token first
   const handleStartSelling = () => {
-    setIsLoginDialogOpen(true);
+    console.log("🚀 Start Selling clicked");
+
+    // Check if user already has valid token
+    const hasValidToken = checkAuthToken();
+
+    if (hasValidToken) {
+      console.log("✅ User already authenticated, redirecting to create-order");
+      // User is already authenticated, redirect directly
+      window.location.href = "/create-order/choose-menu";
+    } else {
+      console.log("❌ No valid token found, showing login dialog");
+      // No valid token, show login dialog
+      setIsLoginDialogOpen(true);
+    }
   };
 
   const handleCloseDialog = () => {
@@ -99,7 +136,7 @@ export default function DashboardPage() {
   return (
     <>
       <div
-        className="min-h-screen p-8"
+        className="min-h-screen p-8 bg-[#547df9]"
         style={{
           backgroundImage: "url('/images/background.png')",
           backgroundSize: "cover",
@@ -295,6 +332,7 @@ export default function DashboardPage() {
         </div>
       </div>
 
+      {/* ✅ UPDATED: Only show login dialog when explicitly needed */}
       <EmployeeLoginDialog
         isOpen={isLoginDialogOpen}
         onClose={handleCloseDialog}

@@ -1,4 +1,5 @@
-// app/api/transaction/route.ts - UPDATED
+// app/api/transaction/route.ts - SIMPLE VERSION
+
 import { NextRequest, NextResponse } from "next/server";
 import { cookies } from "next/headers";
 import type {
@@ -30,26 +31,32 @@ export async function GET(request: NextRequest) {
 
     // Get query parameters
     const { searchParams } = new URL(request.url);
-    const offset = searchParams.get("offset") || "0";
-    const limit = searchParams.get("limit") || "10";
+    const offset = parseInt(searchParams.get("offset") || "0");
+    const limit = parseInt(searchParams.get("limit") || "10");
     const fromDate = searchParams.get("from_date") || "";
     const toDate = searchParams.get("to_date") || "";
 
-    // Build API URL with parameters
+    // FIXED: Validate offset to prevent excessive values
+    if (offset < 0 || limit < 1 || limit > 100) {
+      return NextResponse.json(
+        { success: false, message: "Invalid pagination parameters" },
+        { status: 400 }
+      );
+    }
+
+    // Build API URL
     const apiUrl = new URL(`${API_BASE_URL}/transaction`);
-    apiUrl.searchParams.set("offset", offset);
-    apiUrl.searchParams.set("limit", limit);
+    apiUrl.searchParams.set("offset", offset.toString());
+    apiUrl.searchParams.set("limit", limit.toString());
+    if (fromDate) apiUrl.searchParams.set("from_date", fromDate);
+    if (toDate) apiUrl.searchParams.set("to_date", toDate);
 
-    if (fromDate) {
-      apiUrl.searchParams.set("from_date", fromDate);
-    }
-    if (toDate) {
-      apiUrl.searchParams.set("to_date", toDate);
-    }
+    console.log("API URL:", apiUrl.toString());
 
-    console.log("Fetching transactions from:", apiUrl.toString());
+    // Call external API with timeout
+    const controller = new AbortController();
+    const timeoutId = setTimeout(() => controller.abort(), 25000);
 
-    // Call external API
     const response = await fetch(apiUrl.toString(), {
       method: "GET",
       headers: {
@@ -59,47 +66,55 @@ export async function GET(request: NextRequest) {
           ? authToken
           : `Bearer ${authToken}`,
       },
+      signal: controller.signal,
     });
 
-    const responseData: TransactionExternalApiResponse = await response.json();
-    console.log("Transaction API Response:", {
-      status: response.status,
-      message: responseData.message,
-      dataCount: responseData.data?.docs?.length || 0,
-    });
+    clearTimeout(timeoutId);
 
     if (!response.ok) {
+      console.error("External API error:", response.status);
       if (response.status === 401) {
         return NextResponse.json(
-          {
-            success: false,
-            message: "Session expired. Please login again.",
-          },
+          { success: false, message: "Session expired. Please login again." },
           { status: 401 }
         );
       }
-
+      // FIXED: Return 400 for client errors instead of propagating 503
+      if (response.status >= 400 && response.status < 500) {
+        return NextResponse.json(
+          { success: false, message: "Invalid request parameters" },
+          { status: 400 }
+        );
+      }
       return NextResponse.json(
-        {
-          success: false,
-          message: responseData.message || "Failed to fetch transactions",
-        },
+        { success: false, message: "Failed to fetch transactions" },
         { status: response.status }
       );
     }
 
-    // Transform external API response to our format
-    const transformedResponse: TransactionApiResponse = {
+    const responseData: TransactionExternalApiResponse = await response.json();
+    console.log(
+      "Success:",
+      responseData.data?.docs?.length || 0,
+      "transactions"
+    );
+
+    return NextResponse.json({
       success: true,
       message: "Transactions retrieved successfully",
       data: responseData.data,
-    };
+    });
+  } catch (error: any) {
+    console.error("Transaction API error:", error.message);
 
-    return NextResponse.json(transformedResponse);
-  } catch (error) {
-    console.error("Transaction API error:", error);
+    if (error.name === "AbortError") {
+      return NextResponse.json(
+        { success: false, message: "Request timeout" },
+        { status: 504 }
+      );
+    }
 
-    if (error instanceof TypeError && error.message.includes("fetch")) {
+    if (error.message?.includes("fetch")) {
       return NextResponse.json(
         {
           success: false,
@@ -110,10 +125,7 @@ export async function GET(request: NextRequest) {
     }
 
     return NextResponse.json(
-      {
-        success: false,
-        message: "An unexpected error occurred while fetching transactions",
-      },
+      { success: false, message: "An unexpected error occurred" },
       { status: 500 }
     );
   }

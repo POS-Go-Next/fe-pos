@@ -1,4 +1,4 @@
-// app/create-order/choose-menu/_components/TransactionHistoryDialog.tsx - FIXED VERSION
+// app/create-order/choose-menu/_components/TransactionHistoryDialog.tsx - FIXED PAGINATION VERSION
 "use client";
 
 import React, { useState, useEffect } from "react";
@@ -31,10 +31,6 @@ const TransactionHistoryDialog: React.FC<TransactionHistoryDialogProps> = ({
   const [isPageSizeOpen, setIsPageSizeOpen] = useState(false);
   const [selectedTransaction, setSelectedTransaction] =
     useState<TransactionData | null>(null);
-  // 🔥 FIXED: Separate pending and applied date ranges
-  const [pendingDateRange, setPendingDateRange] = useState<
-    DateRange | undefined
-  >();
   const [appliedDateRange, setAppliedDateRange] = useState<
     DateRange | undefined
   >();
@@ -54,7 +50,6 @@ const TransactionHistoryDialog: React.FC<TransactionHistoryDialogProps> = ({
     return date.toISOString().split("T")[0];
   };
 
-  // 🔥 FIXED: Use appliedDateRange for API calls (not pendingDateRange)
   const {
     transactionList,
     isLoading,
@@ -98,7 +93,6 @@ const TransactionHistoryDialog: React.FC<TransactionHistoryDialogProps> = ({
       setSearchTerm("");
       setSelectedTransaction(null);
       setIsPageSizeOpen(false);
-      // 🔥 FIXED: Reset applied date range
       setAppliedDateRange(undefined);
       // Reset product pagination
       setProductCurrentPage(1);
@@ -111,13 +105,17 @@ const TransactionHistoryDialog: React.FC<TransactionHistoryDialogProps> = ({
   useEffect(() => {
     const trimmedSearch = searchInput.trim();
 
-    if (trimmedSearch.length >= 3 || trimmedSearch.length === 0) {
+    if (trimmedSearch.length >= 3) {
       const timeoutId = setTimeout(() => {
         setSearchTerm(trimmedSearch);
         setCurrentPage(1);
       }, 300);
 
       return () => clearTimeout(timeoutId);
+    } else if (trimmedSearch.length === 0) {
+      // FIXED: Immediately clear search when input is empty
+      setSearchTerm("");
+      setCurrentPage(1);
     }
   }, [searchInput]);
 
@@ -136,6 +134,21 @@ const TransactionHistoryDialog: React.FC<TransactionHistoryDialogProps> = ({
       );
     });
   }, [transactionList, searchTerm]);
+
+  // Calculate filtered pagination values
+  const filteredTotalDocs = filteredTransactions.length;
+  const filteredTotalPages = Math.ceil(filteredTotalDocs / pageSize);
+  const paginatedFilteredTransactions = filteredTransactions.slice(
+    (currentPage - 1) * pageSize,
+    currentPage * pageSize
+  );
+
+  // Use filtered values when search is active
+  const displayTransactions = searchTerm
+    ? paginatedFilteredTransactions
+    : filteredTransactions;
+  const displayTotalPages = searchTerm ? filteredTotalPages : totalPages;
+  const displayTotalDocs = searchTerm ? filteredTotalDocs : totalDocs;
 
   // Helper function to format date for display
   const formatDateForDisplay = (dateString: string): string => {
@@ -176,14 +189,30 @@ const TransactionHistoryDialog: React.FC<TransactionHistoryDialogProps> = ({
     return str.trim();
   };
 
-  // 🔥 FIXED: Handle date range change - trigger API only when needed
+  // FIXED: Reset currentPage when switching between search and normal mode
+  useEffect(() => {
+    // When searchTerm changes (from empty to search or vice versa), reset to page 1
+    if (currentPage > 1) {
+      const maxPages = searchTerm
+        ? Math.ceil(filteredTransactions.length / pageSize)
+        : totalPages;
+      if (currentPage > maxPages) {
+        setCurrentPage(1);
+      }
+    }
+  }, [
+    searchTerm,
+    filteredTransactions.length,
+    pageSize,
+    totalPages,
+    currentPage,
+  ]);
+
   const handleDateRangeChange = (range: DateRange | undefined) => {
     setAppliedDateRange(range);
     setCurrentPage(1);
-    console.log("✅ Date range applied (triggered by Apply button):", range);
+    console.log("✅ Date range applied:", range);
   };
-
-  if (!isOpen) return null;
 
   const handleRowClick = (transaction: TransactionData) => {
     setSelectedTransaction(
@@ -196,7 +225,18 @@ const TransactionHistoryDialog: React.FC<TransactionHistoryDialogProps> = ({
   };
 
   const handlePageChange = (page: number) => {
-    if (page < 1 || page > totalPages) return;
+    const maxPages = searchTerm ? filteredTotalPages : totalPages;
+    if (page < 1 || page > maxPages) return;
+
+    // FIXED: Additional validation to prevent 503 errors
+    if (!searchTerm) {
+      // For server-side pagination, validate against actual totalPages
+      if (page > totalPages || (page - 1) * pageSize >= (totalDocs || 0)) {
+        console.warn("Page out of bounds:", { page, totalPages, totalDocs });
+        return;
+      }
+    }
+
     setCurrentPage(page);
   };
 
@@ -215,89 +255,6 @@ const TransactionHistoryDialog: React.FC<TransactionHistoryDialogProps> = ({
     setProductPageSize(newPageSize);
     setProductCurrentPage(1);
     setIsProductPageSizeOpen(false);
-  };
-
-  // 🔥 FIXED: Handle pending date range change (doesn't trigger API call)
-  const handlePendingDateRangeChange = (range: DateRange | undefined) => {
-    setPendingDateRange(range);
-    // Don't set appliedDateRange here - wait for Apply button
-    console.log("🔄 Date range selected (pending):", range);
-  };
-
-  // 🔥 FIXED: Custom date range component with manual Apply/Reset control
-  const CustomDateRangePicker = () => {
-    const [isCalendarOpen, setIsCalendarOpen] = useState(false);
-
-    const handleApply = () => {
-      setAppliedDateRange(pendingDateRange);
-      setCurrentPage(1);
-      setIsCalendarOpen(false);
-      console.log("✅ Date range applied:", pendingDateRange);
-    };
-
-    const handleReset = () => {
-      setPendingDateRange(undefined);
-      setAppliedDateRange(undefined);
-      setCurrentPage(1);
-      setIsCalendarOpen(false);
-      console.log("🔄 Date range reset");
-    };
-
-    const formatDisplayDate = (range: DateRange | undefined) => {
-      if (!range?.from) return "Select date range";
-      if (!range.to) return range.from.toLocaleDateString();
-      return `${range.from.toLocaleDateString()} - ${range.to.toLocaleDateString()}`;
-    };
-
-    return (
-      <div className="relative">
-        <button
-          onClick={() => setIsCalendarOpen(!isCalendarOpen)}
-          className="flex items-center gap-2 px-3 py-2 border border-gray-300 rounded-lg bg-white hover:bg-gray-50 text-sm min-w-[200px] justify-between"
-        >
-          <span className="text-gray-700">
-            {formatDisplayDate(appliedDateRange)}
-          </span>
-          <svg
-            className="w-4 h-4 text-gray-400"
-            fill="none"
-            stroke="currentColor"
-            viewBox="0 0 24 24"
-          >
-            <path
-              strokeLinecap="round"
-              strokeLinejoin="round"
-              strokeWidth={2}
-              d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z"
-            />
-          </svg>
-        </button>
-
-        {isCalendarOpen && (
-          <div className="absolute top-full mt-2 right-0 bg-white border border-gray-200 rounded-lg shadow-lg z-50 p-4">
-            <DateRangePicker
-              value={pendingDateRange}
-              onChange={handlePendingDateRangeChange}
-              placeholder="Select date range"
-            />
-            <div className="flex items-center gap-2 mt-4 pt-4 border-t border-gray-200">
-              <button
-                onClick={handleReset}
-                className="px-4 py-2 text-sm border border-gray-300 rounded-lg hover:bg-gray-50"
-              >
-                Reset
-              </button>
-              <button
-                onClick={handleApply}
-                className="px-4 py-2 text-sm bg-blue-600 text-white rounded-lg hover:bg-blue-700"
-              >
-                Apply
-              </button>
-            </div>
-          </div>
-        )}
-      </div>
-    );
   };
 
   return (
@@ -399,8 +356,8 @@ const TransactionHistoryDialog: React.FC<TransactionHistoryDialogProps> = ({
                       </div>
                     </td>
                   </tr>
-                ) : filteredTransactions.length > 0 ? (
-                  filteredTransactions.map((transaction, index) => (
+                ) : displayTransactions.length > 0 ? (
+                  displayTransactions.map((transaction, index) => (
                     <tr
                       key={transaction.invoice_number}
                       className={`border-b border-gray-100 hover:bg-blue-50 cursor-pointer transition-colors ${
@@ -443,8 +400,12 @@ const TransactionHistoryDialog: React.FC<TransactionHistoryDialogProps> = ({
                 ) : (
                   <tr>
                     <td colSpan={9} className="p-8 text-center text-gray-500">
-                      {searchTerm
+                      {searchTerm && searchInput.trim().length >= 3
                         ? "No transactions found for your search."
+                        : searchTerm &&
+                          searchInput.trim().length > 0 &&
+                          searchInput.trim().length < 3
+                        ? "Please enter at least 3 characters to search."
                         : "No transactions found."}
                     </td>
                   </tr>
@@ -453,8 +414,8 @@ const TransactionHistoryDialog: React.FC<TransactionHistoryDialogProps> = ({
             </table>
           </div>
 
-          {/* Pagination for transactions */}
-          {filteredTransactions.length > 0 && (
+          {/* Pagination for transactions - FIXED TO MATCH SELECT-PRODUCT-DIALOG */}
+          {displayTransactions.length > 0 && (
             <div className="mb-6 flex justify-between items-center">
               <div className="flex items-center gap-4">
                 <div className="flex items-center gap-2">
@@ -486,14 +447,14 @@ const TransactionHistoryDialog: React.FC<TransactionHistoryDialogProps> = ({
                     )}
                   </div>
                   <span className="text-sm text-gray-600">
-                    from {totalDocs}
+                    from {displayTotalDocs || 0}
                   </span>
                 </div>
               </div>
-              {totalPages > 1 && (
+              {displayTotalPages && displayTotalPages > 1 && (
                 <Pagination
                   currentPage={currentPage}
-                  totalPages={totalPages}
+                  totalPages={displayTotalPages}
                   onPageChange={handlePageChange}
                   size="sm"
                 />
@@ -501,7 +462,7 @@ const TransactionHistoryDialog: React.FC<TransactionHistoryDialogProps> = ({
             </div>
           )}
 
-          {/* Transaction Details - Same as before */}
+          {/* Transaction Details */}
           {selectedTransaction && (
             <div className="rounded-lg border border-gray-200 overflow-hidden">
               {/* Transaction Summary Header */}
@@ -600,7 +561,7 @@ const TransactionHistoryDialog: React.FC<TransactionHistoryDialogProps> = ({
                       </tbody>
                     </table>
 
-                    {/* Item Pagination */}
+                    {/* Item Pagination - FIXED TO MATCH SELECT-PRODUCT-DIALOG */}
                     {transactionItems.length > productPageSize && (
                       <div className="p-4 border-t border-gray-200 flex justify-between items-center bg-gray-50">
                         <div className="flex items-center gap-4">
