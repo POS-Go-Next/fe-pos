@@ -6,3 +6,4 @@ export { default as ReCloseCashierDialog } from './ReCloseCashierDialog';
 export { default as KassaSetupDialog } from './KassaSetupDialog';
 export { default as FingerprintSetupDialog } from './FingerprintSetupDialog';
 export { default as ParameterSettingsDialog } from './ParameterSettingsDialog';
+export { default as BiometricLoginDialog } from './BiometricLoginDialog';

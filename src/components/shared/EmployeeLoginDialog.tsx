@@ -1,221 +1,242 @@
-// components/shared/EmployeeLoginDialog.tsx
+// components/shared/EmployeeLoginDialog.tsx - UPDATED WITH BIOMETRIC
 "use client";
 
-import { FC, useState } from "react";
-import { X, Loader2, Eye, EyeOff } from "lucide-react";
+import { useState } from "react";
+import { X, Eye, EyeOff } from "lucide-react";
+import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
 import { useAuth } from "@/hooks/useAuth";
-import { loginSchema } from "@/lib/schemas";
-import { z } from "zod";
+import { showErrorAlert } from "@/lib/swal";
+import BiometricLoginDialog from "@/app/dashboard/_components/BiometricLoginDialog"; // Import biometric dialog
+
+interface UserData {
+  id: number;
+  fullname: string;
+  username: string;
+  email: string;
+  phone: string;
+  role_id: number;
+  position_id: number;
+  fingerprint1: string;
+  fingerprint2: string;
+}
 
 interface EmployeeLoginDialogProps {
   isOpen: boolean;
   onClose: () => void;
-  onLogin: (userData: any) => void;
+  onLogin: (userData: UserData) => void;
 }
 
-const EmployeeLoginDialog: FC<EmployeeLoginDialogProps> = ({
+export default function EmployeeLoginDialog({
   isOpen,
   onClose,
   onLogin,
-}) => {
+}: EmployeeLoginDialogProps) {
   const [username, setUsername] = useState("");
   const [password, setPassword] = useState("");
   const [showPassword, setShowPassword] = useState(false);
-  const [validationErrors, setValidationErrors] = useState<Record<string, string>>({});
-  
-  const { login, isLoading } = useAuth();
+  const [isBiometricOpen, setIsBiometricOpen] = useState(false); // State untuk biometric dialog
 
-  if (!isOpen) return null;
+  const { login, isLoading } = useAuth();
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    setValidationErrors({});
+
+    if (!username.trim() || !password.trim()) {
+      await showErrorAlert(
+        "Validation Error",
+        "Please enter both username and password",
+        "OK"
+      );
+      return;
+    }
 
     try {
-      // Validate form data with Zod
-      const validatedData = loginSchema.parse({ username, password });
-      
-      // Call login API
-      const result = await login(validatedData);
-      
+      const result = await login({ username, password });
+
       if (result.success && result.data) {
-        // Success - call parent callback with user data
-        onLogin(result.data.user);
-        onClose();
-        
-        // Reset form
+        const userData: UserData = {
+          id: result.data.user.id,
+          fullname: result.data.user.fullname || "Unknown User",
+          username: result.data.user.username,
+          email: result.data.user.email,
+          phone: result.data.user.phone || "",
+          role_id: result.data.user.role_id || 1,
+          position_id: result.data.user.position_id || 1,
+          fingerprint1: "",
+          fingerprint2: "",
+        };
+
+        onLogin(userData);
         setUsername("");
         setPassword("");
-        setShowPassword(false);
       } else {
-        // Handle field-specific errors (no popup for validation errors)
-        if (result.errors) {
-          const fieldErrors: Record<string, string> = {};
-          Object.entries(result.errors).forEach(([field, messages]) => {
-            fieldErrors[field] = messages[0];
-          });
-          setValidationErrors(fieldErrors);
-        }
+        await showErrorAlert(
+          "Login Failed",
+          result.message || "Invalid username or password",
+          "OK"
+        );
       }
-    } catch (err: unknown) {
-      if (err instanceof z.ZodError) {
-        // Handle Zod validation errors (no popup, just field errors)
-        const fieldErrors: Record<string, string> = {};
-        err.errors.forEach((error) => {
-          if (error.path.length > 0) {
-            fieldErrors[error.path[0]] = error.message;
-          }
-        });
-        setValidationErrors(fieldErrors);
-      }
+    } catch (error) {
+      console.error("Login error:", error);
+      await showErrorAlert(
+        "Login Error",
+        "An unexpected error occurred. Please try again.",
+        "OK"
+      );
     }
+  };
+
+  // Handle biometric login button click
+  const handleBiometricClick = () => {
+    setIsBiometricOpen(true);
+  };
+
+  // Handle biometric login success
+  const handleBiometricSuccess = (userData: any) => {
+    setIsBiometricOpen(false);
+    
+    // Transform API user data to local UserData format
+    const transformedUserData: UserData = {
+      id: userData.id,
+      fullname: userData.fullname,
+      username: userData.username,
+      email: userData.email,
+      phone: userData.phone || "",
+      role_id: userData.role_id || 1,
+      position_id: userData.position_id || 1,
+      fingerprint1: "registered",
+      fingerprint2: "registered",
+    };
+
+    onLogin(transformedUserData);
+  };
+
+  // Handle back from biometric to normal login
+  const handleBiometricBack = () => {
+    setIsBiometricOpen(false);
   };
 
   const handleClose = () => {
-    if (!isLoading) {
-      setUsername("");
-      setPassword("");
-      setShowPassword(false);
-      setValidationErrors({});
-      onClose();
-    }
+    setUsername("");
+    setPassword("");
+    setShowPassword(false);
+    onClose();
   };
 
+  if (!isOpen) return null;
+
   return (
-    <div className="fixed inset-0 flex items-center justify-center z-50">
-      {/* Overlay */}
-      <div className="absolute inset-0 bg-black/50" onClick={handleClose}></div>
+    <>
+      {/* Main Employee Login Dialog */}
+      <div className="fixed inset-0 bg-black/50 z-50 flex items-center justify-center">
+        <div className="bg-white rounded-2xl w-full max-w-md mx-4 relative">
+          {/* Header */}
+          <div className="flex justify-between items-center p-6 border-b border-gray-100">
+            <h2 className="text-xl font-semibold text-gray-900">
+              Employee Login
+            </h2>
+            <button
+              onClick={handleClose}
+              className="w-8 h-8 flex items-center justify-center rounded-full border border-gray-300 hover:border-gray-400 transition-colors"
+            >
+              <X className="h-4 w-4 text-gray-600" />
+            </button>
+          </div>
 
-      {/* Dialog */}
-      <div className="bg-[#F5F5F5] rounded-lg w-full max-w-md p-6 relative z-10">
-        <div className="flex justify-between items-center mb-6">
-          <h2 className="text-2xl font-semibold text-[#202325]">
-            Employee Login
-          </h2>
-          <button
-            onClick={handleClose}
-            disabled={isLoading}
-            className="w-8 h-8 rounded-full bg-white flex items-center justify-center disabled:opacity-50"
-          >
-            <X className="h-5 w-5 text-gray-600" />
-          </button>
-        </div>
-
-        <form onSubmit={handleSubmit} autoComplete="off" noValidate>
-          <div className="bg-white rounded-lg p-6 mb-6">
-            <div className="mb-6">
-              <label
-                htmlFor="username"
-                className="block text-gray-800 mb-2 font-medium"
-              >
-                Username
-              </label>
-              <input
-                type="text"
-                id="username"
-                name="username"
-                value={username}
-                onChange={(e) => setUsername(e.target.value)}
-                placeholder="Enter your username"
-                className={`w-full bg-[#F5F5F5] border-none rounded-md p-4 text-gray-800 ${
-                  validationErrors.username ? 'ring-2 ring-red-500' : ''
-                }`}
-                autoComplete="off"
-                autoCorrect="off"
-                autoCapitalize="off"
-                spellCheck="false"
-                disabled={isLoading}
-              />
-              {validationErrors.username && (
-                <p className="text-red-500 text-sm mt-1">{validationErrors.username}</p>
-              )}
-            </div>
-
-            <div>
-              <label
-                htmlFor="password"
-                className="block text-gray-800 mb-2 font-medium"
-              >
-                Password
-              </label>
-              <div className="relative">
-                <input
-                  type={showPassword ? "text" : "password"}
-                  id="password"
-                  name="password"
-                  value={password}
-                  onChange={(e) => setPassword(e.target.value)}
-                  placeholder="Securely enter your password"
-                  className={`w-full bg-[#F5F5F5] border-none rounded-md p-4 pr-12 text-gray-800 ${
-                    validationErrors.password ? 'ring-2 ring-red-500' : ''
-                  }`}
-                  autoComplete="new-password"
-                  autoCorrect="off"
-                  autoCapitalize="off"
-                  spellCheck="false"
+          {/* Content */}
+          <div className="p-6">
+            <form onSubmit={handleSubmit} className="space-y-4">
+              {/* Username */}
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-2">
+                  Username
+                </label>
+                <Input
+                  type="text"
+                  value={username}
+                  onChange={(e) => setUsername(e.target.value)}
+                  placeholder="Rangga"
+                  className="w-full border-blue-500 focus:border-blue-600 focus:ring-blue-500"
                   disabled={isLoading}
                 />
-                <button
-                  type="button"
-                  onClick={() => setShowPassword(!showPassword)}
-                  disabled={isLoading}
-                  className="absolute right-3 top-1/2 transform -translate-y-1/2 text-gray-500 hover:text-gray-700 disabled:opacity-50 p-1"
-                  tabIndex={-1}
-                >
-                  {showPassword ? (
-                    <EyeOff className="h-5 w-5" />
-                  ) : (
-                    <Eye className="h-5 w-5" />
-                  )}
-                </button>
               </div>
-              {validationErrors.password && (
-                <p className="text-red-500 text-sm mt-1">{validationErrors.password}</p>
-              )}
-            </div>
-          </div>
 
-          <div className="flex gap-4">
-            <button
-              type="submit"
-              disabled={isLoading}
-              className="flex-1 bg-[#025CCA] text-white font-semibold py-4 px-6 rounded-md disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2"
-            >
-              {isLoading ? (
-                <>
-                  <Loader2 className="h-4 w-4 animate-spin" />
-                  Logging in...
-                </>
-              ) : (
-                'Login'
-              )}
-            </button>
+              {/* Password */}
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-2">
+                  Password
+                </label>
+                <div className="relative">
+                  <Input
+                    type={showPassword ? "text" : "password"}
+                    value={password}
+                    onChange={(e) => setPassword(e.target.value)}
+                    placeholder="Securely enter your password"
+                    className="w-full pr-10 border-gray-300 focus:border-blue-600 focus:ring-blue-500"
+                    disabled={isLoading}
+                  />
+                  <button
+                    type="button"
+                    onClick={() => setShowPassword(!showPassword)}
+                    className="absolute right-3 top-1/2 transform -translate-y-1/2 text-gray-400 hover:text-gray-600"
+                  >
+                    {showPassword ? (
+                      <EyeOff className="h-4 w-4" />
+                    ) : (
+                      <Eye className="h-4 w-4" />
+                    )}
+                  </button>
+                </div>
+              </div>
 
-            <button
-              type="button"
-              disabled={isLoading}
-              className="w-14 h-14 flex-shrink-0 bg-[#F5F5F5] rounded-md flex items-center justify-center disabled:opacity-50"
-            >
-              <svg
-                xmlns="http://www.w3.org/2000/svg"
-                className="h-6 w-6 text-[#025CCA]"
-                fill="none"
-                viewBox="0 0 24 24"
-                stroke="currentColor"
-              >
-                <path
-                  strokeLinecap="round"
-                  strokeLinejoin="round"
-                  strokeWidth={2}
-                  d="M12 11c0 3.517-1.009 6.799-2.753 9.571m-3.44-2.04l.054-.09A13.916 13.916 0 008 11a4 4 0 118 0c0 1.017-.07 2.019-.203 3m-2.118 6.844A21.88 21.88 0 0015.171 17m3.839 1.132c.645-2.266.99-4.659.99-7.132A8 8 0 008 4.07M3 15.364c.64-1.319 1-2.8 1-4.364 0-1.457.39-2.823 1.07-4"
-                />
-              </svg>
-            </button>
+              {/* Login Buttons */}
+              <div className="flex gap-3 pt-4">
+                <Button
+                  type="submit"
+                  className="flex-1 bg-blue-600 hover:bg-blue-700 text-white"
+                  disabled={isLoading}
+                >
+                  {isLoading ? "Logging in..." : "Login"}
+                </Button>
+                
+                {/* Biometric Button */}
+                <Button
+                  type="button"
+                  variant="outline"
+                  onClick={handleBiometricClick}
+                  className="px-4 border-blue-500 text-blue-500 hover:bg-blue-50"
+                  disabled={isLoading}
+                  title="Biometric Login"
+                >
+                  <svg
+                    className="w-5 h-5"
+                    fill="none"
+                    stroke="currentColor"
+                    viewBox="0 0 24 24"
+                  >
+                    <path
+                      strokeLinecap="round"
+                      strokeLinejoin="round"
+                      strokeWidth={2}
+                      d="M12 11c0 3.517-1.009 6.799-2.753 9.571m-3.44-2.04l.054-.09A13.916 13.916 0 008 11a4 4 0 118 0c0 1.017-.07 2.019-.203 3m-2.118 6.844A21.88 21.88 0 0015.171 17m3.839 1.132c.645-2.266.99-4.659.99-7.132A8 8 0 008 4.07M3 15.364c.64-1.319 1-2.8 1-4.364 0-1.457.39-2.823 1.07-4"
+                    />
+                  </svg>
+                </Button>
+              </div>
+            </form>
           </div>
-        </form>
+        </div>
       </div>
-    </div>
-  );
-};
 
-export default EmployeeLoginDialog;
+      {/* Biometric Login Dialog */}
+      <BiometricLoginDialog
+        isOpen={isBiometricOpen}
+        onClose={() => setIsBiometricOpen(false)}
+        onBack={handleBiometricBack}
+        onSuccess={handleBiometricSuccess}
+        scanDuration={3000}
+      />
+    </>
+  );
+}

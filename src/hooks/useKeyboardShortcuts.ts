@@ -1,4 +1,4 @@
-// hooks/useKeyboardShortcuts.ts - FIXED VERSION
+// hooks/useKeyboardShortcuts.ts - FIXED VERSION WITH TRANSACTION HISTORY
 "use client";
 
 import { useEffect, useState } from "react";
@@ -110,6 +110,7 @@ export const createPOSShortcuts = (actions: {
   voidTransaction?: () => void;
   pendingBill?: () => void;
   memberCorporate?: () => void;
+  transactionHistory?: () => void; // 🔥 NEW: Add Transaction History
 }): KeyboardShortcut[] => {
   const shortcuts: KeyboardShortcut[] = [];
 
@@ -137,6 +138,17 @@ export const createPOSShortcuts = (actions: {
       ctrl: true,
       action: actions.showUpselling,
       description: "Up Selling",
+    });
+  }
+
+  // 🔥 NEW: Add Transaction History shortcut
+  if (actions.transactionHistory) {
+    shortcuts.push({
+      key: "F7",
+      ctrl: true,
+      action: actions.transactionHistory,
+      description: "Transaction History",
+      preventDefault: true,
     });
   }
 

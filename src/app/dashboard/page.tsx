@@ -1,4 +1,4 @@
-// app/dashboard/page.tsx
+// app/dashboard/page.tsx - UPDATED WITH BIOMETRIC INTEGRATION
 "use client";
 
 import EmployeeLoginDialog from "@/components/shared/EmployeeLoginDialog";
@@ -13,15 +13,13 @@ import TimeDisplay from "./_components/TimeDisplay";
 
 export default function DashboardPage() {
   const [isLoginDialogOpen, setIsLoginDialogOpen] = useState(false);
-  const [isCloseCashierDialogOpen, setIsCloseCashierDialogOpen] =
-    useState(false);
-  const [isReCloseCashierDialogOpen, setIsReCloseCashierDialogOpen] =
-    useState(false);
+  const [isCloseCashierDialogOpen, setIsCloseCashierDialogOpen] = useState(false);
+  const [isReCloseCashierDialogOpen, setIsReCloseCashierDialogOpen] = useState(false);
   const [isKassaSetupDialogOpen, setIsKassaSetupDialogOpen] = useState(false);
   const [isFingerprintDialogOpen, setIsFingerprintDialogOpen] = useState(false);
   const [isParameterDialogOpen, setIsParameterDialogOpen] = useState(false);
 
-  // ✅ NEW: Check if user has valid token
+  // ✅ Check if user has valid token
   const checkAuthToken = (): boolean => {
     if (typeof window === "undefined") return false;
 
@@ -57,7 +55,7 @@ export default function DashboardPage() {
       window.location.href = "/create-order/choose-menu";
     } else {
       console.log("❌ No valid token found, showing login dialog");
-      // No valid token, show login dialog
+      // No valid token, show login dialog (which now includes biometric option)
       setIsLoginDialogOpen(true);
     }
   };
@@ -66,8 +64,18 @@ export default function DashboardPage() {
     setIsLoginDialogOpen(false);
   };
 
+  // Handle both regular and biometric login success
   const handleLogin = (userData: any) => {
     console.log("Login successful with user data:", userData);
+    
+    // Save user data to localStorage (for both regular and biometric login)
+    try {
+      localStorage.setItem("user-data", JSON.stringify(userData));
+      localStorage.setItem("auth-token", "biometric-token-" + Date.now()); // Simulate token for biometric
+    } catch (error) {
+      console.error("Error saving user data:", error);
+    }
+
     setIsLoginDialogOpen(false);
     window.location.href = "/create-order/choose-menu";
   };
@@ -332,7 +340,7 @@ export default function DashboardPage() {
         </div>
       </div>
 
-      {/* ✅ UPDATED: Only show login dialog when explicitly needed */}
+      {/* ✅ UPDATED: Employee Login Dialog now includes biometric option */}
       <EmployeeLoginDialog
         isOpen={isLoginDialogOpen}
         onClose={handleCloseDialog}

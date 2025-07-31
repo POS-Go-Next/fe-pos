@@ -1,4 +1,4 @@
-// app/create-order/choose-menu/_components/ChooseMenuProductTable.tsx - COMPLETE VERSION
+// app/create-order/choose-menu/_components/ChooseMenuProductTable.tsx - FIXED AUTO-OPEN BUG
 "use client";
 
 import BranchWideStockDialog from "@/components/shared/branch-wide-stock-dialog";
@@ -17,7 +17,7 @@ import PrescriptionDiscountDialog from "./PrescriptionDiscountDialog";
 import ChooseMiscDialog from "./ChooseMiscDialog";
 import TransactionTypeDialog from "@/components/shared/transaction-type-dialog";
 import CorporateDiscountDialog from "./CorporateDiscountDialog";
-import TransactionHistoryDialog from "./TransactionHistoryDialog";
+// 🔥 REMOVED: import TransactionHistoryDialog from "./TransactionHistoryDialog";
 
 export interface Product extends ProductTableItem {}
 
@@ -145,15 +145,17 @@ export default function ChooseMenuProductTable({
   const [isChooseMiscOpen, setIsChooseMiscOpen] = useState(false);
   const [isTransactionTypeOpen, setIsTransactionTypeOpen] = useState(false);
   const [isCorporateDiscountOpen, setIsCorporateDiscountOpen] = useState(false);
-  const [isTransactionHistoryOpen, setIsTransactionHistoryOpen] =
-    useState(false);
+  
+  // 🔥 REMOVED: Transaction History state - handled elsewhere
 
   const tableContainerRef = useRef<HTMLDivElement>(null);
   const tableBodyRef = useRef<HTMLTableSectionElement>(null);
   const { logout } = useLogout();
 
+  // 🔥 CRITICAL FIX: Explicitly prevent auto-opening on mount
   useEffect(() => {
     setIsClient(true);
+    console.log("🔍 Component mounted - TransactionHistoryDialog removed from this component");
   }, []);
 
   useKeyboardShortcuts({
@@ -226,15 +228,20 @@ export default function ChooseMenuProductTable({
         description: "Corporate Discount",
         preventDefault: true,
       },
+      // 🔥 REMOVED: Transaction History shortcut - handled elsewhere
+      /*
       {
         key: "F7",
         ctrl: true,
         action: () => {
+          console.log("🔥 Ctrl+F7 pressed - Allowing and Opening Transaction History Dialog");
+          setAllowTransactionHistoryOpen(true);
           setIsTransactionHistoryOpen(true);
         },
         description: "Transaction History",
         preventDefault: true,
       },
+      */
       {
         key: "Escape",
         ctrl: true,
@@ -249,7 +256,7 @@ export default function ChooseMenuProductTable({
           setIsChooseMiscOpen(false);
           setIsTransactionTypeOpen(false);
           setIsCorporateDiscountOpen(false);
-          setIsTransactionHistoryOpen(false);
+          // 🔥 REMOVED: Transaction History close - handled elsewhere
           await logout();
         },
         description: "Logout",
@@ -706,10 +713,7 @@ export default function ChooseMenuProductTable({
         }}
       />
 
-      <TransactionHistoryDialog
-        isOpen={isTransactionHistoryOpen}
-        onClose={() => setIsTransactionHistoryOpen(false)}
-      />
+      {/* 🔥 REMOVED: TransactionHistoryDialog - should be handled at page level */}
 
       <style jsx>{`
         .custom-scrollbar {

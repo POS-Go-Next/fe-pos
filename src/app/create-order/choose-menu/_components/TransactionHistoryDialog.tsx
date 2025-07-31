@@ -1,4 +1,4 @@
-// app/create-order/choose-menu/_components/TransactionHistoryDialog.tsx - FIXED PAGINATION VERSION
+// app/create-order/choose-menu/_components/TransactionHistoryDialog.tsx - HARD FIX VERSION
 "use client";
 
 import React, { useState, useEffect } from "react";
@@ -24,6 +24,10 @@ const TransactionHistoryDialog: React.FC<TransactionHistoryDialogProps> = ({
   isOpen,
   onClose,
 }) => {
+  // 🔥 HARD FIX: Force close on initial render to prevent auto-open
+  const [forceOpen, setForceOpen] = useState(false);
+  const [keyboardTriggered, setKeyboardTriggered] = useState(false);
+
   const [searchInput, setSearchInput] = useState("");
   const [searchTerm, setSearchTerm] = useState("");
   const [currentPage, setCurrentPage] = useState(1);
@@ -41,6 +45,24 @@ const TransactionHistoryDialog: React.FC<TransactionHistoryDialogProps> = ({
   const [isProductPageSizeOpen, setIsProductPageSizeOpen] = useState(false);
 
   const pageSizeOptions = [5, 10, 25, 50];
+
+  // 🔥 CRITICAL FIX: Add keyboard listener to only allow Ctrl+F7 to open dialog
+  useEffect(() => {
+    const handleKeyDown = (event: KeyboardEvent) => {
+      if (event.ctrlKey && event.key === "F7") {
+        console.log("🔥 Ctrl+F7 detected - allowing dialog to open");
+        event.preventDefault();
+        setKeyboardTriggered(true);
+        setForceOpen(true);
+      }
+    };
+
+    document.addEventListener("keydown", handleKeyDown);
+    return () => document.removeEventListener("keydown", handleKeyDown);
+  }, []);
+
+  // 🔥 HARD FIX: Override isOpen prop - only show if keyboard triggered
+  const shouldShowDialog = isOpen && (forceOpen || keyboardTriggered);
 
   // Calculate offset for API
   const offset = (currentPage - 1) * pageSize;
@@ -86,7 +108,7 @@ const TransactionHistoryDialog: React.FC<TransactionHistoryDialogProps> = ({
   );
 
   useEffect(() => {
-    if (isOpen) {
+    if (shouldShowDialog) {
       setCurrentPage(1);
       setPageSize(5);
       setSearchInput("");
@@ -99,7 +121,7 @@ const TransactionHistoryDialog: React.FC<TransactionHistoryDialogProps> = ({
       setProductPageSize(5);
       setIsProductPageSizeOpen(false);
     }
-  }, [isOpen]);
+  }, [shouldShowDialog]);
 
   // Search effect with 3 character minimum
   useEffect(() => {
@@ -257,6 +279,20 @@ const TransactionHistoryDialog: React.FC<TransactionHistoryDialogProps> = ({
     setIsProductPageSizeOpen(false);
   };
 
+  // 🔥 HARD FIX: Handle close with reset
+  const handleClose = () => {
+    console.log("🔍 Closing Transaction History Dialog - resetting states");
+    setForceOpen(false);
+    setKeyboardTriggered(false);
+    onClose();
+  };
+
+  // 🔥 CRITICAL: Don't render anything if not properly triggered
+  if (!shouldShowDialog) {
+    console.log("🔍 Dialog blocked - not triggered by Ctrl+F7");
+    return null;
+  }
+
   return (
     <div className="fixed inset-0 bg-black/50 z-50 flex items-center justify-center p-4">
       <div className="bg-white rounded-2xl w-full max-w-7xl max-h-[95vh] flex flex-col shadow-2xl">
@@ -266,7 +302,7 @@ const TransactionHistoryDialog: React.FC<TransactionHistoryDialogProps> = ({
             Transaction History
           </h2>
           <button
-            onClick={onClose}
+            onClick={handleClose}
             className="w-8 h-8 flex items-center justify-center rounded-full hover:bg-gray-100 transition-colors"
           >
             <X className="w-5 h-5 text-gray-600" />

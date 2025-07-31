@@ -1,4 +1,4 @@
-// app/create-order/choose-menu/page.tsx
+// app/create-order/choose-menu/page.tsx - FIXED VERSION WITH TRANSACTION HISTORY
 "use client";
 
 import OrderSummary from "@/components/shared/order-summary";
@@ -13,6 +13,7 @@ import { ProductTableItem } from "@/types/stock";
 import { ArrowLeft, Search } from "lucide-react";
 import { useEffect, useMemo, useState, useRef } from "react";
 import { ProductTableSection } from "./_components";
+import TransactionHistoryDialog from "./_components/TransactionHistoryDialog";
 
 // ✅ Fix: Add proper interface definitions inside the component file
 interface CustomerData {
@@ -49,6 +50,9 @@ export default function ChooseMenuPage() {
     null
   );
 
+  // 🔥 NEW: Add Transaction History state at page level
+  const [isTransactionHistoryOpen, setIsTransactionHistoryOpen] = useState(false);
+
   // ✅ NEW: Add refs for focus management
   const productSearchInputRef = useRef<HTMLInputElement>(null);
   const barcodeSearchInputRef = useRef<HTMLInputElement>(null);
@@ -58,6 +62,8 @@ export default function ChooseMenuPage() {
   // ✅ FIX: Safe client-side initialization
   useEffect(() => {
     setIsClient(true);
+    // 🔥 ENSURE Transaction History starts closed
+    setIsTransactionHistoryOpen(false);
   }, []);
 
   const [products, setProducts] = useState<ProductTableItem[]>([]);
@@ -127,9 +133,17 @@ export default function ChooseMenuPage() {
     setShouldFocusSearch(true);
   };
 
+  // 🔥 NEW: Add Transaction History handler
+  const handleOpenTransactionHistory = () => {
+    console.log("🔥 Ctrl+F7 pressed - Opening Transaction History Dialog");
+    setIsTransactionHistoryOpen(true);
+  };
+
+  // 🔥 ENHANCED: Add Transaction History to POS shortcuts
   usePOSKeyboardShortcuts(
     {
       clearAllProducts: handleClearAllProducts,
+      transactionHistory: handleOpenTransactionHistory, // 🔥 NEW: Add Transaction History
     },
     {
       enabled: true,
@@ -504,6 +518,15 @@ export default function ChooseMenuPage() {
         isOpen={isPaymentSuccessDialogOpen}
         onClose={() => setIsPaymentSuccessDialogOpen(false)}
         onPrintBills={() => console.log("Print Bills")}
+      />
+
+      {/* 🔥 NEW: Transaction History Dialog at page level */}
+      <TransactionHistoryDialog
+        isOpen={isTransactionHistoryOpen}
+        onClose={() => {
+          console.log("🔍 Closing Transaction History Dialog from page level");
+          setIsTransactionHistoryOpen(false);
+        }}
       />
     </div>
   );
