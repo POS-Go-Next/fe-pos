@@ -1,127 +1,220 @@
-// components/dashboard/KassaSetupDialog.tsx - FIXED TOKEN CHECKING
+// components/dashboard/KassaSetupDialog.tsx - COMPLETE FIXED VERSION
 "use client";
 
-import { FC, useState, useEffect } from "react";
-import { X, Router, Wifi, Fingerprint, Printer } from "lucide-react";
+import EmployeeLoginDialog from "@/components/shared/EmployeeLoginDialog";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
+    Select,
+    SelectContent,
+    SelectItem,
+    SelectTrigger,
+    SelectValue,
 } from "@/components/ui/select";
-import { showSuccessAlert, showErrorAlert } from "@/lib/swal";
 import { useKassa } from "@/hooks/useKassa";
-import EmployeeLoginDialog from "@/components/shared/EmployeeLoginDialog";
-import Swal from 'sweetalert2';
+import { useSystemInfo } from "@/hooks/useSystemInfo";
+import { useKassaData } from "@/hooks/useKassaData";
+import { usePrinter } from "@/hooks/usePrinter";
+import { showErrorAlert, showSuccessAlert } from "@/lib/swal";
+import { X, Loader2, AlertCircle } from "lucide-react";
+import Image from "next/image";
+import { FC, useEffect, useState } from "react";
+import Swal from "sweetalert2";
 
 interface KassaSetupDialogProps {
-  isOpen: boolean;
-  onClose: () => void;
-  onSubmit: () => void;
+    isOpen: boolean;
+    onClose: () => void;
+    onSubmit: () => void;
 }
 
 interface KassaSetupData {
-  antrian: boolean;
-  status_aktif: boolean;
-  finger: 'Y' | 'N';
-  default_jual: '0' | '1' | '2'; // 0=Swalayan, 1=Resep, 2=Both
-  ip_address: string;
-  mac_address: string;
+    default_jual: "0" | "1" | "2";
+    status_aktif: boolean;
+    antrian: boolean;
+    finger: "Y" | "N";
+    ip_address: string;
+    mac_address: string;
+    printer_id: number | null;
 }
 
-// Hardcoded values as requested
-const HARDCODED_IP = "192.168.1.20";
-const HARDCODED_MAC = "84-1B-77-FD-31-35";
-
 const KassaSetupDialog: FC<KassaSetupDialogProps> = ({
-  isOpen,
-  onClose,
-  onSubmit,
+    isOpen,
+    onClose,
+    onSubmit,
 }) => {
-  // Authentication states
-  const [hasValidToken, setHasValidToken] = useState(false);
-  const [isLoginDialogOpen, setIsLoginDialogOpen] = useState(false);
-  const [isCheckingToken, setIsCheckingToken] = useState(true);
+    const [hasValidToken, setHasValidToken] = useState(false);
+    const [isLoginDialogOpen, setIsLoginDialogOpen] = useState(false);
+    const [isCheckingToken, setIsCheckingToken] = useState(true);
+    const [isDataLoaded, setIsDataLoaded] = useState(false);
 
-  // Form state
-  const [formData, setFormData] = useState<KassaSetupData>({
-    antrian: true,
-    status_aktif: true,
-    finger: 'Y',
-    default_jual: '2',
-    ip_address: HARDCODED_IP,
-    mac_address: HARDCODED_MAC,
-  });
+    // System Info Hook
+    const {
+        systemInfo,
+        macAddress,
+        ipAddress,
+        isLoading: isSystemLoading,
+        error: systemError,
+        refetch: refetchSystemInfo,
+    } = useSystemInfo();
 
-  const [selectedPrinter, setSelectedPrinter] = useState<string>(
-    "Epson TMU 220B-776 Auto Cutter USB Dot Matrix"
-  );
-  
-  const { updateKassa, isLoading: isSubmitting } = useKassa();
+    // Kassa Data Hook
+    const {
+        kassaData,
+        isLoading: isKassaLoading,
+        error: kassaError,
+        refetch: refetchKassaData,
+        isSessionExpired: kassaSessionExpired,
+    } = useKassaData({
+        macAddress,
+        enabled: hasValidToken && !!macAddress,
+    });
 
-  // Check token when dialog opens
-  useEffect(() => {
-    if (isOpen) {
-      checkTokenStatus();
-    }
-  }, [isOpen]);
+    // Printer Hook
+    const {
+        printers,
+        isLoading: isPrinterLoading,
+        error: printerError,
+        refetch: refetchPrinters,
+        isSessionExpired: printerSessionExpired,
+    } = usePrinter({
+        offset: 0,
+        limit: 50,
+        enabled: hasValidToken,
+    });
 
-  // DEFINITIVE FIX: Skip token check entirely and use API validation instead
-  const checkTokenStatus = async () => {
-    console.log('🔍 CHECKING TOKEN STATUS...');
-    setIsCheckingToken(true);
-    
-    try {
-      // Instead of checking cookies, test if we can make an API call
-      const response = await fetch('/api/user?limit=1&offset=0', {
-        method: 'GET',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-      });
+    // Kassa Update Hook
+    const { updateKassa, isLoading: isSubmitting } = useKassa();
 
-      console.log('🔍 API Test Response status:', response.status);
-      
-      if (response.ok) {
-        // API call successful = user is authenticated
-        console.log('✅ API CALL SUCCESS: User is authenticated');
-        setHasValidToken(true);
-        setIsCheckingToken(false);
-      } else if (response.status === 401) {
-        // 401 = Not authenticated
-        console.log('❌ API CALL 401: Not authenticated');
-        setHasValidToken(false);
-        setIsCheckingToken(false);
-        showSessionExpiredPopup();
-      } else {
-        // Other error - assume need login
-        console.log('❌ API CALL ERROR:', response.status);
-        setHasValidToken(false);
-        setIsCheckingToken(false);
-        showSessionExpiredPopup();
-      }
-    } catch (error) {
-      console.log('❌ API CALL FAILED:', error);
-      // Network error or other issue - assume need login
-      setHasValidToken(false);
-      setIsCheckingToken(false);
-      showSessionExpiredPopup();
-    }
-  };
+    const [formData, setFormData] = useState<KassaSetupData>({
+        default_jual: "0", // Both
+        status_aktif: true, // Active
+        antrian: true, // Active
+        finger: "Y", // Active
+        ip_address: "",
+        mac_address: "",
+        printer_id: null,
+    });
 
-  // FIXED: Session expired popup that flows to login
-  const showSessionExpiredPopup = () => {
-    console.log('⚠️ Showing session expired popup');
-    
-    let timerInterval: NodeJS.Timeout;
-    
-    Swal.fire({
-      icon: 'warning',
-      title: 'Session Expired',
-      html: `
+    const [selectedPrinterId, setSelectedPrinterId] = useState<number | null>(
+        null
+    );
+
+    useEffect(() => {
+        if (isOpen) {
+            checkTokenStatus();
+        }
+    }, [isOpen]);
+
+    // Load kassa data into form when available
+    useEffect(() => {
+        if (kassaData && ipAddress && macAddress && !isDataLoaded) {
+            console.log("📝 Loading kassa data into form:", kassaData);
+
+            setFormData({
+                default_jual: kassaData.default_jual as "0" | "1" | "2",
+                status_aktif: kassaData.status_aktif,
+                antrian: kassaData.antrian,
+                finger: kassaData.finger as "Y" | "N",
+                ip_address: kassaData.ip_address || ipAddress,
+                mac_address: kassaData.mac_address || macAddress,
+                printer_id: kassaData.printer_id || null,
+            });
+
+            if (kassaData.printer?.id) {
+                setSelectedPrinterId(kassaData.printer.id);
+            }
+
+            setIsDataLoaded(true);
+        } else if (
+            !kassaData &&
+            ipAddress &&
+            macAddress &&
+            hasValidToken &&
+            !isKassaLoading
+        ) {
+            // No existing kassa data, use system info
+            console.log("📝 Using system info for new kassa setup");
+
+            setFormData((prev) => ({
+                ...prev,
+                ip_address: ipAddress,
+                mac_address: macAddress,
+            }));
+
+            setIsDataLoaded(true);
+        }
+    }, [
+        kassaData,
+        ipAddress,
+        macAddress,
+        hasValidToken,
+        isKassaLoading,
+        isDataLoaded,
+    ]);
+
+    // Handle session expired from printer fetch
+    useEffect(() => {
+        if (printerSessionExpired) {
+            setHasValidToken(false);
+            showSessionExpiredPopup();
+        }
+    }, [printerSessionExpired]);
+
+    // Handle session expired from kassa data fetch
+    useEffect(() => {
+        if (kassaSessionExpired) {
+            setHasValidToken(false);
+            showSessionExpiredPopup();
+        }
+    }, [kassaSessionExpired]);
+
+    const checkTokenStatus = async () => {
+        console.log("🔍 CHECKING TOKEN STATUS...");
+        setIsCheckingToken(true);
+        setIsDataLoaded(false);
+
+        try {
+            const response = await fetch("/api/user?limit=1&offset=0", {
+                method: "GET",
+                headers: {
+                    "Content-Type": "application/json",
+                },
+            });
+
+            console.log("🔍 API Test Response status:", response.status);
+
+            if (response.ok) {
+                console.log("✅ API CALL SUCCESS: User is authenticated");
+                setHasValidToken(true);
+                setIsCheckingToken(false);
+            } else if (response.status === 401) {
+                console.log("❌ API CALL 401: Not authenticated");
+                setHasValidToken(false);
+                setIsCheckingToken(false);
+                showSessionExpiredPopup();
+            } else {
+                console.log("❌ API CALL ERROR:", response.status);
+                setHasValidToken(false);
+                setIsCheckingToken(false);
+                showSessionExpiredPopup();
+            }
+        } catch (error) {
+            console.log("❌ API CALL FAILED:", error);
+            setHasValidToken(false);
+            setIsCheckingToken(false);
+            showSessionExpiredPopup();
+        }
+    };
+
+    const showSessionExpiredPopup = () => {
+        console.log("⚠️ Showing session expired popup");
+
+        let timerInterval: NodeJS.Timeout;
+
+        Swal.fire({
+            icon: "warning",
+            title: "Session Expired",
+            html: `
         <div class="text-sm text-gray-600 mb-4">
           Your session has expired. Please login again.
         </div>
@@ -129,475 +222,674 @@ const KassaSetupDialog: FC<KassaSetupDialogProps> = ({
           This popup will close automatically in <strong id="timer">3</strong> seconds
         </div>
       `,
-      timer: 3000,
-      timerProgressBar: true,
-      showConfirmButton: true,
-      confirmButtonText: 'Login Now',
-      confirmButtonColor: '#025CCA',
-      allowOutsideClick: false,
-      allowEscapeKey: false,
-      customClass: {
-        popup: 'rounded-xl shadow-2xl',
-        confirmButton: 'rounded-lg px-6 py-2 font-medium',
-        title: 'text-lg font-bold text-red-600',
-        htmlContainer: 'text-sm',
-      },
-      background: '#ffffff',
-      color: '#1f2937',
-      didOpen: () => {
-        const timer = Swal.getPopup()?.querySelector('#timer');
-        let remainingTime = 3;
-        
-        timerInterval = setInterval(() => {
-          remainingTime--;
-          if (timer) {
-            timer.textContent = remainingTime.toString();
-          }
-          
-          if (remainingTime <= 0) {
-            clearInterval(timerInterval);
-          }
-        }, 1000);
-      },
-      willClose: () => {
-        clearInterval(timerInterval);
-      }
-    }).then((result) => {
-      console.log('🔄 Session expired popup result:', result);
-      
-      // Both timer end and button click should open login dialog
-      if (result.isConfirmed || result.dismiss === Swal.DismissReason.timer) {
-        console.log('➡️ Opening login dialog');
-        setIsLoginDialogOpen(true);
-      }
-    });
-  };
+            timer: 3000,
+            timerProgressBar: true,
+            showConfirmButton: true,
+            confirmButtonText: "Login Now",
+            confirmButtonColor: "#025CCA",
+            allowOutsideClick: false,
+            allowEscapeKey: false,
+            customClass: {
+                popup: "rounded-xl shadow-2xl",
+                confirmButton: "rounded-lg px-6 py-2 font-medium",
+                title: "text-lg font-bold text-red-600",
+                htmlContainer: "text-sm",
+            },
+            background: "#ffffff",
+            color: "#1f2937",
+            didOpen: () => {
+                const timer = Swal.getPopup()?.querySelector("#timer");
+                let remainingTime = 3;
 
-  // Handle successful login
-  const handleLoginSuccess = (userData: any) => {
-    console.log('✅ Login successful:', userData);
-    setHasValidToken(true);
-    setIsLoginDialogOpen(false);
-    // Now user can continue with Kassa Setup
-  };
+                timerInterval = setInterval(() => {
+                    remainingTime--;
+                    if (timer) {
+                        timer.textContent = remainingTime.toString();
+                    }
 
-  // Handle login dialog close
-  const handleLoginClose = () => {
-    console.log('❌ Login dialog closed without login');
-    setIsLoginDialogOpen(false);
-    // Close parent dialog if login is cancelled
-    onClose();
-  };
+                    if (remainingTime <= 0) {
+                        clearInterval(timerInterval);
+                    }
+                }, 1000);
+            },
+            willClose: () => {
+                clearInterval(timerInterval);
+            },
+        }).then((result) => {
+            console.log("🔄 Session expired popup result:", result);
 
-  if (!isOpen) return null;
+            if (
+                result.isConfirmed ||
+                result.dismiss === Swal.DismissReason.timer
+            ) {
+                console.log("➡️ Opening login dialog");
+                setIsLoginDialogOpen(true);
+            }
+        });
+    };
 
-  // Show loading while checking token
-  if (isCheckingToken) {
-    return (
-      <div className="fixed inset-0 flex items-center justify-center z-50">
-        <div className="absolute inset-0 bg-black/50"></div>
-        <div className="bg-white rounded-lg p-8 relative z-10">
-          <div className="flex items-center gap-3">
-            <div className="animate-spin rounded-full h-6 w-6 border-b-2 border-blue-600"></div>
-            <span>Checking authentication...</span>
-          </div>
-        </div>
-      </div>
-    );
-  }
+    const handleLoginSuccess = (userData: any) => {
+        console.log("✅ Login successful:", userData);
+        setHasValidToken(true);
+        setIsLoginDialogOpen(false);
+        setIsDataLoaded(false);
+    };
 
-  // Show login dialog if no valid token
-  if (!hasValidToken) {
-    return (
-      <EmployeeLoginDialog
-        isOpen={isLoginDialogOpen}
-        onClose={handleLoginClose}
-        onLogin={handleLoginSuccess}
-      />
-    );
-  }
-
-  // Handle toggle changes
-  const handleToggle = (field: keyof KassaSetupData, value: boolean | string) => {
-    setFormData(prev => ({
-      ...prev,
-      [field]: value
-    }));
-  };
-
-  // Handle form submission
-  const handleSubmit = async () => {
-    try {
-      console.log('🚀 Submitting kassa setup:', formData);
-
-      // Double check token before submission
-      if (!hasValidToken) {
-        showSessionExpiredPopup();
-        return;
-      }
-
-      const response = await fetch(`/api/kassa/${HARDCODED_MAC}/upsert`, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify(formData),
-      });
-
-      const result = await response.json();
-
-      if (!response.ok) {
-        // Handle session expired during submission
-        if (response.status === 401) {
-          console.log('🔄 Session expired during submission');
-          setHasValidToken(false);
-          showSessionExpiredPopup();
-          return;
-        }
-        
-        await showErrorAlert(
-          'Setup Failed',
-          result.message || 'Failed to save kassa setup. Please try again.',
-          'OK'
-        );
-        return;
-      }
-
-      if (result.success) {
-        await showSuccessAlert(
-          'Success!',
-          'Kassa setup saved successfully',
-          1500
-        );
-
-        onSubmit();
+    const handleLoginClose = () => {
+        console.log("❌ Login dialog closed without login");
+        setIsLoginDialogOpen(false);
         onClose();
-      } else {
-        throw new Error(result.message || 'Invalid response from server');
-      }
-    } catch (error) {
-      console.error('❌ Error in kassa setup:', error);
-      
-      if (error instanceof TypeError && error.message.includes('fetch')) {
-        await showErrorAlert(
-          'Network Error',
-          'Unable to connect to server. Please check your connection.',
-          'OK'
+    };
+
+    if (!isOpen) return null;
+
+    if (isCheckingToken || isSystemLoading) {
+        return (
+            <div className="fixed inset-0 flex items-center justify-center z-50">
+                <div className="absolute inset-0 bg-black/50"></div>
+                <div className="bg-white rounded-lg p-8 relative z-10">
+                    <div className="flex items-center gap-3">
+                        <div className="animate-spin rounded-full h-6 w-6 border-b-2 border-blue-600"></div>
+                        <span>
+                            {isCheckingToken
+                                ? "Checking authentication..."
+                                : "Loading system information..."}
+                        </span>
+                    </div>
+                </div>
+            </div>
         );
-      } else {
-        await showErrorAlert(
-          'Unexpected Error',
-          'An unexpected error occurred. Please try again.',
-          'OK'
-        );
-      }
     }
-  };
 
-  // Handle cancel
-  const handleCancel = () => {
-    setFormData({
-      antrian: true,
-      status_aktif: true,
-      finger: 'Y',
-      default_jual: '2',
-      ip_address: HARDCODED_IP,
-      mac_address: HARDCODED_MAC,
-    });
-    setSelectedPrinter("Epson TMU 220B-776 Auto Cutter USB Dot Matrix");
-    onClose();
-  };
+    if (!hasValidToken) {
+        return (
+            <EmployeeLoginDialog
+                isOpen={isLoginDialogOpen}
+                onClose={handleLoginClose}
+                onLogin={handleLoginSuccess}
+            />
+        );
+    }
 
-  return (
-    <div className="fixed inset-0 flex items-center justify-center z-50">
-      {/* Overlay */}
-      <div className="absolute inset-0 bg-black/50" onClick={handleCancel}></div>
+    // Show system error if system info failed to load
+    if (systemError) {
+        return (
+            <div className="fixed inset-0 flex items-center justify-center z-50">
+                <div
+                    className="absolute inset-0 bg-black/50"
+                    onClick={onClose}
+                ></div>
+                <div className="bg-white rounded-lg p-8 relative z-10 max-w-md mx-4">
+                    <div className="flex items-center gap-3 mb-4">
+                        <AlertCircle className="h-6 w-6 text-red-500" />
+                        <h3 className="text-lg font-semibold text-gray-900">
+                            System Error
+                        </h3>
+                    </div>
+                    <p className="text-sm text-gray-600 mb-6">{systemError}</p>
+                    <div className="flex gap-3">
+                        <Button
+                            variant="outline"
+                            onClick={refetchSystemInfo}
+                            className="flex-1"
+                        >
+                            Retry
+                        </Button>
+                        <Button
+                            variant="outline"
+                            onClick={onClose}
+                            className="flex-1"
+                        >
+                            Close
+                        </Button>
+                    </div>
+                </div>
+            </div>
+        );
+    }
 
-      {/* Dialog */}
-      <div className="bg-white rounded-2xl w-full max-w-2xl relative z-10 p-6">
-        {/* Header */}
-        <div className="flex justify-between items-center mb-6">
-          <h2 className="text-xl font-semibold text-[#202325]">
-            Kassa Setup (1)
-          </h2>
-          <button
-            onClick={handleCancel}
-            disabled={isSubmitting}
-            className="w-8 h-8 rounded-full bg-gray-100 flex items-center justify-center hover:bg-gray-200 transition-colors disabled:opacity-50"
-          >
-            <X className="h-4 w-4 text-gray-600" />
-          </button>
+    const handleToggle = (
+        field: keyof KassaSetupData,
+        value: boolean | string
+    ) => {
+        setFormData((prev) => ({
+            ...prev,
+            [field]: value,
+        }));
+    };
+
+    const handleSubmit = async () => {
+        try {
+            console.log("🚀 Submitting kassa setup:", formData);
+            console.log("📍 MAC Address used:", macAddress);
+            console.log("🖨️ Selected Printer ID:", selectedPrinterId);
+
+            if (!hasValidToken) {
+                showSessionExpiredPopup();
+                return;
+            }
+
+            if (!macAddress) {
+                await showErrorAlert(
+                    "Error",
+                    "MAC address not available. Please check your network connection.",
+                    "OK"
+                );
+                return;
+            }
+
+            const submitData = {
+                default_jual: formData.default_jual,
+                status_aktif: formData.status_aktif,
+                antrian: formData.antrian,
+                finger: formData.finger, // Should be "Y" or "N"
+                ip_address: formData.ip_address,
+                mac_address: formData.mac_address,
+                printer_id: selectedPrinterId,
+            };
+
+            console.log("📤 Final submit data:", submitData);
+            console.log("🔍 Data types:", {
+                default_jual: typeof submitData.default_jual,
+                status_aktif: typeof submitData.status_aktif,
+                antrian: typeof submitData.antrian,
+                finger: typeof submitData.finger,
+                ip_address: typeof submitData.ip_address,
+                mac_address: typeof submitData.mac_address,
+                printer_id: typeof submitData.printer_id,
+            });
+
+            const result = await updateKassa(macAddress, submitData);
+
+            if (result.isSessionExpired) {
+                setHasValidToken(false);
+                showSessionExpiredPopup();
+                return;
+            }
+
+            if (!result.success) {
+                console.error("❌ Kassa setup failed:", result);
+                await showErrorAlert(
+                    "Setup Failed",
+                    result.error ||
+                        "Failed to save kassa setup. Please try again.",
+                    "OK"
+                );
+                return;
+            }
+
+            await showSuccessAlert(
+                "Success!",
+                "Kassa setup saved successfully",
+                1500
+            );
+
+            onSubmit();
+            onClose();
+        } catch (error) {
+            console.error("❌ Error in kassa setup:", error);
+            await showErrorAlert(
+                "Unexpected Error",
+                "An unexpected error occurred. Please try again.",
+                "OK"
+            );
+        }
+    };
+
+    const handleCancel = () => {
+        setFormData({
+            default_jual: "0", // Both
+            status_aktif: true, // Active
+            antrian: true, // Active
+            finger: "Y", // Active
+            ip_address: ipAddress || "",
+            mac_address: macAddress || "",
+            printer_id: null,
+        });
+        setSelectedPrinterId(null);
+        setIsDataLoaded(false);
+        onClose();
+    };
+
+    const isLoading =
+        isKassaLoading || isSubmitting || !isDataLoaded || isPrinterLoading;
+
+    return (
+        <div className="fixed inset-0 flex items-center justify-center z-50">
+            <div
+                className="absolute inset-0 bg-black/50"
+                onClick={handleCancel}
+            ></div>
+
+            <div className="bg-white rounded-2xl w-full max-w-2xl relative z-10 p-6">
+                <div className="flex justify-between items-center mb-6">
+                    <h2 className="text-xl font-semibold text-[#202325]">
+                        Kassa Setup (1)
+                    </h2>
+                    <button
+                        onClick={handleCancel}
+                        disabled={isSubmitting}
+                        className="w-8 h-8 rounded-full bg-gray-100 flex items-center justify-center hover:bg-gray-200 transition-colors disabled:opacity-50"
+                    >
+                        <X className="h-4 w-4 text-gray-600" />
+                    </button>
+                </div>
+
+                {/* Loading overlay */}
+                {isLoading && (
+                    <div className="absolute inset-0 bg-white/80 flex items-center justify-center rounded-2xl z-10">
+                        <div className="flex items-center gap-3">
+                            <Loader2 className="h-6 w-6 animate-spin text-blue-600" />
+                            <span className="text-gray-600">
+                                {isKassaLoading
+                                    ? "Loading kassa data..."
+                                    : "Updating..."}
+                            </span>
+                        </div>
+                    </div>
+                )}
+
+                <div className="space-y-6">
+                    <div className="grid grid-cols-2 gap-6">
+                        <div className="space-y-4">
+                            <div className="flex items-center justify-between">
+                                <h3 className="text-base font-medium text-gray-900">
+                                    Default POS
+                                </h3>
+                                <Image
+                                    src={"icons/icon-1.svg"}
+                                    alt="icon"
+                                    width={40}
+                                    height={40}
+                                />
+                            </div>
+                            <div className="flex bg-gray-100 rounded-lg p-1">
+                                <button
+                                    type="button"
+                                    onClick={() =>
+                                        handleToggle("default_jual", "0")
+                                    }
+                                    disabled={isLoading}
+                                    className={`flex-1 py-2 px-3 rounded-md text-sm font-medium transition-colors ${
+                                        formData.default_jual === "0"
+                                            ? "bg-blue-600 text-white shadow-sm"
+                                            : "text-gray-700 hover:text-gray-900"
+                                    }`}
+                                >
+                                    Both
+                                </button>
+                                <button
+                                    type="button"
+                                    onClick={() =>
+                                        handleToggle("default_jual", "1")
+                                    }
+                                    disabled={isLoading}
+                                    className={`flex-1 py-2 px-3 rounded-md text-sm font-medium transition-colors ${
+                                        formData.default_jual === "1"
+                                            ? "bg-blue-600 text-white shadow-sm"
+                                            : "text-gray-700 hover:text-gray-900"
+                                    }`}
+                                >
+                                    Resep
+                                </button>
+                                <button
+                                    type="button"
+                                    onClick={() =>
+                                        handleToggle("default_jual", "2")
+                                    }
+                                    disabled={isLoading}
+                                    className={`flex-1 py-2 px-3 rounded-md text-sm font-medium transition-colors ${
+                                        formData.default_jual === "2"
+                                            ? "bg-blue-600 text-white shadow-sm"
+                                            : "text-gray-700 hover:text-gray-900"
+                                    }`}
+                                >
+                                    Swalayan
+                                </button>
+                            </div>
+                        </div>
+
+                        <div className="space-y-4">
+                            <div className="flex items-center justify-between">
+                                <h3 className="text-base font-medium text-gray-900">
+                                    Status
+                                </h3>
+                                <Image
+                                    src={"icons/icon-2.svg"}
+                                    alt="icon"
+                                    width={40}
+                                    height={40}
+                                />
+                            </div>
+                            <div className="flex bg-gray-100 rounded-lg p-1">
+                                <button
+                                    type="button"
+                                    onClick={() =>
+                                        handleToggle("status_aktif", true)
+                                    }
+                                    disabled={isLoading}
+                                    className={`flex-1 py-2 px-3 rounded-md text-sm font-medium transition-colors ${
+                                        formData.status_aktif
+                                            ? "bg-blue-600 text-white shadow-sm"
+                                            : "text-gray-700 hover:text-gray-900"
+                                    }`}
+                                >
+                                    Active
+                                </button>
+                                <button
+                                    type="button"
+                                    onClick={() =>
+                                        handleToggle("status_aktif", false)
+                                    }
+                                    disabled={isLoading}
+                                    className={`flex-1 py-2 px-3 rounded-md text-sm font-medium transition-colors ${
+                                        !formData.status_aktif
+                                            ? "bg-blue-600 text-white shadow-sm"
+                                            : "text-gray-700 hover:text-gray-900"
+                                    }`}
+                                >
+                                    Inactive
+                                </button>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div className="grid grid-cols-2 gap-6">
+                        <div className="space-y-4">
+                            <div className="flex items-center justify-between">
+                                <h3 className="text-base font-medium text-gray-900">
+                                    Queue (Antrian)
+                                </h3>
+                                <Image
+                                    src={"icons/icon-3.svg"}
+                                    alt="icon"
+                                    width={40}
+                                    height={40}
+                                />
+                            </div>
+                            <div className="flex bg-gray-100 rounded-lg p-1">
+                                <button
+                                    type="button"
+                                    onClick={() =>
+                                        handleToggle("antrian", true)
+                                    }
+                                    disabled={isLoading}
+                                    className={`flex-1 py-2 px-3 rounded-md text-sm font-medium transition-colors ${
+                                        formData.antrian
+                                            ? "bg-blue-600 text-white shadow-sm"
+                                            : "text-gray-700 hover:text-gray-900"
+                                    }`}
+                                >
+                                    Active
+                                </button>
+                                <button
+                                    type="button"
+                                    onClick={() =>
+                                        handleToggle("antrian", false)
+                                    }
+                                    disabled={isLoading}
+                                    className={`flex-1 py-2 px-3 rounded-md text-sm font-medium transition-colors ${
+                                        !formData.antrian
+                                            ? "bg-blue-600 text-white shadow-sm"
+                                            : "text-gray-700 hover:text-gray-900"
+                                    }`}
+                                >
+                                    Inactive
+                                </button>
+                            </div>
+                        </div>
+
+                        <div className="space-y-4">
+                            <div className="flex items-center justify-between">
+                                <h3 className="text-base font-medium text-gray-900">
+                                    Fingerprint
+                                </h3>
+                                <div className="w-12 h-12 bg-blue-100 rounded-xl flex items-center justify-center">
+                                    <Image
+                                        src={"icons/icon-4.svg"}
+                                        alt="icon"
+                                        width={40}
+                                        height={40}
+                                    />
+                                </div>
+                            </div>
+                            <div className="flex bg-gray-100 rounded-lg p-1">
+                                <button
+                                    type="button"
+                                    onClick={() => handleToggle("finger", "Y")}
+                                    disabled={isLoading}
+                                    className={`flex-1 py-2 px-3 rounded-md text-sm font-medium transition-colors ${
+                                        formData.finger === "Y"
+                                            ? "bg-blue-600 text-white shadow-sm"
+                                            : "text-gray-700 hover:text-gray-900"
+                                    }`}
+                                >
+                                    Active
+                                </button>
+                                <button
+                                    type="button"
+                                    onClick={() => handleToggle("finger", "N")}
+                                    disabled={isLoading}
+                                    className={`flex-1 py-2 px-3 rounded-md text-sm font-medium transition-colors ${
+                                        formData.finger === "N"
+                                            ? "bg-blue-600 text-white shadow-sm"
+                                            : "text-gray-700 hover:text-gray-900"
+                                    }`}
+                                >
+                                    Inactive
+                                </button>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div className="grid grid-cols-2 gap-6">
+                        <div className="space-y-4">
+                            <div className="flex items-center justify-between">
+                                <h3 className="text-base font-medium text-gray-900">
+                                    IP Address
+                                </h3>
+                                <Image
+                                    src={"icons/icon-5.svg"}
+                                    alt="icon"
+                                    width={40}
+                                    height={40}
+                                />
+                            </div>
+                            <div className="flex gap-2">
+                                <Input
+                                    value={formData.ip_address}
+                                    onChange={(e) =>
+                                        handleToggle(
+                                            "ip_address",
+                                            e.target.value
+                                        )
+                                    }
+                                    className="flex-1 bg-gray-50"
+                                    placeholder="192.168.1.20"
+                                    disabled={isLoading}
+                                />
+                                <Button
+                                    type="button"
+                                    className="bg-blue-600 hover:bg-blue-700 px-6"
+                                    disabled={isLoading}
+                                    onClick={refetchSystemInfo}
+                                >
+                                    {isSystemLoading ? (
+                                        <Loader2 className="h-4 w-4 animate-spin" />
+                                    ) : (
+                                        "Refresh"
+                                    )}
+                                </Button>
+                            </div>
+                        </div>
+
+                        <div className="space-y-4">
+                            <div className="flex items-center justify-between">
+                                <h3 className="text-base font-medium text-gray-900">
+                                    MAC Address
+                                </h3>
+                                <Image
+                                    src={"icons/icon-6.svg"}
+                                    alt="icon"
+                                    width={40}
+                                    height={40}
+                                />
+                            </div>
+                            <div className="flex gap-2">
+                                <Input
+                                    value={formData.mac_address}
+                                    onChange={(e) =>
+                                        handleToggle(
+                                            "mac_address",
+                                            e.target.value
+                                        )
+                                    }
+                                    className="flex-1 bg-gray-50"
+                                    placeholder="84-1B-77-FD-31-35"
+                                    disabled={isLoading}
+                                />
+                                <Button
+                                    type="button"
+                                    className="bg-blue-600 hover:bg-blue-700 px-6"
+                                    disabled={isLoading}
+                                    onClick={refetchSystemInfo}
+                                >
+                                    {isSystemLoading ? (
+                                        <Loader2 className="h-4 w-4 animate-spin" />
+                                    ) : (
+                                        "Refresh"
+                                    )}
+                                </Button>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div className="space-y-4">
+                        <div className="flex items-center justify-between">
+                            <h3 className="text-base font-medium text-gray-900">
+                                Active Printer
+                            </h3>
+                            <Image
+                                src={"icons/icon-7.svg"}
+                                alt="icon"
+                                width={40}
+                                height={40}
+                            />
+                        </div>
+                        <Select
+                            value={selectedPrinterId?.toString() || ""}
+                            onValueChange={(value) =>
+                                setSelectedPrinterId(
+                                    value ? parseInt(value) : null
+                                )
+                            }
+                            disabled={isLoading}
+                        >
+                            <SelectTrigger className="w-full bg-gray-50">
+                                <SelectValue
+                                    placeholder={
+                                        isPrinterLoading
+                                            ? "Loading printers..."
+                                            : printerError
+                                            ? "Error loading printers"
+                                            : "Select printer"
+                                    }
+                                />
+                            </SelectTrigger>
+                            <SelectContent>
+                                {printers.map((printer) => (
+                                    <SelectItem
+                                        key={printer.id}
+                                        value={printer.id.toString()}
+                                    >
+                                        {printer.nm_printer}
+                                        {printer.status && (
+                                            <span className="ml-2 text-xs text-green-600">
+                                                (Active)
+                                            </span>
+                                        )}
+                                    </SelectItem>
+                                ))}
+                                {printers.length === 0 && !isPrinterLoading && (
+                                    <SelectItem value="" disabled>
+                                        No printers available
+                                    </SelectItem>
+                                )}
+                            </SelectContent>
+                        </Select>
+                    </div>
+
+                    {/* Error Display */}
+                    {(kassaError || printerError) && (
+                        <div className="p-4 bg-red-50 rounded-lg">
+                            <div className="flex items-center gap-2 mb-2">
+                                <AlertCircle className="h-4 w-4 text-red-500" />
+                                <h4 className="text-sm font-medium text-red-700">
+                                    {kassaError
+                                        ? "Error Loading Kassa Data"
+                                        : "Error Loading Printer Data"}
+                                </h4>
+                            </div>
+                            <p className="text-xs text-red-600">
+                                {kassaError || printerError}
+                            </p>
+                            <Button
+                                variant="outline"
+                                size="sm"
+                                onClick={
+                                    kassaError
+                                        ? refetchKassaData
+                                        : refetchPrinters
+                                }
+                                className="mt-2 text-red-600 border-red-300 hover:bg-red-50"
+                                disabled={
+                                    kassaError
+                                        ? isKassaLoading
+                                        : isPrinterLoading
+                                }
+                            >
+                                {(
+                                    kassaError
+                                        ? isKassaLoading
+                                        : isPrinterLoading
+                                ) ? (
+                                    <Loader2 className="h-3 w-3 animate-spin mr-1" />
+                                ) : null}
+                                Retry
+                            </Button>
+                        </div>
+                    )}
+                </div>
+
+                <div className="flex gap-4 mt-8">
+                    <Button
+                        type="button"
+                        variant="outline"
+                        onClick={handleCancel}
+                        disabled={isLoading}
+                        className="flex-1 py-3 border-gray-300 text-gray-700 hover:bg-gray-50"
+                    >
+                        Cancel
+                    </Button>
+                    <Button
+                        type="button"
+                        onClick={handleSubmit}
+                        disabled={isLoading}
+                        className="flex-1 py-3 bg-blue-600 hover:bg-blue-700 text-white"
+                    >
+                        {isSubmitting ? (
+                            <>
+                                <Loader2 className="h-4 w-4 animate-spin mr-2" />
+                                Saving...
+                            </>
+                        ) : (
+                            "Save"
+                        )}
+                    </Button>
+                </div>
+            </div>
         </div>
-
-        {/* Form Content */}
-        <div className="space-y-6">
-          {/* Row 1: Default POS & Status */}
-          <div className="grid grid-cols-2 gap-6">
-            {/* Default POS */}
-            <div className="space-y-4">
-              <div className="flex items-center justify-between">
-                <h3 className="text-base font-medium text-gray-900">Default POS</h3>
-                <div className="w-12 h-12 bg-blue-100 rounded-xl flex items-center justify-center">
-                  <Router className="w-6 h-6 text-blue-600" />
-                </div>
-              </div>
-              <div className="flex bg-gray-100 rounded-lg p-1">
-                <button
-                  type="button"
-                  onClick={() => handleToggle('default_jual', '2')}
-                  disabled={isSubmitting}
-                  className={`flex-1 py-2 px-3 rounded-md text-sm font-medium transition-colors ${
-                    formData.default_jual === '2'
-                      ? 'bg-blue-600 text-white shadow-sm'
-                      : 'text-gray-700 hover:text-gray-900'
-                  }`}
-                >
-                  Both
-                </button>
-                <button
-                  type="button"
-                  onClick={() => handleToggle('default_jual', '1')}
-                  disabled={isSubmitting}
-                  className={`flex-1 py-2 px-3 rounded-md text-sm font-medium transition-colors ${
-                    formData.default_jual === '1'
-                      ? 'bg-blue-600 text-white shadow-sm'
-                      : 'text-gray-700 hover:text-gray-900'
-                  }`}
-                >
-                  Resep
-                </button>
-                <button
-                  type="button"
-                  onClick={() => handleToggle('default_jual', '0')}
-                  disabled={isSubmitting}
-                  className={`flex-1 py-2 px-3 rounded-md text-sm font-medium transition-colors ${
-                    formData.default_jual === '0'
-                      ? 'bg-blue-600 text-white shadow-sm'
-                      : 'text-gray-700 hover:text-gray-900'
-                  }`}
-                >
-                  Swalayan
-                </button>
-              </div>
-            </div>
-
-            {/* Status */}
-            <div className="space-y-4">
-              <div className="flex items-center justify-between">
-                <h3 className="text-base font-medium text-gray-900">Status</h3>
-                <div className="w-12 h-12 bg-blue-100 rounded-xl flex items-center justify-center">
-                  <div className="w-6 h-6 bg-blue-600 rounded-sm"></div>
-                </div>
-              </div>
-              <div className="flex bg-gray-100 rounded-lg p-1">
-                <button
-                  type="button"
-                  onClick={() => handleToggle('status_aktif', true)}
-                  disabled={isSubmitting}
-                  className={`flex-1 py-2 px-3 rounded-md text-sm font-medium transition-colors ${
-                    formData.status_aktif
-                      ? 'bg-blue-600 text-white shadow-sm'
-                      : 'text-gray-700 hover:text-gray-900'
-                  }`}
-                >
-                  Active
-                </button>
-                <button
-                  type="button"
-                  onClick={() => handleToggle('status_aktif', false)}
-                  disabled={isSubmitting}
-                  className={`flex-1 py-2 px-3 rounded-md text-sm font-medium transition-colors ${
-                    !formData.status_aktif
-                      ? 'bg-blue-600 text-white shadow-sm'
-                      : 'text-gray-700 hover:text-gray-900'
-                  }`}
-                >
-                  Inactive
-                </button>
-              </div>
-            </div>
-          </div>
-
-          {/* Row 2: Queue & Fingerprint */}
-          <div className="grid grid-cols-2 gap-6">
-            {/* Queue (Antrian) */}
-            <div className="space-y-4">
-              <div className="flex items-center justify-between">
-                <h3 className="text-base font-medium text-gray-900">Queue (Antrian)</h3>
-                <div className="w-12 h-12 bg-blue-100 rounded-xl flex items-center justify-center">
-                  <Wifi className="w-6 h-6 text-blue-600" />
-                </div>
-              </div>
-              <div className="flex bg-gray-100 rounded-lg p-1">
-                <button
-                  type="button"
-                  onClick={() => handleToggle('antrian', true)}
-                  disabled={isSubmitting}
-                  className={`flex-1 py-2 px-3 rounded-md text-sm font-medium transition-colors ${
-                    formData.antrian
-                      ? 'bg-blue-600 text-white shadow-sm'
-                      : 'text-gray-700 hover:text-gray-900'
-                  }`}
-                >
-                  Active
-                </button>
-                <button
-                  type="button"
-                  onClick={() => handleToggle('antrian', false)}
-                  disabled={isSubmitting}
-                  className={`flex-1 py-2 px-3 rounded-md text-sm font-medium transition-colors ${
-                    !formData.antrian
-                      ? 'bg-blue-600 text-white shadow-sm'
-                      : 'text-gray-700 hover:text-gray-900'
-                  }`}
-                >
-                  Inactive
-                </button>
-              </div>
-            </div>
-
-            {/* Fingerprint */}
-            <div className="space-y-4">
-              <div className="flex items-center justify-between">
-                <h3 className="text-base font-medium text-gray-900">Fingerprint</h3>
-                <div className="w-12 h-12 bg-blue-100 rounded-xl flex items-center justify-center">
-                  <Fingerprint className="w-6 h-6 text-blue-600" />
-                </div>
-              </div>
-              <div className="flex bg-gray-100 rounded-lg p-1">
-                <button
-                  type="button"
-                  onClick={() => handleToggle('finger', 'Y')}
-                  disabled={isSubmitting}
-                  className={`flex-1 py-2 px-3 rounded-md text-sm font-medium transition-colors ${
-                    formData.finger === 'Y'
-                      ? 'bg-blue-600 text-white shadow-sm'
-                      : 'text-gray-700 hover:text-gray-900'
-                  }`}
-                >
-                  Active
-                </button>
-                <button
-                  type="button"
-                  onClick={() => handleToggle('finger', 'N')}
-                  disabled={isSubmitting}
-                  className={`flex-1 py-2 px-3 rounded-md text-sm font-medium transition-colors ${
-                    formData.finger === 'N'
-                      ? 'bg-blue-600 text-white shadow-sm'
-                      : 'text-gray-700 hover:text-gray-900'
-                  }`}
-                >
-                  Inactive
-                </button>
-              </div>
-            </div>
-          </div>
-
-          {/* Row 3: IP Address & MAC Address */}
-          <div className="grid grid-cols-2 gap-6">
-            {/* IP Address */}
-            <div className="space-y-4">
-              <div className="flex items-center justify-between">
-                <h3 className="text-base font-medium text-gray-900">IP Address</h3>
-                <div className="w-12 h-12 bg-blue-100 rounded-xl flex items-center justify-center">
-                  <Wifi className="w-6 h-6 text-blue-600" />
-                </div>
-              </div>
-              <div className="flex gap-2">
-                <Input
-                  value={formData.ip_address}
-                  onChange={(e) => handleToggle('ip_address', e.target.value)}
-                  className="flex-1 bg-gray-50"
-                  placeholder="192.168.1.20"
-                  disabled={isSubmitting}
-                />
-                <Button
-                  type="button"
-                  className="bg-blue-600 hover:bg-blue-700 px-6"
-                  disabled={isSubmitting}
-                >
-                  Search
-                </Button>
-              </div>
-            </div>
-
-            {/* MAC Address */}
-            <div className="space-y-4">
-              <div className="flex items-center justify-between">
-                <h3 className="text-base font-medium text-gray-900">MAC Address</h3>
-                <div className="w-12 h-12 bg-blue-100 rounded-xl flex items-center justify-center">
-                  <div className="w-6 h-6 bg-blue-600 rounded-sm"></div>
-                </div>
-              </div>
-              <div className="flex gap-2">
-                <Input
-                  value={formData.mac_address}
-                  onChange={(e) => handleToggle('mac_address', e.target.value)}
-                  className="flex-1 bg-gray-50"
-                  placeholder="84-1B-77-FD-31-35"
-                  disabled={isSubmitting}
-                />
-                <Button
-                  type="button"
-                  className="bg-blue-600 hover:bg-blue-700 px-6"
-                  disabled={isSubmitting}
-                >
-                  Search
-                </Button>
-              </div>
-            </div>
-          </div>
-
-          {/* Row 4: Active Printer */}
-          <div className="space-y-4">
-            <div className="flex items-center justify-between">
-              <h3 className="text-base font-medium text-gray-900">Active Printer</h3>
-              <div className="w-12 h-12 bg-blue-100 rounded-xl flex items-center justify-center">
-                <Printer className="w-6 h-6 text-blue-600" />
-              </div>
-            </div>
-            <Select value={selectedPrinter} onValueChange={setSelectedPrinter} disabled={isSubmitting}>
-              <SelectTrigger className="w-full bg-gray-50">
-                <SelectValue placeholder="Select printer" />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="Epson TMU 220B-776 Auto Cutter USB Dot Matrix">
-                  Epson TMU 220B-776 Auto Cutter USB Dot Matrix
-                </SelectItem>
-                <SelectItem value="Epson TMU Auto Cutter">
-                  Epson TMU Auto Cutter
-                </SelectItem>
-                <SelectItem value="HP LaserJet">
-                  HP LaserJet
-                </SelectItem>
-              </SelectContent>
-            </Select>
-          </div>
-        </div>
-
-        {/* Action Buttons */}
-        <div className="flex gap-4 mt-8">
-          <Button
-            type="button"
-            variant="outline"
-            onClick={handleCancel}
-            disabled={isSubmitting}
-            className="flex-1 py-3 border-gray-300 text-gray-700 hover:bg-gray-50"
-          >
-            Cancel
-          </Button>
-          <Button
-            type="button"
-            onClick={handleSubmit}
-            disabled={isSubmitting}
-            className="flex-1 py-3 bg-blue-600 hover:bg-blue-700 text-white"
-          >
-            {isSubmitting ? 'Saving...' : 'Save'}
-          </Button>
-        </div>
-      </div>
-    </div>
-  );
+    );
 };
 
 export default KassaSetupDialog;
