@@ -1,4 +1,4 @@
-// components/shared/payment-dialog.tsx - UPDATED TO KEEP TRANSACTION DETAILS LIST
+// components/shared/payment-dialog.tsx - COMPLETE VERSION WITH FIXED SYNTAX
 "use client";
 
 import { useState } from "react";
@@ -6,444 +6,920 @@ import { X } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
+    Select,
+    SelectContent,
+    SelectItem,
+    SelectTrigger,
+    SelectValue,
 } from "@/components/ui/select";
+import { showSuccessAlert, showErrorAlert, showLoadingAlert } from "@/lib/swal";
+import Swal from "sweetalert2";
+
+interface CustomerData {
+    id: number;
+    name: string;
+    gender: string;
+    age: string;
+    phone: string;
+    address: string;
+    status: string;
+}
+
+interface DoctorData {
+    id: number;
+    fullname: string;
+    phone: string;
+    address: string;
+    fee_consultation?: number;
+    sip: string;
+}
+
+interface TransactionTypeData {
+    medicineType: "Compounded" | "Ready to Use";
+    transactionType: "Full Prescription" | "Partial Prescription";
+    availability: "Available" | "Patient Credit";
+}
+
+interface ProductItem {
+    id: number;
+    name: string;
+    quantity: number;
+    price: number;
+    subtotal: number;
+    discount: number;
+    sc: number;
+    misc: number;
+    promo: number;
+    total: number;
+    stockData?: {
+        kode_brg: string;
+    };
+    up?: string;
+}
 
 interface PaymentDialogProps {
-  isOpen: boolean;
-  onClose: () => void;
-  onPaymentSuccess: () => void;
-  totalAmount: number;
-  orderDetails: {
-    customer: string;
-    items: { name: string; quantity: number; price: number }[];
-  };
+    isOpen: boolean;
+    onClose: () => void;
+    onPaymentSuccess: () => void;
+    totalAmount: number;
+    orderDetails: {
+        customer: string;
+        items: { name: string; quantity: number; price: number }[];
+    };
+    customerData?: CustomerData | null;
+    doctorData?: DoctorData | null;
+    transactionTypeData?: TransactionTypeData | null;
+    products?: ProductItem[];
 }
 
 export default function PaymentDialog({
-  isOpen,
-  onClose,
-  onPaymentSuccess,
-  totalAmount,
-  orderDetails,
+    isOpen,
+    onClose,
+    onPaymentSuccess,
+    totalAmount,
+    orderDetails,
+    customerData,
+    doctorData,
+    transactionTypeData,
+    products = [],
 }: PaymentDialogProps) {
-  // Form states for different payment methods
-  const [cashAmount, setCashAmount] = useState("");
-  const [debitAmount, setDebitAmount] = useState("");
-  const [debitBank, setDebitBank] = useState("BCA");
-  const [debitAccountNumber, setDebitAccountNumber] = useState("");
-  const [debitEDCMachine, setDebitEDCMachine] = useState("BCA");
-  const [debitCardType, setDebitCardType] = useState("");
-  const [creditAmount, setCreditAmount] = useState("");
-  const [creditBank, setCreditBank] = useState("BCA");
-  const [creditAccountNumber, setCreditAccountNumber] = useState("");
-  const [creditEDCMachine, setCreditEDCMachine] = useState("BCA");
-  const [creditCardType, setCreditCardType] = useState("");
+    // Payment form states
+    const [cashAmount, setCashAmount] = useState("");
+    const [debitAmount, setDebitAmount] = useState("");
+    const [debitBank, setDebitBank] = useState("BCA");
+    const [debitAccountNumber, setDebitAccountNumber] = useState("");
+    const [debitEDCMachine, setDebitEDCMachine] = useState("BCA");
+    const [debitCardType, setDebitCardType] = useState("");
+    const [creditAmount, setCreditAmount] = useState("");
+    const [creditBank, setCreditBank] = useState("BCA");
+    const [creditAccountNumber, setCreditAccountNumber] = useState("");
+    const [creditEDCMachine, setCreditEDCMachine] = useState("BCA");
+    const [creditCardType, setCreditCardType] = useState("");
+    const [isProcessing, setIsProcessing] = useState(false);
 
-  if (!isOpen) return null;
+    if (!isOpen) return null;
 
-  const handlePayment = () => {
-    // Add validation logic here if needed
-    onPaymentSuccess();
-  };
+    // Helper function to get system info
+    const getSystemInfo = async () => {
+        try {
+            const response = await fetch("/api/system-info");
+            const data = await response.json();
 
-  const renderPaymentMethodContent = () => {
-    return (
-      <div className="space-y-6">
-        {/* Cash Card with Form */}
-        <div className="border border-gray-300 rounded-2xl p-4">
-          <div className="flex items-center gap-3 mb-4">
-            <div className="w-10 h-10 bg-green-50 rounded-xl flex items-center justify-center">
-              <svg
-                className="w-6 h-6 text-green-600"
-                fill="currentColor"
-                viewBox="0 0 24 24"
-              >
-                <path d="M2 6a2 2 0 012-2h16a2 2 0 012 2v8a2 2 0 01-2 2H4a2 2 0 01-2-2V6zm2 0v8h16V6H4zm2 1h2v1H6V7zm0 2h2v1H6V9zm4-2h8v1h-8V7z" />
-              </svg>
-            </div>
-            <span className="font-medium text-gray-900 text-lg">Cash</span>
-          </div>
+            if (data.success && data.data.ipAddresses) {
+                const activeInterface = data.data.ipAddresses.find(
+                    (iface: any) =>
+                        !iface.isLoopback && iface.macAddress && iface.isUp
+                );
+                return (
+                    activeInterface?.macAddress || data.data.macAddresses?.[0]
+                );
+            }
+            return null;
+        } catch (error) {
+            console.error("Error getting system info:", error);
+            return null;
+        }
+    };
 
-          <div>
-            <label className="block text-base font-medium text-gray-700 mb-3">
-              Amount
-            </label>
-            <div className="relative">
-              <span className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-500 font-medium">
-                Rp
-              </span>
-              <Input
-                type="text"
-                value={cashAmount}
-                onChange={(e) => setCashAmount(e.target.value)}
-                placeholder="0"
-                className="pl-10 bg-gray-50 border-gray-300 rounded-xl h-12 text-base"
-              />
-            </div>
-          </div>
-        </div>
+    // Helper function to get next invoice
+    const getNextInvoice = async () => {
+        try {
+            const response = await fetch(
+                "/api/transaction/next-invoice?transaction_type=1"
+            );
+            const data = await response.json();
+            return data.data?.invoice_number || "S25080315";
+        } catch (error) {
+            console.error("Error getting next invoice:", error);
+            return "S25080315";
+        }
+    };
 
-        {/* Debit Card with Form */}
-        <div className="border border-gray-300 rounded-2xl p-4">
-          <div className="flex items-center gap-3 mb-4">
-            <div className="w-10 h-10 bg-blue-50 rounded-xl flex items-center justify-center">
-              <svg
-                className="w-6 h-6 text-blue-600"
-                fill="currentColor"
-                viewBox="0 0 24 24"
-              >
-                <path d="M4 4a2 2 0 00-2 2v1h16V6a2 2 0 00-2-2H4z" />
-                <path
-                  fillRule="evenodd"
-                  d="M18 9H2v5a2 2 0 002 2h12a2 2 0 002-2V9zM4 13a1 1 0 011-1h1a1 1 0 110 2H5a1 1 0 01-1-1zm5-1a1 1 0 100 2h1a1 1 0 100-2H9z"
-                  clipRule="evenodd"
-                />
-              </svg>
-            </div>
-            <span className="font-medium text-gray-900 text-lg">
-              Debit Card
-            </span>
-          </div>
+    // Helper function to get transaction type from kassa
+    const getTransactionType = async (macAddress: string) => {
+        try {
+            const response = await fetch(`/api/kassa/${macAddress}`);
+            const data = await response.json();
+            return data.success ? data.data?.default_jual || "1" : "1";
+        } catch (error) {
+            console.error("Error getting transaction type:", error);
+            return "1";
+        }
+    };
 
-          <div className="space-y-4">
-            <div className="grid grid-cols-2 gap-4">
-              <div>
-                <label className="block text-base font-medium text-gray-700 mb-3">
-                  Amount
-                </label>
-                <div className="relative">
-                  <span className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-500 font-medium">
-                    Rp
-                  </span>
-                  <Input
-                    type="text"
-                    value={debitAmount}
-                    onChange={(e) => setDebitAmount(e.target.value)}
-                    placeholder="0"
-                    className="pl-10 bg-gray-50 border-gray-300 rounded-xl h-12 text-base"
-                  />
-                </div>
-              </div>
-              <div>
-                <label className="block text-base font-medium text-gray-700 mb-3">
-                  Nama Area
-                </label>
-                <Select value={debitBank} onValueChange={setDebitBank}>
-                  <SelectTrigger className="bg-gray-50 border-gray-300 rounded-xl h-12">
-                    <SelectValue />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="BCA">BCA</SelectItem>
-                    <SelectItem value="Mandiri">Mandiri</SelectItem>
-                    <SelectItem value="BRI">BRI</SelectItem>
-                    <SelectItem value="BNI">BNI</SelectItem>
-                  </SelectContent>
-                </Select>
-              </div>
-            </div>
+    // Calculate payment totals and change
+    const calculatePayment = () => {
+        const cash = parseFloat(cashAmount) || 0;
+        const debit = parseFloat(debitAmount) || 0;
+        const credit = parseFloat(creditAmount) || 0;
 
-            <div className="grid grid-cols-3 gap-4">
-              <div>
-                <label className="block text-base font-medium text-gray-700 mb-3">
-                  Account Number
-                </label>
-                <Input
-                  type="text"
-                  value={debitAccountNumber}
-                  onChange={(e) => setDebitAccountNumber(e.target.value)}
-                  placeholder="Enter Number"
-                  className="bg-gray-50 border-gray-300 rounded-xl h-12"
-                />
-              </div>
-              <div>
-                <label className="block text-base font-medium text-gray-700 mb-3">
-                  EDC Machine
-                </label>
-                <Select
-                  value={debitEDCMachine}
-                  onValueChange={setDebitEDCMachine}
-                >
-                  <SelectTrigger className="bg-gray-50 border-gray-300 rounded-xl h-12">
-                    <SelectValue />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="BCA">BCA</SelectItem>
-                    <SelectItem value="Mandiri">Mandiri</SelectItem>
-                    <SelectItem value="BRI">BRI</SelectItem>
-                  </SelectContent>
-                </Select>
-              </div>
-              <div>
-                <label className="block text-base font-medium text-gray-700 mb-3">
-                  Credit Card Type
-                </label>
-                <Input
-                  type="text"
-                  value={debitCardType}
-                  onChange={(e) => setDebitCardType(e.target.value)}
-                  placeholder="Enter/Select"
-                  className="bg-gray-50 border-gray-300 rounded-xl h-12"
-                />
-              </div>
-            </div>
-          </div>
-        </div>
+        const totalPaid = cash + debit + credit;
+        const changeCash = Math.max(0, cash - totalAmount);
+        const changeDC = Math.max(0, debit - totalAmount);
+        const changeCC = Math.max(0, credit - totalAmount);
 
-        {/* Credit Card with Form */}
-        <div className="border border-gray-300 rounded-2xl p-4">
-          <div className="flex items-center gap-3 mb-4">
-            <div className="w-10 h-10 bg-blue-50 rounded-xl flex items-center justify-center">
-              <svg
-                className="w-6 h-6 text-blue-600"
-                fill="currentColor"
-                viewBox="0 0 24 24"
-              >
-                <path d="M4 4a2 2 0 00-2 2v1h16V6a2 2 0 00-2-2H4z" />
-                <path
-                  fillRule="evenodd"
-                  d="M18 9H2v5a2 2 0 002 2h12a2 2 0 002-2V9zM4 13a1 1 0 011-1h1a1 1 0 110 2H5a1 1 0 01-1-1zm5-1a1 1 0 100 2h1a1 1 0 100-2H9z"
-                  clipRule="evenodd"
-                />
-              </svg>
-            </div>
-            <span className="font-medium text-gray-900 text-lg">
-              Credit Card
-            </span>
-          </div>
+        return {
+            cash,
+            debit,
+            credit,
+            totalPaid,
+            changeCash,
+            changeDC,
+            changeCC,
+        };
+    };
 
-          <div className="space-y-4">
-            <div className="grid grid-cols-2 gap-4">
-              <div>
-                <label className="block text-base font-medium text-gray-700 mb-3">
-                  Amount
-                </label>
-                <div className="relative">
-                  <span className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-500 font-medium">
-                    Rp
-                  </span>
-                  <Input
-                    type="text"
-                    value={creditAmount}
-                    onChange={(e) => setCreditAmount(e.target.value)}
-                    placeholder="0"
-                    className="pl-10 bg-gray-50 border-gray-300 rounded-xl h-12 text-base"
-                  />
-                </div>
-              </div>
-              <div>
-                <label className="block text-base font-medium text-gray-700 mb-3">
-                  Nama Area
-                </label>
-                <Select value={creditBank} onValueChange={setCreditBank}>
-                  <SelectTrigger className="bg-gray-50 border-gray-300 rounded-xl h-12">
-                    <SelectValue />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="BCA">BCA</SelectItem>
-                    <SelectItem value="Mandiri">Mandiri</SelectItem>
-                    <SelectItem value="BRI">BRI</SelectItem>
-                    <SelectItem value="BNI">BNI</SelectItem>
-                  </SelectContent>
-                </Select>
-              </div>
-            </div>
+    // Build transaction items from products
+    const buildTransactionItems = () => {
+        return products.map((product) => ({
+            transaction_action: "1",
+            product_code: product.stockData?.kode_brg || "",
+            quantity: product.quantity,
+            prescription_code:
+                transactionTypeData?.medicineType === "Compounded"
+                    ? "RC"
+                    : "R/",
+            sub_total: product.subtotal || 0,
+            nominal_discount:
+                (product.subtotal || 0) * ((product.discount || 0) / 100),
+            discount: product.discount || 0,
+            service_fee: product.sc || 0,
+            misc: product.misc || 0,
+            disc_promo: 0, // Promo percentage - will be calculated from promo
+            value_promo: product.promo || 0,
+            no_promo: "",
+            promo_type: "1",
+            up_selling: product.up === "Y" ? "Y" : "N",
+            total: product.total || product.subtotal || 0,
+            round_up: 0,
+        }));
+    };
 
-            <div className="grid grid-cols-3 gap-4">
-              <div>
-                <label className="block text-base font-medium text-gray-700 mb-3">
-                  Account Number
-                </label>
-                <Input
-                  type="text"
-                  value={creditAccountNumber}
-                  onChange={(e) => setCreditAccountNumber(e.target.value)}
-                  placeholder="Enter Number"
-                  className="bg-gray-50 border-gray-300 rounded-xl h-12"
-                />
-              </div>
-              <div>
-                <label className="block text-base font-medium text-gray-700 mb-3">
-                  EDC Machine
-                </label>
-                <Select
-                  value={creditEDCMachine}
-                  onValueChange={setCreditEDCMachine}
-                >
-                  <SelectTrigger className="bg-gray-50 border-gray-300 rounded-xl h-12">
-                    <SelectValue />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="BCA">BCA</SelectItem>
-                    <SelectItem value="Mandiri">Mandiri</SelectItem>
-                    <SelectItem value="BRI">BRI</SelectItem>
-                  </SelectContent>
-                </Select>
-              </div>
-              <div>
-                <label className="block text-base font-medium text-gray-700 mb-3">
-                  Credit Card Type
-                </label>
-                <Input
-                  type="text"
-                  value={creditCardType}
-                  onChange={(e) => setCreditCardType(e.target.value)}
-                  placeholder="Enter/Select"
-                  className="bg-gray-50 border-gray-300 rounded-xl h-12"
-                />
-              </div>
-            </div>
-          </div>
-        </div>
-      </div>
-    );
-  };
+    // Handle payment submission
+    const handlePayment = async () => {
+        if (isProcessing) return;
 
-  return (
-    <div className="fixed inset-0 bg-black/50 z-50 flex items-center justify-center">
-      <div className="bg-white rounded-2xl w-full max-w-6xl max-h-[95vh] flex flex-col">
-        {/* Header */}
-        <div className="flex justify-between items-center p-6 border-b border-gray-200">
-          <h2 className="text-xl font-semibold text-gray-900">
-            Payment Option
-          </h2>
-          <button
-            onClick={onClose}
-            className="w-8 h-8 flex items-center justify-center rounded-full border border-gray-300 hover:border-gray-400 transition-colors"
-          >
-            <X className="h-4 w-4 text-gray-600" />
-          </button>
-        </div>
+        try {
+            setIsProcessing(true);
 
-        {/* Content */}
-        <div className="flex-1 overflow-auto">
-          <div className="grid grid-cols-2 h-full">
-            {/* Left Column - Customer & Transaction Info */}
-            <div className="p-6">
-              {/* Customer Information */}
-              <div className="mb-6">
-                <div className="flex items-center gap-4">
-                  <div className="w-12 h-12 bg-blue-100 rounded-lg flex items-center justify-center">
-                    <span className="text-blue-800 font-semibold text-sm">
-                      84
-                    </span>
-                  </div>
-                  <div className="flex-1">
-                    <h3 className="font-semibold text-gray-900">
-                      {orderDetails.customer}
-                    </h3>
-                    <p className="text-sm text-gray-600">+625490047055</p>
-                  </div>
-                  <div className="text-right text-sm text-gray-600">
-                    <p>August 17, 2025</p>
-                    <p>09:52 AM</p>
-                  </div>
-                </div>
-              </div>
+            // Show loading alert
+            showLoadingAlert(
+                "Processing Payment",
+                "Please wait while we process your payment..."
+            );
 
-              {/* Transaction Details */}
-              <div className="border border-gray-300 rounded-2xl p-4">
-                <h4 className="font-semibold text-gray-900 text-lg mb-4">
-                  Transaction Details
-                </h4>
+            // Validate payment amounts
+            const payment = calculatePayment();
 
-                {/* Product Items List - KEEP THIS SECTION */}
-                <div className="max-h-[240px] overflow-y-auto space-y-4 mb-6">
-                  {orderDetails.items.length > 0 ? (
-                    orderDetails.items.map((item, index) => (
-                      <div
-                        key={index}
-                        className="flex justify-between items-start"
-                      >
-                        <div className="flex-1">
-                          <div className="flex justify-between items-center">
-                            <p className="font-medium text-gray-900">
-                              {item.name}
-                            </p>
-                            <span className="font-semibold text-gray-900 ml-4">
-                              {item.quantity}x
-                            </span>
-                          </div>
-                          <p className="font-semibold text-gray-900 mt-1">
-                            Rp {item.price.toLocaleString("id-ID")}
-                          </p>
+            if (payment.totalPaid < totalAmount) {
+                Swal.close();
+                showErrorAlert(
+                    "Insufficient Payment",
+                    "Payment amount is less than total amount required."
+                );
+                return;
+            }
+
+            // Get required API data
+            const [macAddress, invoiceNumber] = await Promise.all([
+                getSystemInfo(),
+                getNextInvoice(),
+            ]);
+
+            if (!macAddress) {
+                Swal.close();
+                showErrorAlert(
+                    "System Error",
+                    "Unable to get system MAC address. Please try again."
+                );
+                return;
+            }
+
+            const transactionType = await getTransactionType(macAddress);
+
+            // Calculate totals
+            const subTotal = products.reduce(
+                (sum, p) => sum + (p.subtotal || 0),
+                0
+            );
+            const totalMisc = products.reduce(
+                (sum, p) => sum + (p.misc || 0),
+                0
+            );
+            const totalServiceFee = products.reduce(
+                (sum, p) => sum + (p.sc || 0),
+                0
+            );
+            const totalDiscount = products.reduce(
+                (sum, p) => sum + (p.subtotal || 0) * ((p.discount || 0) / 100),
+                0
+            );
+            const totalPromo = products.reduce(
+                (sum, p) => sum + (p.promo || 0),
+                0
+            );
+
+            // Build transaction payload
+            const transactionPayload = {
+                mac_address: macAddress,
+                invoice_number: invoiceNumber,
+                notes: "",
+                customer_id: customerData?.id || 1,
+                doctor_id: doctorData?.id || "",
+                corporate_code: "",
+                transaction_type: transactionType,
+                transaction_action: "1",
+
+                // Items
+                items: buildTransactionItems(),
+
+                // Payment breakdown
+                cash: payment.cash,
+                change_cash: payment.changeCash,
+                change_cc: payment.changeCC,
+                change_dc: payment.changeDC,
+                credit_card: payment.credit,
+                debit_card: payment.debit,
+                no_cc: creditAccountNumber || "",
+                no_dc: debitAccountNumber || "",
+                edc_cc: creditEDCMachine || "",
+                edc_dc: debitEDCMachine || "",
+                publisher_cc: creditBank || "",
+                publisher_dc: debitBank || "",
+                type_cc: creditCardType || "",
+                type_dc: debitCardType || "",
+
+                // Transaction type data (from modal)
+                compunded: transactionTypeData?.medicineType === "Compounded",
+                full_prescription:
+                    transactionTypeData?.transactionType ===
+                    "Full Prescription",
+                availability: transactionTypeData?.availability === "Available",
+
+                // Transaction summary
+                sub_total: subTotal,
+                misc: totalMisc,
+                service_fee: totalServiceFee,
+                discount: totalDiscount,
+                promo: totalPromo,
+                round_up: 0,
+                grand_total: totalAmount,
+            };
+
+            console.log("🚀 Sending transaction payload:", transactionPayload);
+
+            // Get auth token from cookies
+            const authToken = document.cookie
+                .split("; ")
+                .find((row) => row.startsWith("auth-token="))
+                ?.split("=")[1];
+
+            // Send to API
+            const response = await fetch("/api/transaction", {
+                method: "POST",
+                headers: {
+                    "Content-Type": "application/json",
+                    Authorization: authToken ? `Bearer ${authToken}` : "",
+                },
+                body: JSON.stringify(transactionPayload),
+            });
+
+            const result = await response.json();
+
+            Swal.close();
+
+            if (!response.ok) {
+                console.error("Transaction API error:", result);
+                showErrorAlert(
+                    "Payment Failed",
+                    result.message || `Server error: ${response.status}`
+                );
+                return;
+            }
+
+            // Success
+            console.log("✅ Transaction successful:", result);
+            showSuccessAlert(
+                "Payment Successful!",
+                `Transaction ${invoiceNumber} has been processed successfully.`,
+                2000
+            );
+
+            // Reset form
+            resetForm();
+
+            // Call success callback
+            onPaymentSuccess();
+        } catch (error) {
+            console.error("❌ Payment error:", error);
+            Swal.close();
+            showErrorAlert(
+                "Payment Error",
+                "An unexpected error occurred. Please try again."
+            );
+        } finally {
+            setIsProcessing(false);
+        }
+    };
+
+    // Reset form function
+    const resetForm = () => {
+        setCashAmount("");
+        setDebitAmount("");
+        setDebitBank("BCA");
+        setDebitAccountNumber("");
+        setDebitEDCMachine("BCA");
+        setDebitCardType("");
+        setCreditAmount("");
+        setCreditBank("BCA");
+        setCreditAccountNumber("");
+        setCreditEDCMachine("BCA");
+        setCreditCardType("");
+    };
+
+    // Handle close
+    const handleClose = () => {
+        if (isProcessing) return;
+        resetForm();
+        onClose();
+    };
+
+    const renderPaymentMethodContent = () => {
+        return (
+            <div className="space-y-6">
+                {/* Cash Card */}
+                <div className="border border-gray-300 rounded-2xl p-4">
+                    <div className="flex items-center gap-3 mb-4">
+                        <div className="w-10 h-10 bg-green-50 rounded-xl flex items-center justify-center">
+                            <svg
+                                className="w-6 h-6 text-green-600"
+                                fill="currentColor"
+                                viewBox="0 0 24 24"
+                            >
+                                <path d="M2 6a2 2 0 012-2h16a2 2 0 012 2v8a2 2 0 01-2 2H4a2 2 0 01-2-2V6zm2 0v8h16V6H4zm2 1h2v1H6V7zm0 2h2v1H6V9zm4-2h8v1h-8V7z" />
+                            </svg>
                         </div>
-                      </div>
-                    ))
-                  ) : (
-                    <div className="text-center text-gray-500 py-4">
-                      No items in transaction
+                        <span className="font-medium text-gray-900 text-lg">
+                            Cash
+                        </span>
                     </div>
-                  )}
+                    <div>
+                        <label className="block text-base font-medium text-gray-700 mb-3">
+                            Amount
+                        </label>
+                        <div className="relative">
+                            <span className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-500 font-medium">
+                                Rp
+                            </span>
+                            <Input
+                                type="number"
+                                value={cashAmount}
+                                onChange={(e) => setCashAmount(e.target.value)}
+                                placeholder="0"
+                                className="pl-10 bg-gray-50 border-gray-300 rounded-xl h-12 text-base"
+                                disabled={isProcessing}
+                            />
+                        </div>
+                    </div>
                 </div>
 
-                {/* Transaction Summary */}
-                <div className="border-t border-gray-300 pt-4 space-y-3">
-                  <div className="flex justify-between">
-                    <span className="font-medium text-gray-900">Sub Total</span>
-                    <span className="font-semibold text-gray-900">
-                      Rp {totalAmount.toLocaleString("id-ID")}
-                    </span>
-                  </div>
-                  <div className="flex justify-between">
-                    <span className="font-medium text-gray-900">Misc</span>
-                    <span className="font-semibold text-gray-900">Rp 0</span>
-                  </div>
-                  <div className="flex justify-between">
-                    <span className="font-medium text-gray-900">SC</span>
-                    <span className="font-semibold text-gray-900">Rp 0</span>
-                  </div>
-                  <div className="flex justify-between">
-                    <span className="font-medium text-gray-900">Discount</span>
-                    <span className="font-semibold text-gray-900">Rp 0</span>
-                  </div>
-                  <div className="flex justify-between">
-                    <span className="font-medium text-gray-900">Promo</span>
-                    <span className="font-semibold text-gray-900">Rp 0</span>
-                  </div>
-
-                  <div className="border-t border-gray-300 pt-4 mt-4">
-                    <div className="flex justify-between">
-                      <span className="text-lg font-bold text-gray-900">
-                        Grand Total
-                      </span>
-                      <span className="text-lg font-bold text-gray-900">
-                        Rp {totalAmount.toLocaleString("id-ID")}
-                      </span>
+                {/* Debit Card */}
+                <div className="border border-gray-300 rounded-2xl p-4">
+                    <div className="flex items-center gap-3 mb-4">
+                        <div className="w-10 h-10 bg-blue-50 rounded-xl flex items-center justify-center">
+                            <svg
+                                className="w-6 h-6 text-blue-600"
+                                fill="currentColor"
+                                viewBox="0 0 24 24"
+                            >
+                                <path d="M4 4a2 2 0 00-2 2v1h16V6a2 2 0 00-2-2H4z" />
+                                <path
+                                    fillRule="evenodd"
+                                    d="M18 9H2v5a2 2 0 002 2h12a2 2 0 002-2V9zM4 13a1 1 0 011-1h1a1 1 0 110 2H5a1 1 0 01-1-1zm5-1a1 1 0 100 2h1a1 1 0 100-2H9z"
+                                    clipRule="evenodd"
+                                />
+                            </svg>
+                        </div>
+                        <span className="font-medium text-gray-900 text-lg">
+                            Debit Card
+                        </span>
                     </div>
-                  </div>
+                    <div className="space-y-4">
+                        <div className="grid grid-cols-2 gap-4">
+                            <div>
+                                <label className="block text-base font-medium text-gray-700 mb-3">
+                                    Amount
+                                </label>
+                                <div className="relative">
+                                    <span className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-500 font-medium">
+                                        Rp
+                                    </span>
+                                    <Input
+                                        type="number"
+                                        value={debitAmount}
+                                        onChange={(e) =>
+                                            setDebitAmount(e.target.value)
+                                        }
+                                        placeholder="0"
+                                        className="pl-10 bg-gray-50 border-gray-300 rounded-xl h-12 text-base"
+                                        disabled={isProcessing}
+                                    />
+                                </div>
+                            </div>
+                            <div>
+                                <label className="block text-base font-medium text-gray-700 mb-3">
+                                    Bank
+                                </label>
+                                <Select
+                                    value={debitBank}
+                                    onValueChange={setDebitBank}
+                                    disabled={isProcessing}
+                                >
+                                    <SelectTrigger className="bg-gray-50 border-gray-300 rounded-xl h-12">
+                                        <SelectValue />
+                                    </SelectTrigger>
+                                    <SelectContent>
+                                        <SelectItem value="BCA">BCA</SelectItem>
+                                        <SelectItem value="Mandiri">
+                                            Mandiri
+                                        </SelectItem>
+                                        <SelectItem value="BRI">BRI</SelectItem>
+                                        <SelectItem value="BNI">BNI</SelectItem>
+                                    </SelectContent>
+                                </Select>
+                            </div>
+                        </div>
+                        <div className="grid grid-cols-3 gap-4">
+                            <div>
+                                <label className="block text-base font-medium text-gray-700 mb-3">
+                                    Account Number
+                                </label>
+                                <Input
+                                    type="text"
+                                    value={debitAccountNumber}
+                                    onChange={(e) =>
+                                        setDebitAccountNumber(e.target.value)
+                                    }
+                                    placeholder="Enter Number"
+                                    className="bg-gray-50 border-gray-300 rounded-xl h-12"
+                                    disabled={isProcessing}
+                                />
+                            </div>
+                            <div>
+                                <label className="block text-base font-medium text-gray-700 mb-3">
+                                    EDC Machine
+                                </label>
+                                <Select
+                                    value={debitEDCMachine}
+                                    onValueChange={setDebitEDCMachine}
+                                    disabled={isProcessing}
+                                >
+                                    <SelectTrigger className="bg-gray-50 border-gray-300 rounded-xl h-12">
+                                        <SelectValue />
+                                    </SelectTrigger>
+                                    <SelectContent>
+                                        <SelectItem value="BCA">BCA</SelectItem>
+                                        <SelectItem value="Mandiri">
+                                            Mandiri
+                                        </SelectItem>
+                                        <SelectItem value="BRI">BRI</SelectItem>
+                                    </SelectContent>
+                                </Select>
+                            </div>
+                            <div>
+                                <label className="block text-base font-medium text-gray-700 mb-3">
+                                    Card Type
+                                </label>
+                                <Input
+                                    type="text"
+                                    value={debitCardType}
+                                    onChange={(e) =>
+                                        setDebitCardType(e.target.value)
+                                    }
+                                    placeholder="Enter/Select"
+                                    className="bg-gray-50 border-gray-300 rounded-xl h-12"
+                                    disabled={isProcessing}
+                                />
+                            </div>
+                        </div>
+                    </div>
                 </div>
-              </div>
-            </div>
 
-            {/* Right Column - Payment Methods */}
-            <div className="p-6 flex flex-col">
-              <div className="flex-1">{renderPaymentMethodContent()}</div>
-
-              {/* Action Buttons */}
-              <div className="flex gap-3 mt-6 pt-4 border-t border-gray-200">
-                <Button
-                  variant="outline"
-                  onClick={onClose}
-                  className="flex-1 py-3 border-gray-300 text-gray-700 hover:bg-gray-50"
-                >
-                  Cancel
-                </Button>
-                <Button
-                  onClick={handlePayment}
-                  className="flex-1 py-3 bg-blue-600 hover:bg-blue-700 text-white"
-                >
-                  Pay Now
-                </Button>
-              </div>
+                {/* Credit Card */}
+                <div className="border border-gray-300 rounded-2xl p-4">
+                    <div className="flex items-center gap-3 mb-4">
+                        <div className="w-10 h-10 bg-blue-50 rounded-xl flex items-center justify-center">
+                            <svg
+                                className="w-6 h-6 text-blue-600"
+                                fill="currentColor"
+                                viewBox="0 0 24 24"
+                            >
+                                <path d="M4 4a2 2 0 00-2 2v1h16V6a2 2 0 00-2-2H4z" />
+                                <path
+                                    fillRule="evenodd"
+                                    d="M18 9H2v5a2 2 0 002 2h12a2 2 0 002-2V9zM4 13a1 1 0 011-1h1a1 1 0 110 2H5a1 1 0 01-1-1zm5-1a1 1 0 100 2h1a1 1 0 100-2H9z"
+                                    clipRule="evenodd"
+                                />
+                            </svg>
+                        </div>
+                        <span className="font-medium text-gray-900 text-lg">
+                            Credit Card
+                        </span>
+                    </div>
+                    <div className="space-y-4">
+                        <div className="grid grid-cols-2 gap-4">
+                            <div>
+                                <label className="block text-base font-medium text-gray-700 mb-3">
+                                    Amount
+                                </label>
+                                <div className="relative">
+                                    <span className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-500 font-medium">
+                                        Rp
+                                    </span>
+                                    <Input
+                                        type="number"
+                                        value={creditAmount}
+                                        onChange={(e) =>
+                                            setCreditAmount(e.target.value)
+                                        }
+                                        placeholder="0"
+                                        className="pl-10 bg-gray-50 border-gray-300 rounded-xl h-12 text-base"
+                                        disabled={isProcessing}
+                                    />
+                                </div>
+                            </div>
+                            <div>
+                                <label className="block text-base font-medium text-gray-700 mb-3">
+                                    Bank
+                                </label>
+                                <Select
+                                    value={creditBank}
+                                    onValueChange={setCreditBank}
+                                    disabled={isProcessing}
+                                >
+                                    <SelectTrigger className="bg-gray-50 border-gray-300 rounded-xl h-12">
+                                        <SelectValue />
+                                    </SelectTrigger>
+                                    <SelectContent>
+                                        <SelectItem value="BCA">BCA</SelectItem>
+                                        <SelectItem value="Mandiri">
+                                            Mandiri
+                                        </SelectItem>
+                                        <SelectItem value="BRI">BRI</SelectItem>
+                                        <SelectItem value="BNI">BNI</SelectItem>
+                                    </SelectContent>
+                                </Select>
+                            </div>
+                        </div>
+                        <div className="grid grid-cols-3 gap-4">
+                            <div>
+                                <label className="block text-base font-medium text-gray-700 mb-3">
+                                    Account Number
+                                </label>
+                                <Input
+                                    type="text"
+                                    value={creditAccountNumber}
+                                    onChange={(e) =>
+                                        setCreditAccountNumber(e.target.value)
+                                    }
+                                    placeholder="Enter Number"
+                                    className="bg-gray-50 border-gray-300 rounded-xl h-12"
+                                    disabled={isProcessing}
+                                />
+                            </div>
+                            <div>
+                                <label className="block text-base font-medium text-gray-700 mb-3">
+                                    EDC Machine
+                                </label>
+                                <Select
+                                    value={creditEDCMachine}
+                                    onValueChange={setCreditEDCMachine}
+                                    disabled={isProcessing}
+                                >
+                                    <SelectTrigger className="bg-gray-50 border-gray-300 rounded-xl h-12">
+                                        <SelectValue />
+                                    </SelectTrigger>
+                                    <SelectContent>
+                                        <SelectItem value="BCA">BCA</SelectItem>
+                                        <SelectItem value="Mandiri">
+                                            Mandiri
+                                        </SelectItem>
+                                        <SelectItem value="BRI">BRI</SelectItem>
+                                    </SelectContent>
+                                </Select>
+                            </div>
+                            <div>
+                                <label className="block text-base font-medium text-gray-700 mb-3">
+                                    Card Type
+                                </label>
+                                <Input
+                                    type="text"
+                                    value={creditCardType}
+                                    onChange={(e) =>
+                                        setCreditCardType(e.target.value)
+                                    }
+                                    placeholder="Enter/Select"
+                                    className="bg-gray-50 border-gray-300 rounded-xl h-12"
+                                    disabled={isProcessing}
+                                />
+                            </div>
+                        </div>
+                    </div>
+                </div>
             </div>
-          </div>
+        );
+    };
+
+    return (
+        <div className="fixed inset-0 bg-black/50 z-50 flex items-center justify-center">
+            <div className="bg-white rounded-2xl w-full max-w-6xl max-h-[95vh] flex flex-col">
+                {/* Header */}
+                <div className="flex justify-between items-center p-6 border-b border-gray-200">
+                    <h2 className="text-xl font-semibold text-gray-900">
+                        Payment Option
+                    </h2>
+                    <button
+                        onClick={handleClose}
+                        disabled={isProcessing}
+                        className="w-8 h-8 flex items-center justify-center rounded-full border border-gray-300 hover:border-gray-400 transition-colors disabled:opacity-50"
+                    >
+                        <X className="h-4 w-4 text-gray-600" />
+                    </button>
+                </div>
+
+                {/* Content */}
+                <div className="flex-1 overflow-auto">
+                    <div className="grid grid-cols-2 h-full">
+                        {/* Left Column - Customer & Transaction Info */}
+                        <div className="p-6">
+                            {/* Customer Information */}
+                            <div className="mb-6">
+                                <div className="flex items-center gap-4">
+                                    <div className="w-12 h-12 bg-blue-100 rounded-lg flex items-center justify-center">
+                                        <span className="text-blue-800 font-semibold text-sm">
+                                            {customerData?.id || "??"}
+                                        </span>
+                                    </div>
+                                    <div className="flex-1">
+                                        <h3 className="font-semibold text-gray-900">
+                                            {customerData?.name ||
+                                                orderDetails.customer}
+                                        </h3>
+                                        <p className="text-sm text-gray-600">
+                                            {customerData?.phone ||
+                                                "+625490047055"}
+                                        </p>
+                                        {doctorData && (
+                                            <p className="text-sm text-blue-600">
+                                                Dr. {doctorData.fullname}
+                                            </p>
+                                        )}
+                                    </div>
+                                    <div className="text-right text-sm text-gray-600">
+                                        <p>August 17, 2025</p>
+                                        <p>09:52 AM</p>
+                                    </div>
+                                </div>
+                            </div>
+
+                            {/* Transaction Type Info */}
+                            {transactionTypeData && (
+                                <div className="mb-6 p-4 bg-blue-50 rounded-lg">
+                                    <h4 className="font-semibold text-gray-900 mb-2">
+                                        Transaction Type
+                                    </h4>
+                                    <div className="space-y-1 text-sm">
+                                        <p>
+                                            <span className="font-medium">
+                                                Medicine:
+                                            </span>{" "}
+                                            {transactionTypeData.medicineType}
+                                        </p>
+                                        <p>
+                                            <span className="font-medium">
+                                                Prescription:
+                                            </span>{" "}
+                                            {
+                                                transactionTypeData.transactionType
+                                            }
+                                        </p>
+                                        <p>
+                                            <span className="font-medium">
+                                                Availability:
+                                            </span>{" "}
+                                            {transactionTypeData.availability}
+                                        </p>
+                                    </div>
+                                </div>
+                            )}
+
+                            {/* Transaction Details */}
+                            <div className="border border-gray-300 rounded-2xl p-4">
+                                <h4 className="font-semibold text-gray-900 text-lg mb-4">
+                                    Transaction Details
+                                </h4>
+
+                                {/* Product Items List */}
+                                <div className="max-h-[240px] overflow-y-auto space-y-4 mb-6">
+                                    {products.length > 0 ? (
+                                        products.map((item, index) => (
+                                            <div
+                                                key={index}
+                                                className="flex justify-between items-start"
+                                            >
+                                                <div className="flex-1">
+                                                    <div className="flex justify-between items-center">
+                                                        <p className="font-medium text-gray-900">
+                                                            {item.name}
+                                                        </p>
+                                                        <span className="font-semibold text-gray-900 ml-4">
+                                                            {item.quantity}x
+                                                        </span>
+                                                    </div>
+                                                    <p className="font-semibold text-gray-900 mt-1">
+                                                        Rp{" "}
+                                                        {(
+                                                            item.price || 0
+                                                        ).toLocaleString(
+                                                            "id-ID"
+                                                        )}
+                                                    </p>
+                                                </div>
+                                            </div>
+                                        ))
+                                    ) : (
+                                        <div className="text-center text-gray-500 py-4">
+                                            No items in transaction
+                                        </div>
+                                    )}
+                                </div>
+
+                                {/* Transaction Summary */}
+                                <div className="border-t border-gray-300 pt-4 space-y-3">
+                                    <div className="flex justify-between">
+                                        <span className="font-medium text-gray-900">
+                                            Sub Total
+                                        </span>
+                                        <span className="font-semibold text-gray-900">
+                                            Rp{" "}
+                                            {products
+                                                .reduce(
+                                                    (sum, p) =>
+                                                        sum + (p.subtotal || 0),
+                                                    0
+                                                )
+                                                .toLocaleString("id-ID")}
+                                        </span>
+                                    </div>
+                                    <div className="flex justify-between">
+                                        <span className="font-medium text-gray-900">
+                                            Misc
+                                        </span>
+                                        <span className="font-semibold text-gray-900">
+                                            Rp{" "}
+                                            {products
+                                                .reduce(
+                                                    (sum, p) =>
+                                                        sum + (p.misc || 0),
+                                                    0
+                                                )
+                                                .toLocaleString("id-ID")}
+                                        </span>
+                                    </div>
+                                    <div className="flex justify-between">
+                                        <span className="font-medium text-gray-900">
+                                            SC
+                                        </span>
+                                        <span className="font-semibold text-gray-900">
+                                            Rp{" "}
+                                            {products
+                                                .reduce(
+                                                    (sum, p) =>
+                                                        sum + (p.sc || 0),
+                                                    0
+                                                )
+                                                .toLocaleString("id-ID")}
+                                        </span>
+                                    </div>
+                                    <div className="flex justify-between">
+                                        <span className="font-medium text-gray-900">
+                                            Discount
+                                        </span>
+                                        <span className="font-semibold text-gray-900">
+                                            Rp{" "}
+                                            {products
+                                                .reduce(
+                                                    (sum, p) =>
+                                                        sum +
+                                                        (p.subtotal || 0) *
+                                                            ((p.discount || 0) /
+                                                                100),
+                                                    0
+                                                )
+                                                .toLocaleString("id-ID")}
+                                        </span>
+                                    </div>
+                                    <div className="flex justify-between">
+                                        <span className="font-medium text-gray-900">
+                                            Promo
+                                        </span>
+                                        <span className="font-semibold text-gray-900">
+                                            Rp{" "}
+                                            {products
+                                                .reduce(
+                                                    (sum, p) =>
+                                                        sum + (p.promo || 0),
+                                                    0
+                                                )
+                                                .toLocaleString("id-ID")}
+                                        </span>
+                                    </div>
+
+                                    <div className="border-t border-gray-300 pt-4 mt-4">
+                                        <div className="flex justify-between">
+                                            <span className="text-lg font-bold text-gray-900">
+                                                Grand Total
+                                            </span>
+                                            <span className="text-lg font-bold text-gray-900">
+                                                Rp{" "}
+                                                {totalAmount.toLocaleString(
+                                                    "id-ID"
+                                                )}
+                                            </span>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+
+                        {/* Right Column - Payment Methods */}
+                        <div className="p-6 flex flex-col">
+                            <div className="flex-1">
+                                {renderPaymentMethodContent()}
+                            </div>
+
+                            {/* Action Buttons */}
+                            <div className="flex gap-3 mt-6 pt-4 border-t border-gray-200">
+                                <Button
+                                    variant="outline"
+                                    onClick={handleClose}
+                                    disabled={isProcessing}
+                                    className="flex-1 py-3 border-gray-300 text-gray-700 hover:bg-gray-50 disabled:opacity-50"
+                                >
+                                    Cancel
+                                </Button>
+                                <Button
+                                    onClick={handlePayment}
+                                    disabled={isProcessing}
+                                    className="flex-1 py-3 bg-blue-600 hover:bg-blue-700 text-white disabled:opacity-50"
+                                >
+                                    {isProcessing ? "Processing..." : "Pay Now"}
+                                </Button>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
         </div>
-      </div>
-    </div>
-  );
+    );
 }

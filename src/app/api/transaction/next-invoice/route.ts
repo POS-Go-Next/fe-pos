@@ -1,5 +1,11 @@
-// app/api/transaction/next-invoice/route.ts
+// app/api/transaction/next-invoice/route.ts - CORRECTED VERSION
 import { NextRequest, NextResponse } from "next/server";
+import { cookies } from "next/headers";
+
+export const runtime = "nodejs";
+export const dynamic = "force-dynamic";
+
+const API_BASE_URL = "https://api-pos.masivaguna.com/api";
 
 interface InvoiceApiResponse {
     message: string;
@@ -10,12 +16,18 @@ interface InvoiceApiResponse {
 
 export async function GET(request: NextRequest) {
     try {
-        // Get auth token from cookies
-        const authToken = request.cookies.get("auth-token")?.value;
+        // FIXED: Use cookies() for better server-side handling
+        const cookieStore = cookies();
+        const authToken =
+            cookieStore.get("auth-token")?.value ||
+            request.headers.get("authorization");
 
         if (!authToken) {
             return NextResponse.json(
-                { message: "Authentication required" },
+                {
+                    success: false,
+                    message: "Authentication required. Please login first.",
+                },
                 { status: 401 }
             );
         }
@@ -30,13 +42,18 @@ export async function GET(request: NextRequest) {
 
         // Call external API
         const response = await fetch(
-            `https://api-pos.masivaguna.com/api/transaction/next-invoice?transaction_type=${transactionType}`,
+            `${API_BASE_URL}/transaction/next-invoice?transaction_type=${transactionType}`,
             {
                 method: "GET",
                 headers: {
                     "Content-Type": "application/json",
-                    Authorization: `Bearer ${authToken}`,
+                    Accept: "application/json",
+                    Authorization: authToken.startsWith("Bearer ")
+                        ? authToken
+                        : `Bearer ${authToken}`,
                 },
+                // Don't cache invoice numbers
+                next: { revalidate: 0 },
             }
         );
 
@@ -49,8 +66,19 @@ export async function GET(request: NextRequest) {
         });
 
         if (!response.ok) {
+            if (response.status === 401) {
+                return NextResponse.json(
+                    {
+                        success: false,
+                        message: "Session expired. Please login again.",
+                    },
+                    { status: 401 }
+                );
+            }
+
             return NextResponse.json(
                 {
+                    success: false,
                     message:
                         data.message || "Failed to fetch next invoice number",
                 },
@@ -58,12 +86,42 @@ export async function GET(request: NextRequest) {
             );
         }
 
-        return NextResponse.json(data, { status: 200 });
+        // FIXED: Validate response data
+        if (!data.data || !data.data.invoice_number) {
+            return NextResponse.json(
+                {
+                    success: false,
+                    message: "Invalid response from invoice API",
+                },
+                { status: 400 }
+            );
+        }
+
+        // FIXED: Return consistent format with success flag
+        return NextResponse.json({
+            success: true,
+            message: "Next invoice number retrieved successfully",
+            data: data.data,
+        });
     } catch (error) {
         console.error("❌ Invoice API Error:", error);
 
+        if (error instanceof TypeError && error.message.includes("fetch")) {
+            return NextResponse.json(
+                {
+                    success: false,
+                    message: "Unable to connect to invoice API server",
+                },
+                { status: 503 }
+            );
+        }
+
         return NextResponse.json(
-            { message: "Internal server error" },
+            {
+                success: false,
+                message:
+                    "An unexpected error occurred while fetching next invoice number",
+            },
             { status: 500 }
         );
     }
