@@ -80,7 +80,6 @@ export default function CustomerDoctorDialog({
         Record<string, string>
     >({});
 
-    // Customer form state
     const [customerForm, setCustomerForm] = useState<CustomerData>({
         id: 0,
         name: "",
@@ -91,7 +90,6 @@ export default function CustomerDoctorDialog({
         status: "AKTIF",
     });
 
-    // Doctor form state
     const [doctorForm, setDoctorForm] = useState<DoctorFormData>({
         id: 0,
         fullname: "",
@@ -101,7 +99,6 @@ export default function CustomerDoctorDialog({
         sip: "",
     });
 
-    // 🔥 FIX: Simplified dropdown states
     const [doctorSearch, setDoctorSearch] = useState("");
     const [selectedDoctorId, setSelectedDoctorId] = useState<number | null>(
         null
@@ -114,16 +111,13 @@ export default function CustomerDoctorDialog({
     );
     const [isCustomerDropdownOpen, setIsCustomerDropdownOpen] = useState(false);
 
-    // 🔥 FIX: Simple refs for relative positioning
     const doctorContainerRef = useRef<HTMLDivElement>(null);
     const customerContainerRef = useRef<HTMLDivElement>(null);
 
-    // ✅ Safe client-side initialization
     useEffect(() => {
         setIsClient(true);
     }, []);
 
-    // Load doctors from API
     const {
         doctorList,
         isLoading: isDoctorLoading,
@@ -136,7 +130,6 @@ export default function CustomerDoctorDialog({
         sort_order: "desc",
     });
 
-    // Load customers from API
     const {
         customerList,
         isLoading: isCustomerLoading,
@@ -146,7 +139,6 @@ export default function CustomerDoctorDialog({
         offset: 0,
     });
 
-    // Validation function
     const validateCustomerForm = (): boolean => {
         const errors: Record<string, string> = {};
 
@@ -166,7 +158,6 @@ export default function CustomerDoctorDialog({
         return Object.keys(errors).length === 0;
     };
 
-    // Handle customer form changes
     const handleCustomerChange = (field: keyof CustomerData, value: string) => {
         setCustomerForm((prev) => ({
             ...prev,
@@ -186,7 +177,6 @@ export default function CustomerDoctorDialog({
         }
     };
 
-    // Handle customer selection from dropdown
     const handleCustomerSelect = (customer: CustomerApiData) => {
         setSelectedCustomerId(customer.kd_cust);
         const transformedCustomer = transformCustomerApiToForm(customer);
@@ -196,7 +186,6 @@ export default function CustomerDoctorDialog({
         setValidationErrors({});
     };
 
-    // Handle doctor selection from dropdown
     const handleDoctorSelect = (doctor: DoctorData) => {
         setSelectedDoctorId(doctor.id);
         setDoctorForm({
@@ -211,7 +200,6 @@ export default function CustomerDoctorDialog({
         setDoctorSearch("");
     };
 
-    // Handle manual doctor form changes
     const handleDoctorChange = (
         field: keyof DoctorFormData,
         value: string | number
@@ -225,7 +213,6 @@ export default function CustomerDoctorDialog({
         }
     };
 
-    // 🔥 FIX: Simplified input handlers
     const handleDoctorInputChange = (
         e: React.ChangeEvent<HTMLInputElement>
     ) => {
@@ -252,24 +239,20 @@ export default function CustomerDoctorDialog({
         setIsCustomerDropdownOpen(true);
     };
 
-    // Handle Customer button click
     const handleCustomerButtonClick = () => {
         setViewMode("customer-only");
         setCurrentFocus("customer");
     };
 
-    // Handle Doctor button click
     const handleDoctorButtonClick = () => {
         setViewMode("doctor-only");
         setCurrentFocus("doctor");
     };
 
-    // Handle back to both sections
     const handleBackToBoth = () => {
         setViewMode("both");
     };
 
-    // Handle form submission
     const handleSubmit = () => {
         if (!validateCustomerForm()) {
             return;
@@ -288,10 +271,8 @@ export default function CustomerDoctorDialog({
         }
     };
 
-    // Handle close
     const handleClose = () => {
         onClose();
-        // Reset all states
         setCustomerForm({
             id: 0,
             name: "",
@@ -320,7 +301,6 @@ export default function CustomerDoctorDialog({
         setIsCustomerDropdownOpen(false);
     };
 
-    // Get dynamic dialog title
     const getDialogTitle = () => {
         switch (viewMode) {
             case "customer-only":
@@ -332,7 +312,6 @@ export default function CustomerDoctorDialog({
         }
     };
 
-    // Check if form is valid for submission
     const isFormValid = () => {
         if (viewMode === "customer-only") {
             return customerForm.name.trim() !== "";
@@ -343,7 +322,6 @@ export default function CustomerDoctorDialog({
         }
     };
 
-    // 🔥 FIX: Close dropdown when clicking outside
     useEffect(() => {
         if (!isClient) return;
 
@@ -372,7 +350,6 @@ export default function CustomerDoctorDialog({
         }
     }, [isDoctorDropdownOpen, isCustomerDropdownOpen, isClient]);
 
-    // Reset state when dialog opens/closes
     useEffect(() => {
         if (isOpen) {
             setCurrentFocus(initialFocus);
@@ -381,7 +358,6 @@ export default function CustomerDoctorDialog({
         }
     }, [isOpen, initialFocus]);
 
-    // Filter doctors and customers based on search
     const filteredDoctors = doctorList.filter((doctor) =>
         doctor.fullname.toLowerCase().includes(doctorSearch.toLowerCase())
     );
@@ -395,7 +371,6 @@ export default function CustomerDoctorDialog({
     return (
         <div className="fixed inset-0 bg-black/50 z-50 flex items-center justify-center">
             <div className="bg-[#f5f5f5] rounded-2xl w-full max-w-3xl max-h-[95vh] flex flex-col animate-in fade-in-0 zoom-in-95 duration-300 p-5">
-                {/* Header */}
                 <div className="flex justify-between items-center mb-5">
                     <div className="flex items-center gap-3">
                         {viewMode !== "both" && (
@@ -419,9 +394,7 @@ export default function CustomerDoctorDialog({
                     </button>
                 </div>
 
-                {/* Content */}
                 <div className="flex-1 overflow-auto space-y-6">
-                    {/* Customer Info Card - MANDATORY */}
                     <div
                         className={`transition-all duration-500 ease-in-out overflow-hidden ${
                             viewMode === "doctor-only"
@@ -454,13 +427,11 @@ export default function CustomerDoctorDialog({
                             </div>
 
                             <div className="grid grid-cols-2 gap-4">
-                                {/* Full Name and Gender */}
                                 <div>
                                     <label className="block text-sm font-medium text-gray-700 mb-2">
                                         Full Name{" "}
                                         <span className="text-red-500">*</span>
                                     </label>
-                                    {/* 🔥 FIX: Use relative positioning container */}
                                     <div
                                         className="relative"
                                         ref={customerContainerRef}
@@ -489,10 +460,8 @@ export default function CustomerDoctorDialog({
                                             <ChevronDown className="h-4 w-4 text-gray-500" />
                                         </button>
 
-                                        {/* 🔥 FIX: Simple relative dropdown */}
                                         {isCustomerDropdownOpen && isClient && (
                                             <div className="absolute top-full left-0 right-0 mt-1 bg-white border border-gray-300 rounded-md shadow-2xl z-50 max-h-60 overflow-hidden">
-                                                {/* Search Header */}
                                                 <div className="p-2 border-b border-gray-100 bg-white sticky top-0">
                                                     <div className="relative">
                                                         <Search className="absolute left-2 top-1/2 transform -translate-y-1/2 h-4 w-4 text-gray-400" />
@@ -513,7 +482,6 @@ export default function CustomerDoctorDialog({
                                                     </div>
                                                 </div>
 
-                                                {/* Customer List */}
                                                 <div className="max-h-48 overflow-y-auto">
                                                     {isCustomerLoading ? (
                                                         <div className="px-3 py-2 text-sm text-gray-500">
@@ -608,7 +576,6 @@ export default function CustomerDoctorDialog({
                                     </Select>
                                 </div>
 
-                                {/* Age and Phone Number */}
                                 <div>
                                     <label className="block text-sm font-medium text-gray-700 mb-2">
                                         Age
@@ -654,7 +621,6 @@ export default function CustomerDoctorDialog({
                                     )}
                                 </div>
 
-                                {/* Address and Status */}
                                 <div>
                                     <label className="block text-sm font-medium text-gray-700 mb-2">
                                         Address
@@ -703,7 +669,6 @@ export default function CustomerDoctorDialog({
                         </div>
                     </div>
 
-                    {/* Doctor Info Card - OPTIONAL */}
                     <div
                         className={`transition-all duration-500 ease-in-out overflow-hidden ${
                             viewMode === "customer-only"
@@ -736,12 +701,10 @@ export default function CustomerDoctorDialog({
                             </div>
 
                             <div className="grid grid-cols-2 gap-4">
-                                {/* Full Name and SIP */}
                                 <div>
                                     <label className="block text-sm font-medium text-gray-700 mb-2">
                                         Full Name
                                     </label>
-                                    {/* 🔥 FIX: Use relative positioning container */}
                                     <div
                                         className="relative"
                                         ref={doctorContainerRef}
@@ -766,10 +729,8 @@ export default function CustomerDoctorDialog({
                                             <ChevronDown className="h-4 w-4 text-gray-500" />
                                         </button>
 
-                                        {/* 🔥 FIX: Simple relative dropdown */}
                                         {isDoctorDropdownOpen && isClient && (
                                             <div className="absolute top-full left-0 right-0 mt-1 bg-white border border-gray-300 rounded-md shadow-2xl z-50 max-h-60 overflow-hidden">
-                                                {/* Search Header */}
                                                 <div className="p-2 border-b border-gray-100 bg-white sticky top-0">
                                                     <div className="relative">
                                                         <Search className="absolute left-2 top-1/2 transform -translate-y-1/2 h-4 w-4 text-gray-400" />
@@ -788,7 +749,6 @@ export default function CustomerDoctorDialog({
                                                     </div>
                                                 </div>
 
-                                                {/* Doctor List */}
                                                 <div className="max-h-48 overflow-y-auto">
                                                     {isDoctorLoading ? (
                                                         <div className="px-3 py-2 text-sm text-gray-500">
@@ -861,7 +821,6 @@ export default function CustomerDoctorDialog({
                                     />
                                 </div>
 
-                                {/* Phone Number and Address */}
                                 <div>
                                     <label className="block text-sm font-medium text-gray-700 mb-2">
                                         Phone Number
@@ -902,7 +861,6 @@ export default function CustomerDoctorDialog({
                     </div>
                 </div>
 
-                {/* Footer */}
                 <div className="flex justify-end gap-3 pt-6 border-t mt-6">
                     <Button
                         variant="outline"

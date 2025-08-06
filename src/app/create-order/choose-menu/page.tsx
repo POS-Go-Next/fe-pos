@@ -14,7 +14,6 @@ import { useEffect, useMemo, useState, useRef } from "react";
 import { ProductTableSection } from "./_components";
 import TransactionHistoryDialog from "./_components/TransactionHistoryDialog";
 
-// Interface definitions
 interface CustomerData {
     id: number;
     name: string;
@@ -49,17 +48,14 @@ export default function ChooseMenuPage() {
         null
     );
 
-    // Transaction History state
     const [isTransactionHistoryOpen, setIsTransactionHistoryOpen] =
         useState(false);
 
-    // Refs for focus management
     const productSearchInputRef = useRef<HTMLInputElement>(null);
     const barcodeSearchInputRef = useRef<HTMLInputElement>(null);
 
     const { logout, isLoading: isLogoutLoading } = useLogout();
 
-    // Safe client-side initialization
     useEffect(() => {
         setIsClient(true);
         setIsTransactionHistoryOpen(false);
@@ -68,7 +64,6 @@ export default function ChooseMenuPage() {
     const [products, setProducts] = useState<ProductTableItem[]>([]);
     const [nextId, setNextId] = useState(1);
 
-    // Auto focus management for search input
     useEffect(() => {
         if (shouldFocusSearch && isClient) {
             const timer = setTimeout(() => {
@@ -85,7 +80,6 @@ export default function ChooseMenuPage() {
         }
     }, [shouldFocusSearch, isClient]);
 
-    // Auto focus management for quantity input after product selection
     useEffect(() => {
         if (shouldFocusQuantity && lastAddedProductId && isClient) {
             const timer = setTimeout(() => {
@@ -132,25 +126,24 @@ export default function ChooseMenuPage() {
         setShouldFocusSearch(true);
     };
 
-    // Transaction History handler
     const handleOpenTransactionHistory = () => {
         console.log("🔥 Ctrl+F7 pressed - Opening Transaction History Dialog");
         setIsTransactionHistoryOpen(true);
     };
 
-    // POS shortcuts with Transaction History
     usePOSKeyboardShortcuts(
         {
             clearAllProducts: handleClearAllProducts,
+        },
+        {
             transactionHistory: handleOpenTransactionHistory,
         },
         {
-            enabled: true,
+            enabled: isClient,
             debug: false,
         }
     );
 
-    // Load and save products from/to localStorage
     useEffect(() => {
         if (isClient) {
             const savedProducts = localStorage.getItem("pos-products");
@@ -175,7 +168,6 @@ export default function ChooseMenuPage() {
         }
     }, [isClient]);
 
-    // Save products to localStorage
     useEffect(() => {
         if (isClient) {
             localStorage.setItem("pos-products", JSON.stringify(products));
@@ -187,7 +179,6 @@ export default function ChooseMenuPage() {
         await logout();
     };
 
-    // Calculate totals
     const totals = useMemo(() => {
         if (!isClient)
             return {
@@ -231,7 +222,6 @@ export default function ChooseMenuPage() {
         };
     }, [products, isClient]);
 
-    // Payment products for order summary
     const paymentProducts = useMemo(() => {
         return products
             .filter((p) => p.name && p.quantity > 0)
@@ -251,7 +241,6 @@ export default function ChooseMenuPage() {
             }));
     }, [products]);
 
-    // Handle quantity change
     const handleQuantityChange = (id: number, value: number) => {
         if (!isClient) return;
 
@@ -277,7 +266,6 @@ export default function ChooseMenuPage() {
         );
     };
 
-    // Handle quantity blur to return focus to search
     const handleQuantityBlur = () => {
         setTimeout(() => {
             setShouldFocusSearch(true);
@@ -285,7 +273,6 @@ export default function ChooseMenuPage() {
         }, 100);
     };
 
-    // Handle Enter key on quantity input
     const handleQuantityKeyPress = (e: React.KeyboardEvent) => {
         if (e.key === "Enter") {
             (e.target as HTMLInputElement).blur();
@@ -304,7 +291,6 @@ export default function ChooseMenuPage() {
         );
     };
 
-    // Handle discount change - Store percentage, not amount
     const handleDiscountChange = (
         productId: number,
         discountPercentage: number
@@ -364,7 +350,6 @@ export default function ChooseMenuPage() {
         };
     };
 
-    // Handle product selection with auto focus management
     const handleProductSelect = (
         selectedStockData: StockData,
         productId: number
@@ -375,7 +360,6 @@ export default function ChooseMenuPage() {
         );
 
         if (existingProductIndex !== -1) {
-            // Existing product - just increase quantity
             setProducts((prevProducts) =>
                 prevProducts.map((product, index) => {
                     if (index === existingProductIndex) {
@@ -398,7 +382,6 @@ export default function ChooseMenuPage() {
             );
             setShouldFocusSearch(true);
         } else {
-            // New product - add it and focus on quantity
             const newProduct = convertStockToProduct(selectedStockData);
             setProducts((prevProducts) => [...prevProducts, newProduct]);
             setLastAddedProductId(nextId);
@@ -408,13 +391,11 @@ export default function ChooseMenuPage() {
         }
     };
 
-    // Handle pending bill
     const handlePendingBill = () => {
         console.log("💾 Pending bill saved");
         handleClearAllProducts();
     };
 
-    // Handle payment success
     const handlePayNow = (
         customerData?: CustomerData,
         doctorData?: DoctorData
@@ -423,13 +404,11 @@ export default function ChooseMenuPage() {
         setIsPaymentSuccessDialogOpen(true);
     };
 
-    // Handle payment success dialog close
     const handlePaymentSuccessClose = () => {
         setIsPaymentSuccessDialogOpen(false);
-        handleClearAllProducts(); // Clear products after successful payment
+        handleClearAllProducts();
     };
 
-    // Show loading state during SSR/hydration
     if (!isClient) {
         return (
             <div className="flex justify-center items-center h-screen">
@@ -442,7 +421,6 @@ export default function ChooseMenuPage() {
         <div className="flex flex-col h-screen bg-gradient-to-b from-blue-50 to-white">
             <div className="flex flex-1 gap-6 p-5">
                 <div className="w-4/5 overflow-auto">
-                    {/* Header */}
                     <div className="bg-white rounded-2xl shadow-sm border border-gray-100 p-5 mb-6">
                         <div className="flex items-center">
                             <button
@@ -472,7 +450,6 @@ export default function ChooseMenuPage() {
                         </div>
                     </div>
 
-                    {/* Product Table */}
                     <ProductTableSection
                         products={products}
                         onQuantityChange={handleQuantityChange}
@@ -487,16 +464,13 @@ export default function ChooseMenuPage() {
                     />
                 </div>
 
-                {/* Right Sidebar */}
                 <div className="w-1/5">
                     <div className="p-5 bg-white shadow-md overflow-auto w-full rounded-2xl">
-                        {/* Transaction Info */}
                         <TransactionInfo
                             useRealTimeData={true}
                             className="mb-6"
                         />
 
-                        {/* Order Summary with Enhanced Payment Integration */}
                         <OrderSummary
                             subtotal={totals.subtotal}
                             misc={totals.misc}
@@ -511,14 +485,12 @@ export default function ChooseMenuPage() {
                 </div>
             </div>
 
-            {/* Payment Success Dialog */}
             <PaymentSuccessDialog
                 isOpen={isPaymentSuccessDialogOpen}
                 onClose={handlePaymentSuccessClose}
                 onPrintBills={() => console.log("Print Bills")}
             />
 
-            {/* Transaction History Dialog */}
             <TransactionHistoryDialog
                 isOpen={isTransactionHistoryOpen}
                 onClose={() => {

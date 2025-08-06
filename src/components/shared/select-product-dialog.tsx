@@ -1,4 +1,4 @@
-// components/shared/select-product-dialog.tsx - FIXED STYLING FOR ALL COLUMNS
+// components/shared/select-product-dialog.tsx - FIXED: Auto close and add product on click
 "use client";
 
 import { useState, useEffect, useRef } from "react";
@@ -32,7 +32,6 @@ export default function SelectProductDialog({
         search: "",
     });
 
-    // Auto focus ref for search input
     const searchInputRef = useRef<HTMLInputElement>(null);
 
     const { stockList, isLoading, error, totalPages, totalDocs, refetch } =
@@ -49,7 +48,6 @@ export default function SelectProductDialog({
             setSearchTerm("");
             setIsSearchActive(false);
 
-            // Auto focus to search input when dialog opens
             setTimeout(() => {
                 searchInputRef.current?.focus();
             }, 100);
@@ -84,8 +82,17 @@ export default function SelectProductDialog({
     };
 
     const handleSelectProduct = (product: StockData) => {
+        console.log("🔥 Product selected:", product);
+
         onSelectProduct(product);
+
         onClose();
+
+        setSearchInput("");
+        setSearchTerm("");
+        setIsSearchActive(false);
+        setCurrentPage(1);
+        setApiParams({ offset: 0, limit: 10, search: "" });
     };
 
     const handlePageChange = (page: number) => {
@@ -117,6 +124,15 @@ export default function SelectProductDialog({
         }
     };
 
+    const handleClose = () => {
+        setSearchInput("");
+        setSearchTerm("");
+        setIsSearchActive(false);
+        setCurrentPage(1);
+        setApiParams({ offset: 0, limit: 10, search: "" });
+        onClose();
+    };
+
     if (!isOpen) return null;
 
     return (
@@ -127,7 +143,7 @@ export default function SelectProductDialog({
                         Select Product
                     </h2>
                     <button
-                        onClick={onClose}
+                        onClick={handleClose}
                         className="w-8 h-8 flex items-center justify-center rounded-md border border-black hover:scale-105 transition-all"
                     >
                         <X className="h-4 w-4 text-gray-600" />
@@ -147,6 +163,7 @@ export default function SelectProductDialog({
                                     onChange={(e) =>
                                         setSearchInput(e.target.value)
                                     }
+                                    onKeyDown={handleKeyPress}
                                 />
                                 <Search
                                     className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400"
@@ -198,7 +215,7 @@ export default function SelectProductDialog({
                                         <th className="text-left h-[48px] px-4 text-sm font-medium text-gray-600 whitespace-nowrap min-w-[60px]">
                                             Qbbs
                                         </th>
-                                        <th className="text-left h-[48px] px-4 text-sm font-medium text-gray-600 whitespace-nowrap min-w-[120px]">
+                                        <th className="text-left h[48px] px-4 text-sm font-medium text-gray-600 whitespace-nowrap min-w-[120px]">
                                             Barcode
                                         </th>
                                         <th className="text-left h-[48px] px-4 text-sm font-medium text-gray-600 whitespace-nowrap min-w-[80px]">
@@ -364,7 +381,6 @@ export default function SelectProductDialog({
                         </div>
                     </div>
 
-                    {/* Footer with pagination and page size selector */}
                     {stockList.length > 0 && (
                         <div className="mt-5 flex justify-between items-center flex-shrink-0">
                             <div className="flex items-center gap-4">
@@ -413,11 +429,6 @@ export default function SelectProductDialog({
                                         from {totalDocs || 0}
                                     </span>
                                 </div>
-                                {/* <div className="text-sm text-gray-600">
-                  Showing {(currentPage - 1) * pageSize + 1} to{" "}
-                  {Math.min(currentPage * pageSize, totalDocs || 0)} of{" "}
-                  {totalDocs || 0} products
-                </div> */}
                             </div>
                             {totalPages && totalPages > 1 && (
                                 <Pagination

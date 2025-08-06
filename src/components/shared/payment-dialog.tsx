@@ -1,4 +1,4 @@
-// components/shared/payment-dialog.tsx - COMPLETE VERSION WITH FIXED SYNTAX
+// components/shared/payment-dialog.tsx - CORRECTED WITH PROPER DATA TYPES
 "use client";
 
 import { useState } from "react";
@@ -83,7 +83,6 @@ export default function PaymentDialog({
     transactionTypeData,
     products = [],
 }: PaymentDialogProps) {
-    // Payment form states
     const [cashAmount, setCashAmount] = useState("");
     const [debitAmount, setDebitAmount] = useState("");
     const [debitBank, setDebitBank] = useState("BCA");
@@ -99,7 +98,6 @@ export default function PaymentDialog({
 
     if (!isOpen) return null;
 
-    // Helper function to get system info
     const getSystemInfo = async () => {
         try {
             const response = await fetch("/api/system-info");
@@ -121,7 +119,6 @@ export default function PaymentDialog({
         }
     };
 
-    // Helper function to get next invoice
     const getNextInvoice = async () => {
         try {
             const response = await fetch(
@@ -135,7 +132,6 @@ export default function PaymentDialog({
         }
     };
 
-    // Helper function to get transaction type from kassa
     const getTransactionType = async (macAddress: string) => {
         try {
             const response = await fetch(`/api/kassa/${macAddress}`);
@@ -147,16 +143,30 @@ export default function PaymentDialog({
         }
     };
 
-    // Calculate payment totals and change
     const calculatePayment = () => {
         const cash = parseFloat(cashAmount) || 0;
         const debit = parseFloat(debitAmount) || 0;
         const credit = parseFloat(creditAmount) || 0;
 
         const totalPaid = cash + debit + credit;
-        const changeCash = Math.max(0, cash - totalAmount);
-        const changeDC = Math.max(0, debit - totalAmount);
-        const changeCC = Math.max(0, credit - totalAmount);
+
+        let changeCash = 0;
+        let changeDC = 0;
+        let changeCC = 0;
+
+        if (totalPaid > totalAmount) {
+            const totalChange = totalPaid - totalAmount;
+
+            if (credit >= totalChange) {
+                changeCC = totalChange;
+            } else if (debit >= totalChange) {
+                changeDC = totalChange;
+            } else if (cash >= totalChange) {
+                changeCash = totalChange;
+            } else {
+                changeCash = totalChange;
+            }
+        }
 
         return {
             cash,
@@ -169,46 +179,55 @@ export default function PaymentDialog({
         };
     };
 
-    // Build transaction items from products
     const buildTransactionItems = () => {
-        return products.map((product) => ({
-            transaction_action: "1",
-            product_code: product.stockData?.kode_brg || "",
-            quantity: product.quantity,
-            prescription_code:
-                transactionTypeData?.medicineType === "Compounded"
-                    ? "RC"
-                    : "R/",
-            sub_total: product.subtotal || 0,
-            nominal_discount:
-                (product.subtotal || 0) * ((product.discount || 0) / 100),
-            discount: product.discount || 0,
-            service_fee: product.sc || 0,
-            misc: product.misc || 0,
-            disc_promo: 0, // Promo percentage - will be calculated from promo
-            value_promo: product.promo || 0,
-            no_promo: "",
-            promo_type: "1",
-            up_selling: product.up === "Y" ? "Y" : "N",
-            total: product.total || product.subtotal || 0,
-            round_up: 0,
-        }));
+        return products.map((product) => {
+            const nominalDiscount =
+                (product.subtotal || 0) * ((product.discount || 0) / 100);
+
+            const finalTotal = Math.max(
+                0,
+                (product.subtotal || 0) +
+                    (product.sc || 0) +
+                    (product.misc || 0) -
+                    nominalDiscount -
+                    (product.promo || 0)
+            );
+
+            return {
+                transaction_action: "1",
+                product_code: product.stockData?.kode_brg || "",
+                quantity: product.quantity,
+                prescription_code:
+                    transactionTypeData?.medicineType === "Compounded"
+                        ? "RC"
+                        : "R/",
+                sub_total: product.subtotal || 0,
+                nominal_discount: nominalDiscount,
+                discount: product.discount || 0,
+                service_fee: product.sc || 0,
+                misc: product.misc || 0,
+                disc_promo: 0,
+                value_promo: product.promo || 0,
+                no_promo: "",
+                promo_type: "1",
+                up_selling: product.up === "Y" ? "Y" : "N",
+                total: finalTotal,
+                round_up: 0,
+            };
+        });
     };
 
-    // Handle payment submission
     const handlePayment = async () => {
         if (isProcessing) return;
 
         try {
             setIsProcessing(true);
 
-            // Show loading alert
             showLoadingAlert(
                 "Processing Payment",
                 "Please wait while we process your payment..."
             );
 
-            // Validate payment amounts
             const payment = calculatePayment();
 
             if (payment.totalPaid < totalAmount) {
@@ -220,7 +239,24 @@ export default function PaymentDialog({
                 return;
             }
 
-            // Get required API data
+            if (!customerData?.id) {
+                Swal.close();
+                showErrorAlert(
+                    "Missing Customer",
+                    "Customer information is required for transaction."
+                );
+                return;
+            }
+
+            if (!products || products.length === 0) {
+                Swal.close();
+                showErrorAlert(
+                    "No Products",
+                    "At least one product is required for transaction."
+                );
+                return;
+            }
+
             const [macAddress, invoiceNumber] = await Promise.all([
                 getSystemInfo(),
                 getNextInvoice(),
@@ -237,7 +273,6 @@ export default function PaymentDialog({
 
             const transactionType = await getTransactionType(macAddress);
 
-            // Calculate totals
             const subTotal = products.reduce(
                 (sum, p) => sum + (p.subtotal || 0),
                 0
@@ -259,44 +294,39 @@ export default function PaymentDialog({
                 0
             );
 
-            // Build transaction payload
             const transactionPayload = {
                 mac_address: macAddress,
                 invoice_number: invoiceNumber,
                 notes: "",
-                customer_id: customerData?.id || 1,
-                doctor_id: doctorData?.id || "",
-                corporate_code: "",
+                customer_id: customerData.id,
+                doctor_id: doctorData?.id || null,
+                corporate_code: null,
                 transaction_type: transactionType,
                 transaction_action: "1",
 
-                // Items
                 items: buildTransactionItems(),
 
-                // Payment breakdown
                 cash: payment.cash,
                 change_cash: payment.changeCash,
                 change_cc: payment.changeCC,
                 change_dc: payment.changeDC,
                 credit_card: payment.credit,
                 debit_card: payment.debit,
-                no_cc: creditAccountNumber || "",
-                no_dc: debitAccountNumber || "",
-                edc_cc: creditEDCMachine || "",
-                edc_dc: debitEDCMachine || "",
-                publisher_cc: creditBank || "",
-                publisher_dc: debitBank || "",
-                type_cc: creditCardType || "",
-                type_dc: debitCardType || "",
+                no_cc: creditAccountNumber || null,
+                no_dc: debitAccountNumber || null,
+                edc_cc: creditEDCMachine || null,
+                edc_dc: debitEDCMachine || null,
+                publisher_cc: creditBank || null,
+                publisher_dc: debitBank || null,
+                type_cc: creditCardType || null,
+                type_dc: debitCardType || null,
 
-                // Transaction type data (from modal)
                 compunded: transactionTypeData?.medicineType === "Compounded",
                 full_prescription:
                     transactionTypeData?.transactionType ===
                     "Full Prescription",
                 availability: transactionTypeData?.availability === "Available",
 
-                // Transaction summary
                 sub_total: subTotal,
                 misc: totalMisc,
                 service_fee: totalServiceFee,
@@ -306,20 +336,75 @@ export default function PaymentDialog({
                 grand_total: totalAmount,
             };
 
-            console.log("🚀 Sending transaction payload:", transactionPayload);
+            console.log("🔍 Transaction Payload Validation:", {
+                macAddress: transactionPayload.mac_address,
+                invoiceNumber: transactionPayload.invoice_number,
+                customerId: transactionPayload.customer_id,
+                customerIdType: typeof transactionPayload.customer_id,
+                doctorId: transactionPayload.doctor_id,
+                doctorIdType: typeof transactionPayload.doctor_id,
+                transactionType: transactionPayload.transaction_type,
+                transactionTypeType: typeof transactionPayload.transaction_type,
+                itemsCount: transactionPayload.items.length,
+                compunded: transactionPayload.compunded,
+                compundedType: typeof transactionPayload.compunded,
+                grandTotal: transactionPayload.grand_total,
+                grandTotalType: typeof transactionPayload.grand_total,
+                subTotal: transactionPayload.sub_total,
+                paymentTotal: payment.totalPaid,
+            });
 
-            // Get auth token from cookies
-            const authToken = document.cookie
-                .split("; ")
-                .find((row) => row.startsWith("auth-token="))
-                ?.split("=")[1];
+            if (
+                !transactionPayload.mac_address ||
+                typeof transactionPayload.mac_address !== "string"
+            ) {
+                throw new Error("MAC address is required and must be a string");
+            }
+            if (
+                !transactionPayload.invoice_number ||
+                typeof transactionPayload.invoice_number !== "string"
+            ) {
+                throw new Error(
+                    "Invoice number is required and must be a string"
+                );
+            }
+            if (
+                !transactionPayload.customer_id ||
+                typeof transactionPayload.customer_id !== "number"
+            ) {
+                throw new Error("Customer ID is required and must be a number");
+            }
+            if (
+                !transactionPayload.transaction_type ||
+                typeof transactionPayload.transaction_type !== "string"
+            ) {
+                throw new Error(
+                    "Transaction type is required and must be a string"
+                );
+            }
+            if (
+                !transactionPayload.items ||
+                !Array.isArray(transactionPayload.items) ||
+                transactionPayload.items.length === 0
+            ) {
+                throw new Error("Transaction items are required");
+            }
+            if (typeof transactionPayload.grand_total !== "number") {
+                throw new Error("Grand total must be a number");
+            }
+            if (typeof transactionPayload.compunded !== "boolean") {
+                throw new Error("Compunded must be a boolean");
+            }
 
-            // Send to API
+            console.log(
+                "🚀 Sending transaction payload:",
+                JSON.stringify(transactionPayload, null, 2)
+            );
+
             const response = await fetch("/api/transaction", {
                 method: "POST",
                 headers: {
                     "Content-Type": "application/json",
-                    Authorization: authToken ? `Bearer ${authToken}` : "",
                 },
                 body: JSON.stringify(transactionPayload),
             });
@@ -329,15 +414,29 @@ export default function PaymentDialog({
             Swal.close();
 
             if (!response.ok) {
-                console.error("Transaction API error:", result);
-                showErrorAlert(
-                    "Payment Failed",
-                    result.message || `Server error: ${response.status}`
-                );
+                console.error("Transaction API error:", {
+                    status: response.status,
+                    result,
+                    payload: transactionPayload,
+                });
+
+                let errorMessage = "Payment failed. Please try again.";
+
+                if (result.message) {
+                    errorMessage = result.message;
+                } else if (response.status === 400) {
+                    errorMessage =
+                        "Invalid transaction data. Please check all fields.";
+                } else if (response.status === 401) {
+                    errorMessage = "Session expired. Please login again.";
+                } else if (response.status >= 500) {
+                    errorMessage = "Server error. Please try again later.";
+                }
+
+                showErrorAlert("Payment Failed", errorMessage);
                 return;
             }
 
-            // Success
             console.log("✅ Transaction successful:", result);
             showSuccessAlert(
                 "Payment Successful!",
@@ -345,24 +444,25 @@ export default function PaymentDialog({
                 2000
             );
 
-            // Reset form
             resetForm();
 
-            // Call success callback
             onPaymentSuccess();
         } catch (error) {
             console.error("❌ Payment error:", error);
             Swal.close();
-            showErrorAlert(
-                "Payment Error",
-                "An unexpected error occurred. Please try again."
-            );
+
+            let errorMessage =
+                "An unexpected error occurred. Please try again.";
+            if (error instanceof Error) {
+                errorMessage = error.message;
+            }
+
+            showErrorAlert("Payment Error", errorMessage);
         } finally {
             setIsProcessing(false);
         }
     };
 
-    // Reset form function
     const resetForm = () => {
         setCashAmount("");
         setDebitAmount("");
@@ -377,7 +477,6 @@ export default function PaymentDialog({
         setCreditCardType("");
     };
 
-    // Handle close
     const handleClose = () => {
         if (isProcessing) return;
         resetForm();
@@ -387,7 +486,6 @@ export default function PaymentDialog({
     const renderPaymentMethodContent = () => {
         return (
             <div className="space-y-6">
-                {/* Cash Card */}
                 <div className="border border-gray-300 rounded-2xl p-4">
                     <div className="flex items-center gap-3 mb-4">
                         <div className="w-10 h-10 bg-green-50 rounded-xl flex items-center justify-center">
@@ -423,7 +521,6 @@ export default function PaymentDialog({
                     </div>
                 </div>
 
-                {/* Debit Card */}
                 <div className="border border-gray-300 rounded-2xl p-4">
                     <div className="flex items-center gap-3 mb-4">
                         <div className="w-10 h-10 bg-blue-50 rounded-xl flex items-center justify-center">
@@ -545,7 +642,6 @@ export default function PaymentDialog({
                     </div>
                 </div>
 
-                {/* Credit Card */}
                 <div className="border border-gray-300 rounded-2xl p-4">
                     <div className="flex items-center gap-3 mb-4">
                         <div className="w-10 h-10 bg-blue-50 rounded-xl flex items-center justify-center">
@@ -673,7 +769,6 @@ export default function PaymentDialog({
     return (
         <div className="fixed inset-0 bg-black/50 z-50 flex items-center justify-center">
             <div className="bg-white rounded-2xl w-full max-w-6xl max-h-[95vh] flex flex-col">
-                {/* Header */}
                 <div className="flex justify-between items-center p-6 border-b border-gray-200">
                     <h2 className="text-xl font-semibold text-gray-900">
                         Payment Option
@@ -687,12 +782,9 @@ export default function PaymentDialog({
                     </button>
                 </div>
 
-                {/* Content */}
                 <div className="flex-1 overflow-auto">
                     <div className="grid grid-cols-2 h-full">
-                        {/* Left Column - Customer & Transaction Info */}
                         <div className="p-6">
-                            {/* Customer Information */}
                             <div className="mb-6">
                                 <div className="flex items-center gap-4">
                                     <div className="w-12 h-12 bg-blue-100 rounded-lg flex items-center justify-center">
@@ -722,7 +814,6 @@ export default function PaymentDialog({
                                 </div>
                             </div>
 
-                            {/* Transaction Type Info */}
                             {transactionTypeData && (
                                 <div className="mb-6 p-4 bg-blue-50 rounded-lg">
                                     <h4 className="font-semibold text-gray-900 mb-2">
@@ -753,13 +844,11 @@ export default function PaymentDialog({
                                 </div>
                             )}
 
-                            {/* Transaction Details */}
                             <div className="border border-gray-300 rounded-2xl p-4">
                                 <h4 className="font-semibold text-gray-900 text-lg mb-4">
                                     Transaction Details
                                 </h4>
 
-                                {/* Product Items List */}
                                 <div className="max-h-[240px] overflow-y-auto space-y-4 mb-6">
                                     {products.length > 0 ? (
                                         products.map((item, index) => (
@@ -794,7 +883,6 @@ export default function PaymentDialog({
                                     )}
                                 </div>
 
-                                {/* Transaction Summary */}
                                 <div className="border-t border-gray-300 pt-4 space-y-3">
                                     <div className="flex justify-between">
                                         <span className="font-medium text-gray-900">
@@ -892,13 +980,11 @@ export default function PaymentDialog({
                             </div>
                         </div>
 
-                        {/* Right Column - Payment Methods */}
                         <div className="p-6 flex flex-col">
                             <div className="flex-1">
                                 {renderPaymentMethodContent()}
                             </div>
 
-                            {/* Action Buttons */}
                             <div className="flex gap-3 mt-6 pt-4 border-t border-gray-200">
                                 <Button
                                     variant="outline"

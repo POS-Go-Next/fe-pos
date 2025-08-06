@@ -71,7 +71,6 @@ export default function OrderSummary({
     onPayNow,
     products = [],
 }: OrderSummaryProps) {
-    // Dialog states
     const [isCustomerDoctorDialogOpen, setIsCustomerDoctorDialogOpen] =
         useState(false);
     const [isTransactionTypeDialogOpen, setIsTransactionTypeDialogOpen] =
@@ -82,7 +81,6 @@ export default function OrderSummary({
     const [isPendingBillSavedDialogOpen, setIsPendingBillSavedDialogOpen] =
         useState(false);
 
-    // Data states
     const [selectedCustomer, setSelectedCustomer] =
         useState<CustomerData | null>(null);
     const [selectedDoctor, setSelectedDoctor] = useState<DoctorData | null>(
@@ -93,7 +91,6 @@ export default function OrderSummary({
 
     const grandTotal = subtotal - discount + serviceCharge + misc - promo;
 
-    // Handle Pending Bill flow
     const handlePendingBillClick = () => {
         if (products.length === 0) {
             alert("No products to save as pending bill");
@@ -109,7 +106,6 @@ export default function OrderSummary({
             onPendingBill();
         }
 
-        // Reset states
         resetAllStates();
     };
 
@@ -117,7 +113,6 @@ export default function OrderSummary({
         // Just close the dialog without doing anything
     };
 
-    // Handle Pay Now flow - Step 1: Customer & Doctor Selection
     const handlePayNowClick = () => {
         if (products.length === 0) {
             alert("No products to process payment");
@@ -126,7 +121,6 @@ export default function OrderSummary({
         setIsCustomerDoctorDialogOpen(true);
     };
 
-    // Step 2: After Customer & Doctor selection -> Transaction Type
     const handleCustomerDoctorSubmit = (
         customerData: CustomerData,
         doctorData?: DoctorData
@@ -142,7 +136,6 @@ export default function OrderSummary({
         setIsTransactionTypeDialogOpen(true);
     };
 
-    // Step 3: After Transaction Type selection -> Payment
     const handleTransactionTypeSubmit = (
         transactionData: TransactionTypeData
     ) => {
@@ -153,7 +146,6 @@ export default function OrderSummary({
         setIsPaymentDialogOpen(true);
     };
 
-    // Step 4: Payment Success
     const handlePaymentSuccess = () => {
         console.log("✅ Payment successful");
 
@@ -166,18 +158,15 @@ export default function OrderSummary({
             );
         }
 
-        // Reset all states after successful payment
         resetAllStates();
     };
 
-    // Helper function to reset all states
     const resetAllStates = () => {
         setSelectedCustomer(null);
         setSelectedDoctor(null);
         setTransactionTypeData(null);
     };
 
-    // Individual handlers for dialog selections (for standalone usage)
     const handleCustomerSelect = (customer: CustomerData) => {
         setSelectedCustomer(customer);
     };
@@ -186,7 +175,6 @@ export default function OrderSummary({
         setSelectedDoctor(doctor);
     };
 
-    // Dialog close handlers
     const handleCustomerDoctorClose = () => {
         setIsCustomerDoctorDialogOpen(false);
     };
@@ -215,7 +203,6 @@ export default function OrderSummary({
     return (
         <>
             <div className={className}>
-                {/* Order Summary */}
                 <div className="space-y-2">
                     <div className="flex justify-between">
                         <span className="text-gray-600">Sub Total</span>
@@ -255,7 +242,6 @@ export default function OrderSummary({
                     </div>
                 </div>
 
-                {/* Selected Information Display */}
                 {(selectedCustomer ||
                     selectedDoctor ||
                     transactionTypeData) && (
@@ -306,7 +292,6 @@ export default function OrderSummary({
                     </div>
                 )}
 
-                {/* Action Buttons */}
                 <div className="mt-6 space-y-2">
                     <Button
                         variant="destructive"
@@ -327,9 +312,6 @@ export default function OrderSummary({
                 </div>
             </div>
 
-            {/* Dialogs */}
-
-            {/* Save Pending Bill Dialog */}
             <SavePendingBillDialog
                 isOpen={isSavePendingBillDialogOpen}
                 onClose={handleSavePendingBillClose}
@@ -337,14 +319,12 @@ export default function OrderSummary({
                 onCancel={handleCancelPendingBill}
             />
 
-            {/* Pending Bill Saved Dialog */}
             <PendingBillSavedDialog
                 isOpen={isPendingBillSavedDialogOpen}
                 onClose={handlePendingBillSavedClose}
                 onDone={handlePendingBillSavedDone}
             />
 
-            {/* Step 1: Customer & Doctor Selection Dialog */}
             <CustomerDoctorDialog
                 isOpen={isCustomerDoctorDialogOpen}
                 onClose={handleCustomerDoctorClose}
@@ -355,14 +335,12 @@ export default function OrderSummary({
                 initialFocus="customer"
             />
 
-            {/* Step 2: Transaction Type Dialog */}
             <TransactionTypeDialog
                 isOpen={isTransactionTypeDialogOpen}
                 onClose={handleTransactionTypeClose}
                 onSubmit={handleTransactionTypeSubmit}
             />
 
-            {/* Step 3: Payment Dialog - FIXED PROPS */}
             <PaymentDialog
                 isOpen={isPaymentDialogOpen}
                 onClose={handlePaymentClose}

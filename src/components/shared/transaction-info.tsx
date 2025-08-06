@@ -30,7 +30,6 @@ export default function TransactionInfo({
     const [isClient, setIsClient] = useState(false);
     const { time: currentTime, date: currentDate } = useRealTimeClock();
 
-    // Use the new hook for API integration
     const {
         invoiceNumber,
         counterInfo,
@@ -39,11 +38,9 @@ export default function TransactionInfo({
         error: apiError,
     } = useTransactionInfo();
 
-    // ✅ Safe client-side initialization
     useEffect(() => {
         setIsClient(true);
 
-        // ✅ Safe localStorage access after client mount
         if (typeof window !== "undefined") {
             try {
                 const storedUserData = localStorage.getItem("user-data");
@@ -62,7 +59,6 @@ export default function TransactionInfo({
         useRealTimeData && isClient ? currentDate : "August 17, 2025";
     const displayDateTime = `${displayDate}, ${displayTime}`;
 
-    // Use API data for display
     const displayInvoiceNumber = invoiceNumber || "S25080315";
     const displayCounterInfo = counterInfo || "#guest/0";
     const displayBadge =

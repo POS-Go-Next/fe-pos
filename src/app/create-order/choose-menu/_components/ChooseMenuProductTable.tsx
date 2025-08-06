@@ -1,12 +1,22 @@
-// app/create-order/choose-menu/_components/ChooseMenuProductTable.tsx - FIXED AUTO-OPEN BUG
+// app/create-order/choose-menu/_components/ChooseMenuProductTable.tsx - ONLY CTRL+SHIFT+F1-F12
 "use client";
 
 import BranchWideStockDialog from "@/components/shared/branch-wide-stock-dialog";
 import MedicationDetailsDialog from "@/components/shared/medication-details-dialog";
 import ProductTypeSelector from "@/components/shared/ProductTypeSelector";
 import SelectProductDialog from "@/components/shared/select-product-dialog";
+import CustomerDoctorDialog from "@/components/shared/customer-doctor-dialog";
+import AddCustomerDialog from "@/components/shared/add-customer-dialog";
+import AddDoctorDialog from "@/components/shared/add-doctor-dialog";
+import PaymentDialog from "@/components/shared/payment-dialog";
+import TransactionTypeDialog from "@/components/shared/transaction-type-dialog";
+import EmployeeLoginDialog from "@/components/shared/EmployeeLoginDialog";
+import PaymentSuccessDialog from "@/components/shared/payment-success-dialog";
+import Calculator from "@/components/shared/calculator";
+import FingerprintScanningDialog from "@/components/shared/FingerprintScanningDialog";
+
 import { Input } from "@/components/ui/input";
-import { useKeyboardShortcuts } from "@/hooks/useKeyboardShortcuts";
+import { usePOSKeyboardShortcuts } from "@/hooks/useKeyboardShortcuts";
 import { useLogout } from "@/hooks/useLogout";
 import type { ProductTableItem } from "@/types/stock";
 import { Plus, Trash } from "lucide-react";
@@ -15,752 +25,900 @@ import KeyboardShortcutGuide from "./KeyboardShortcutGuide";
 import UpsellDialog from "./UpsellDialog";
 import PrescriptionDiscountDialog from "./PrescriptionDiscountDialog";
 import ChooseMiscDialog from "./ChooseMiscDialog";
-import TransactionTypeDialog from "@/components/shared/transaction-type-dialog";
 import CorporateDiscountDialog from "./CorporateDiscountDialog";
-// 🔥 REMOVED: import TransactionHistoryDialog from "./TransactionHistoryDialog";
+import TransactionHistoryDialog from "./TransactionHistoryDialog";
 
 export interface Product extends ProductTableItem {}
 
 const formatCurrency = (amount: number | undefined | null): string => {
-  if (amount == null || isNaN(Number(amount))) {
-    return "Rp 0";
-  }
+    if (amount == null || isNaN(Number(amount))) {
+        return "Rp 0";
+    }
 
-  try {
-    const numAmount = Number(amount);
-    return `Rp ${numAmount.toLocaleString("id-ID")}`;
-  } catch (error) {
-    return "Rp 0";
-  }
+    try {
+        const numAmount = Number(amount);
+        return `Rp ${numAmount.toLocaleString("id-ID")}`;
+    } catch (error) {
+        return "Rp 0";
+    }
 };
 
 const ProductActionIcons = ({
-  productName,
-  onBranchStockClick,
-  onMedicationDetailsClick,
-  onDeleteClick,
-  showIcons = true,
+    productName,
+    onBranchStockClick,
+    onMedicationDetailsClick,
+    onDeleteClick,
+    showIcons = true,
 }: {
-  productName: string;
-  onBranchStockClick: () => void;
-  onMedicationDetailsClick: () => void;
-  onDeleteClick: () => void;
-  showIcons?: boolean;
+    productName: string;
+    onBranchStockClick: () => void;
+    onMedicationDetailsClick: () => void;
+    onDeleteClick: () => void;
+    showIcons?: boolean;
 }) => {
-  if (!showIcons) return null;
+    if (!showIcons) return null;
 
-  return (
-    <div className="flex items-center gap-2">
-      <button
-        className="w-8 h-8 bg-red-100 rounded flex items-center justify-center hover:bg-red-200 transition-colors cursor-pointer"
-        onClick={onDeleteClick}
-        title="Delete Product"
-      >
-        <Trash className="w-4 h-4 text-red-600" />
-      </button>
+    return (
+        <div className="flex items-center gap-2">
+            <button
+                className="w-8 h-8 bg-red-100 rounded flex items-center justify-center hover:bg-red-200 transition-colors cursor-pointer"
+                onClick={onDeleteClick}
+                title="Delete Product"
+            >
+                <Trash className="w-4 h-4 text-red-600" />
+            </button>
 
-      <button
-        className="w-8 h-8 bg-blue-100 rounded flex items-center justify-center hover:bg-blue-200 transition-colors cursor-pointer"
-        onClick={onBranchStockClick}
-        title="View Branch Wide Stock"
-      >
-        <svg
-          className="w-5 h-5 text-blue-600"
-          fill="none"
-          stroke="currentColor"
-          viewBox="0 0 24 24"
-        >
-          <path
-            strokeLinecap="round"
-            strokeLinejoin="round"
-            strokeWidth={2}
-            d="M20 7l-8-4-8 4m16 0l-8 4m8-4v10l-8 4m0-10L4 7m8 4v10M4 7v10l8 4"
-          />
-        </svg>
-      </button>
+            <button
+                className="w-8 h-8 bg-blue-100 rounded flex items-center justify-center hover:bg-blue-200 transition-colors cursor-pointer"
+                onClick={onBranchStockClick}
+                title="View Branch Wide Stock"
+            >
+                <svg
+                    className="w-5 h-5 text-blue-600"
+                    fill="none"
+                    stroke="currentColor"
+                    viewBox="0 0 24 24"
+                >
+                    <path
+                        strokeLinecap="round"
+                        strokeLinejoin="round"
+                        strokeWidth={2}
+                        d="M20 7l-8-4-8 4m16 0l-8 4m8-4v10l-8 4m0-10L4 7m8 4v10M4 7v10l8 4"
+                    />
+                </svg>
+            </button>
 
-      <button
-        className="w-8 h-8 bg-blue-100 rounded flex items-center justify-center hover:bg-blue-200 transition-colors cursor-pointer"
-        onClick={onMedicationDetailsClick}
-        title="View Medication Details"
-      >
-        <svg
-          className="w-5 h-5 text-blue-600"
-          fill="none"
-          stroke="currentColor"
-          viewBox="0 0 24 24"
-        >
-          <path
-            strokeLinecap="round"
-            strokeLinejoin="round"
-            strokeWidth={2}
-            d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"
-          />
-        </svg>
-      </button>
-    </div>
-  );
+            <button
+                className="w-8 h-8 bg-blue-100 rounded flex items-center justify-center hover:bg-blue-200 transition-colors cursor-pointer"
+                onClick={onMedicationDetailsClick}
+                title="View Medication Details"
+            >
+                <svg
+                    className="w-5 h-5 text-blue-600"
+                    fill="none"
+                    stroke="currentColor"
+                    viewBox="0 0 24 24"
+                >
+                    <path
+                        strokeLinecap="round"
+                        strokeLinejoin="round"
+                        strokeWidth={2}
+                        d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"
+                    />
+                </svg>
+            </button>
+        </div>
+    );
 };
 
 interface ChooseMenuProductTableProps {
-  products: ProductTableItem[];
-  onQuantityChange: (id: number, quantity: number) => void;
-  onQuantityBlur?: () => void;
-  onQuantityKeyPress?: (e: React.KeyboardEvent) => void;
-  onRemoveProduct: (id: number) => void;
-  onProductNameClick?: (id: number) => void;
-  onProductSelect?: (product: any, productId: number) => void;
-  onTypeChange?: (id: number, type: string) => void;
-  onDiscountChange?: (id: number, discount: number) => void;
-  className?: string;
+    products: ProductTableItem[];
+    onQuantityChange: (id: number, quantity: number) => void;
+    onQuantityBlur?: () => void;
+    onQuantityKeyPress?: (e: React.KeyboardEvent) => void;
+    onRemoveProduct: (id: number) => void;
+    onProductNameClick?: (id: number) => void;
+    onProductSelect?: (product: any, productId: number) => void;
+    onTypeChange?: (id: number, type: string) => void;
+    onDiscountChange?: (id: number, discount: number) => void;
+    className?: string;
 }
 
 export default function ChooseMenuProductTable({
-  products,
-  onQuantityChange,
-  onQuantityBlur,
-  onQuantityKeyPress,
-  onRemoveProduct,
-  onProductNameClick,
-  onProductSelect,
-  onTypeChange,
-  onDiscountChange,
-  className = "",
+    products,
+    onQuantityChange,
+    onQuantityBlur,
+    onQuantityKeyPress,
+    onRemoveProduct,
+    onProductNameClick,
+    onProductSelect,
+    onTypeChange,
+    onDiscountChange,
+    className = "",
 }: ChooseMenuProductTableProps) {
-  const [isClient, setIsClient] = useState(false);
-  const [isSelectProductDialogOpen, setIsSelectProductDialogOpen] =
-    useState(false);
-  const [selectedProductId, setSelectedProductId] = useState<number | null>(
-    null
-  );
-  const [isBranchStockOpen, setIsBranchStockOpen] = useState(false);
-  const [isMedicationDetailsOpen, setIsMedicationDetailsOpen] = useState(false);
-  const [selectedProduct, setSelectedProduct] =
-    useState<ProductTableItem | null>(null);
-  const [selectedRowId, setSelectedRowId] = useState<number | null>(null);
-  const [isShortcutGuideOpen, setIsShortcutGuideOpen] = useState(false);
-  const [isUpsellDialogOpen, setIsUpsellDialogOpen] = useState(false);
-  const [isPrescriptionDiscountOpen, setIsPrescriptionDiscountOpen] =
-    useState(false);
-  const [isChooseMiscOpen, setIsChooseMiscOpen] = useState(false);
-  const [isTransactionTypeOpen, setIsTransactionTypeOpen] = useState(false);
-  const [isCorporateDiscountOpen, setIsCorporateDiscountOpen] = useState(false);
-  
-  // 🔥 REMOVED: Transaction History state - handled elsewhere
+    const [isClient, setIsClient] = useState(false);
 
-  const tableContainerRef = useRef<HTMLDivElement>(null);
-  const tableBodyRef = useRef<HTMLTableSectionElement>(null);
-  const { logout } = useLogout();
+    const [dialogStates, setDialogStates] = useState({
+        selectProduct: false,
+        branchStock: false,
+        medicationDetails: false,
+        customerDoctor: false,
+        addCustomer: false,
+        addDoctor: false,
+        payment: false,
+        transactionType: false,
+        employeeLogin: false,
+        paymentSuccess: false,
+        fingerprint: false,
+        calculator: false,
+        shortcutGuide: false,
+        upsell: false,
+        prescriptionDiscount: false,
+        chooseMisc: false,
+        corporateDiscount: false,
+        transactionHistory: false,
+    });
 
-  // 🔥 CRITICAL FIX: Explicitly prevent auto-opening on mount
-  useEffect(() => {
-    setIsClient(true);
-    console.log("🔍 Component mounted - TransactionHistoryDialog removed from this component");
-  }, []);
+    const [selectedProductId, setSelectedProductId] = useState<number | null>(
+        null
+    );
+    const [selectedProduct, setSelectedProduct] =
+        useState<ProductTableItem | null>(null);
+    const [selectedRowId, setSelectedRowId] = useState<number | null>(null);
 
-  useKeyboardShortcuts({
-    shortcuts: [
-      {
-        key: "F1",
-        ctrl: true,
-        action: () => {
-          if (selectedRowId !== null) {
-            setIsShortcutGuideOpen(true);
-          }
-        },
-        description: "Petunjuk Penggunaan Shortcut",
-        preventDefault: true,
-      },
-      {
-        key: "F2",
-        ctrl: true,
-        action: () => {
-          setIsTransactionTypeOpen(true);
-        },
-        description: "Transaction Type",
-        preventDefault: true,
-      },
-      {
-        key: "F3",
-        ctrl: true,
-        action: () => {
-          if (selectedRowId !== null) {
-            const currentSelectedProduct = products.find(
-              (p) => p.id === selectedRowId
-            );
-            if (currentSelectedProduct) {
-              setSelectedProduct(currentSelectedProduct);
-            }
-            setIsPrescriptionDiscountOpen(true);
-          }
-        },
-        description: "Prescription Discount",
-        preventDefault: true,
-      },
-      {
-        key: "F6",
-        ctrl: true,
-        action: () => {
-          if (selectedRowId !== null) {
-            setIsUpsellDialogOpen(true);
-          }
-        },
-        description: "Up Selling",
-        preventDefault: true,
-      },
-      {
-        key: "F12",
-        ctrl: true,
-        action: () => {
-          if (selectedRowId !== null) {
-            setIsChooseMiscOpen(true);
-          }
-        },
-        description: "Choose Misc",
-        preventDefault: true,
-      },
-      {
-        key: "F10",
-        ctrl: true,
-        action: () => {
-          setIsCorporateDiscountOpen(true);
-        },
-        description: "Corporate Discount",
-        preventDefault: true,
-      },
-      // 🔥 REMOVED: Transaction History shortcut - handled elsewhere
-      /*
-      {
-        key: "F7",
-        ctrl: true,
-        action: () => {
-          console.log("🔥 Ctrl+F7 pressed - Allowing and Opening Transaction History Dialog");
-          setAllowTransactionHistoryOpen(true);
-          setIsTransactionHistoryOpen(true);
-        },
-        description: "Transaction History",
-        preventDefault: true,
-      },
-      */
-      {
-        key: "Escape",
-        ctrl: true,
-        action: async () => {
-          setSelectedRowId(null);
-          setIsSelectProductDialogOpen(false);
-          setIsBranchStockOpen(false);
-          setIsMedicationDetailsOpen(false);
-          setIsShortcutGuideOpen(false);
-          setIsUpsellDialogOpen(false);
-          setIsPrescriptionDiscountOpen(false);
-          setIsChooseMiscOpen(false);
-          setIsTransactionTypeOpen(false);
-          setIsCorporateDiscountOpen(false);
-          // 🔥 REMOVED: Transaction History close - handled elsewhere
-          await logout();
-        },
-        description: "Logout",
-        preventDefault: true,
-      },
-      {
-        key: "F4",
-        ctrl: true,
-        action: () => {
-          console.log("Clear all products");
-        },
-        description: "Batal/Void (Clear Form Transaksi)",
-        preventDefault: true,
-      },
-      {
-        key: "D",
-        ctrl: true,
-        action: () => {
-          console.log("Alternative clear shortcut");
-        },
-        description: "Alternative Clear (Ctrl+D)",
-        preventDefault: true,
-      },
-    ],
-    enabled: isClient,
-    debug: false,
-  });
+    const tableContainerRef = useRef<HTMLDivElement>(null);
+    const tableBodyRef = useRef<HTMLTableSectionElement>(null);
+    const { logout } = useLogout();
 
-  useEffect(() => {
-    if (tableContainerRef.current && products.length > 0 && isClient) {
-      setTimeout(() => {
-        if (tableContainerRef.current) {
-          tableContainerRef.current.scrollTop =
-            tableContainerRef.current.scrollHeight;
-        }
-      }, 100);
-    }
-  }, [products.length, isClient]);
+    useEffect(() => {
+        setIsClient(true);
+        console.log("🔍 Component mounted");
+    }, []);
 
-  const handleSearchFieldClick = () => {
-    setSelectedProductId(999);
-    setIsSelectProductDialogOpen(true);
-  };
+    const toggleDialog = (dialogName: keyof typeof dialogStates) => {
+        console.log(`🎭 Toggling dialog: ${dialogName}`, {
+            currentState: dialogStates[dialogName],
+            newState: !dialogStates[dialogName],
+        });
 
-  const handleProductSelectFromDialog = (selectedProduct: any) => {
-    if (onProductSelect && selectedProductId !== null) {
-      onProductSelect(selectedProduct, selectedProductId);
-    }
-    setIsSelectProductDialogOpen(false);
-    setSelectedProductId(null);
-  };
-
-  const handleBranchStockClick = (product: ProductTableItem) => {
-    if (product.name) {
-      setSelectedProduct(product);
-      setIsBranchStockOpen(true);
-    }
-  };
-
-  const handleMedicationDetailsClick = (product: ProductTableItem) => {
-    if (product.name) {
-      setSelectedProduct(product);
-      setIsMedicationDetailsOpen(true);
-    }
-  };
-
-  const handleRowClick = (product: ProductTableItem, index: number) => {
-    const newSelectedRowId = selectedRowId === product.id ? null : product.id;
-    setSelectedRowId(newSelectedRowId);
-
-    if (newSelectedRowId !== null && product.name) {
-      setSelectedProduct(product);
-    } else {
-      setSelectedProduct(null);
-    }
-  };
-
-  const handleTypeChange = (productId: number, newType: string) => {
-    if (productId === 999) {
-      return;
-    }
-
-    if (onTypeChange) {
-      onTypeChange(productId, newType);
-    }
-  };
-
-  const handleQuantityChangeWithFocus = (id: number, value: number) => {
-    onQuantityChange(id, value);
-  };
-
-  const handleQuantityInputBlur = () => {
-    if (onQuantityBlur) {
-      onQuantityBlur();
-    }
-  };
-
-  const handleQuantityInputKeyPress = (e: React.KeyboardEvent) => {
-    if (onQuantityKeyPress) {
-      onQuantityKeyPress(e);
-    }
-  };
-
-  const tableData = React.useMemo(() => {
-    const searchRow = {
-      id: 999,
-      name: "",
-      type: "",
-      price: 0,
-      quantity: 0,
-      subtotal: 0,
-      discount: 0,
-      sc: 0,
-      misc: 0,
-      promo: 0,
-      promoPercent: 0,
-      up: "N",
-      noVoucher: 0,
-      total: 0,
+        setDialogStates((prev) => ({
+            ...prev,
+            [dialogName]: !prev[dialogName],
+        }));
     };
 
-    const filledProducts = products.filter((p) => p.name);
+    const closeDialog = (dialogName: keyof typeof dialogStates) => {
+        console.log(`🔒 Force closing dialog: ${dialogName}`);
 
-    return [searchRow, ...filledProducts];
-  }, [products]);
+        setDialogStates((prev) => ({
+            ...prev,
+            [dialogName]: false,
+        }));
+    };
 
-  if (!isClient) {
-    return (
-      <div className="flex justify-center items-center h-64">
-        <div className="text-lg">Loading...</div>
-      </div>
+    usePOSKeyboardShortcuts(
+        {
+            showShortcutGuide: () => {
+                console.log("🔥 Ctrl+Shift+F1: Opening Shortcut Guide");
+                toggleDialog("shortcutGuide");
+            },
+            showPaymentDialog: () => {
+                console.log("🔥 Ctrl+Shift+F2: Opening Payment Dialog");
+                toggleDialog("transactionType");
+            },
+            showPrescriptionDiscount: () => {
+                console.log("🔥 Ctrl+Shift+F3: Opening Prescription Discount");
+                if (selectedRowId !== null && selectedProduct) {
+                    toggleDialog("prescriptionDiscount");
+                } else {
+                    console.log("⚠️ No product selected for discount");
+                }
+            },
+            clearAllProducts: () => {
+                console.log("🔥 Ctrl+Shift+F4: Clear all products");
+            },
+            showPromoList: () => {
+                console.log("🔥 Ctrl+Shift+F5: Opening Promo List");
+            },
+            showUpSelling: () => {
+                console.log("🔥 Ctrl+Shift+F6: Opening Up Selling Dialog");
+                if (selectedRowId !== null) {
+                    toggleDialog("upsell");
+                } else {
+                    console.log("⚠️ No product selected for upselling");
+                }
+            },
+            showTransactionList: () => {
+                console.log("🔥 Ctrl+Shift+F7: Opening Transaction History");
+                toggleDialog("transactionHistory");
+            },
+            showTransactionCorrection: () => {
+                console.log("🔥 Ctrl+Shift+F8: Opening Transaction Correction");
+            },
+            addPendingBill: () => {
+                console.log("🔥 Ctrl+Shift+F9: Add Pending Bill");
+            },
+            showMemberCorporate: () => {
+                console.log("🔥 Ctrl+Shift+F10: Opening Corporate Discount");
+                toggleDialog("corporateDiscount");
+            },
+            showNewItemSuggestion: () => {
+                console.log("🔥 Ctrl+Shift+F11: Opening New Item Suggestion");
+            },
+            addMisc: () => {
+                console.log("🔥 Ctrl+Shift+F12: Opening Add Misc Dialog");
+                toggleDialog("chooseMisc");
+            },
+        },
+        {},
+        { enabled: isClient, debug: true }
     );
-  }
 
-  return (
-    <>
-      <div className={`bg-white rounded-2xl p-5 mb-6 ${className}`}>
-        <div className="bg-white rounded-2xl overflow-hidden">
-          <div
-            ref={tableContainerRef}
-            className="overflow-auto custom-scrollbar max-h-[610px]"
-          >
-            <table className="w-full min-w-[1350px]">
-              <thead className="sticky top-0 z-10 h-[60px]">
-                <tr className="bg-gray-100">
-                  <th className="text-left px-3 text-sm font-semibold text-black w-[50px] rounded-tl-2xl"></th>
-                  <th className="text-left px-3 text-sm font-semibold text-black w-[400px]">
-                    Product Name
-                  </th>
-                  <th className="text-left px-3 text-sm font-semibold text-black w-[70px]">
-                    Type
-                  </th>
-                  <th className="text-left px-3 text-sm font-semibold text-black w-[100px]">
-                    Price
-                  </th>
-                  <th className="text-center px-3 text-sm font-semibold text-black w-[60px]">
-                    Qty
-                  </th>
-                  <th className="text-left px-3 text-sm font-semibold text-black w-[100px]">
-                    SubTotal
-                  </th>
-                  <th className="text-center px-3 text-sm font-semibold text-black w-[70px]">
-                    Disc%
-                  </th>
-                  <th className="text-left px-3 text-sm font-semibold text-black w-[80px]">
-                    SC
-                  </th>
-                  <th className="text-left px-3 text-sm font-semibold text-black w-[80px]">
-                    Misc
-                  </th>
-                  <th className="text-left px-3 text-sm font-semibold text-black w-[80px]">
-                    Promo
-                  </th>
-                  <th className="text-center px-3 text-sm font-semibold text-black w-[70px]">
-                    Promo%
-                  </th>
-                  <th className="text-center px-3 text-sm font-semibold text-black w-[50px]">
-                    Up
-                  </th>
-                  <th className="text-center px-3 text-sm font-semibold text-black w-[80px]">
-                    NoVoucher
-                  </th>
-                  <th className="text-left px-3 text-sm font-semibold text-black w-[100px] rounded-tr-2xl">
-                    Total
-                  </th>
-                </tr>
-              </thead>
+    useEffect(() => {
+        if (tableContainerRef.current && products.length > 0 && isClient) {
+            setTimeout(() => {
+                if (tableContainerRef.current) {
+                    tableContainerRef.current.scrollTop =
+                        tableContainerRef.current.scrollHeight;
+                }
+            }, 100);
+        }
+    }, [products.length, isClient]);
 
-              <tbody ref={tableBodyRef}>
-                {tableData.map((product, index) => {
-                  const hasProductData = !!product.name;
-                  const isSearchRow = product.id === 999;
+    const handleProductSelectFromDialog = (selectedProduct: any) => {
+        console.log("🎯 Product selected from dialog:", selectedProduct);
 
-                  return (
-                    <tr
-                      key={product.id}
-                      className={`border-b border-gray-100 hover:bg-blue-50 cursor-pointer ${
-                        selectedRowId === product.id ? "bg-blue-50" : ""
-                      } ${
-                        isSearchRow
-                          ? "bg-blue-50 sticky top-14 z-5"
-                          : index % 2 === 0
-                          ? "bg-gray-50/30"
-                          : ""
-                      }`}
-                      onClick={() => handleRowClick(product, index)}
+        if (onProductSelect && selectedProductId !== null) {
+            onProductSelect(selectedProduct, selectedProductId);
+        }
+
+        closeDialog("selectProduct");
+        setSelectedProductId(null);
+        console.log("✅ Dialog closed and product added");
+    };
+
+    const handleRowClick = (product: ProductTableItem, index: number) => {
+        const newSelectedRowId =
+            selectedRowId === product.id ? null : product.id;
+        setSelectedRowId(newSelectedRowId);
+
+        if (newSelectedRowId !== null && product.name) {
+            setSelectedProduct(product);
+            console.log("🎯 Product selected:", product.name);
+        } else {
+            setSelectedProduct(null);
+            console.log("🎯 Product deselected");
+        }
+    };
+
+    const handleBranchStockClick = (product: ProductTableItem) => {
+        if (product.name) {
+            setSelectedProduct(product);
+            toggleDialog("branchStock");
+        }
+    };
+
+    const handleMedicationDetailsClick = (product: ProductTableItem) => {
+        if (product.name) {
+            setSelectedProduct(product);
+            toggleDialog("medicationDetails");
+        }
+    };
+
+    const handleTypeChange = (productId: number, newType: string) => {
+        if (productId === 999) return;
+        if (onTypeChange) {
+            onTypeChange(productId, newType);
+        }
+    };
+
+    const handleQuantityChangeWithFocus = (id: number, value: number) => {
+        onQuantityChange(id, value);
+    };
+
+    const handleQuantityInputBlur = () => {
+        if (onQuantityBlur) {
+            onQuantityBlur();
+        }
+    };
+
+    const handleQuantityInputKeyPress = (e: React.KeyboardEvent) => {
+        if (onQuantityKeyPress) {
+            onQuantityKeyPress(e);
+        }
+    };
+
+    const handleOpenSelectProductDialog = () => {
+        console.log("🔍 Opening Select Product Dialog");
+        setSelectedProductId(999);
+        closeDialog("selectProduct");
+        setTimeout(() => {
+            toggleDialog("selectProduct");
+        }, 50);
+    };
+
+    const tableData = React.useMemo(() => {
+        const searchRow = {
+            id: 999,
+            name: "",
+            type: "",
+            price: 0,
+            quantity: 0,
+            subtotal: 0,
+            discount: 0,
+            sc: 0,
+            misc: 0,
+            promo: 0,
+            promoPercent: 0,
+            up: "N",
+            noVoucher: 0,
+            total: 0,
+        };
+
+        const filledProducts = products.filter((p) => p.name);
+        return [searchRow, ...filledProducts];
+    }, [products]);
+
+    useEffect(() => {
+        console.log("🎭 Dialog states:", dialogStates);
+    }, [dialogStates]);
+
+    if (!isClient) {
+        return (
+            <div className="flex justify-center items-center h-64">
+                <div className="text-lg">Loading...</div>
+            </div>
+        );
+    }
+
+    return (
+        <>
+            <div className={`bg-white rounded-2xl p-5 mb-6 ${className}`}>
+                <div className="bg-white rounded-2xl overflow-hidden">
+                    <div
+                        ref={tableContainerRef}
+                        className="overflow-auto custom-scrollbar max-h-[610px]"
                     >
-                      <td className="p-3">
-                        {hasProductData ? (
-                          <input
-                            type="checkbox"
-                            checked={selectedRowId === product.id}
-                            onChange={() => handleRowClick(product, index)}
-                            className="rounded border-gray-300 text-blue-600 focus:ring-blue-500"
-                          />
-                        ) : (
-                          <div className="w-4 h-4"></div>
-                        )}
-                      </td>
+                        <table className="w-full min-w-[1350px]">
+                            <thead className="sticky top-0 z-10 h-[60px]">
+                                <tr className="bg-gray-100">
+                                    <th className="text-left px-3 text-sm font-semibold text-black w-[50px] rounded-tl-2xl"></th>
+                                    <th className="text-left px-3 text-sm font-semibold text-black w-[400px]">
+                                        Product Name
+                                    </th>
+                                    <th className="text-left px-3 text-sm font-semibold text-black w-[70px]">
+                                        Type
+                                    </th>
+                                    <th className="text-left px-3 text-sm font-semibold text-black w-[100px]">
+                                        Price
+                                    </th>
+                                    <th className="text-center px-3 text-sm font-semibold text-black w-[60px]">
+                                        Qty
+                                    </th>
+                                    <th className="text-left px-3 text-sm font-semibold text-black w-[100px]">
+                                        SubTotal
+                                    </th>
+                                    <th className="text-center px-3 text-sm font-semibold text-black w-[70px]">
+                                        Disc%
+                                    </th>
+                                    <th className="text-left px-3 text-sm font-semibold text-black w-[80px]">
+                                        SC
+                                    </th>
+                                    <th className="text-left px-3 text-sm font-semibold text-black w-[80px]">
+                                        Misc
+                                    </th>
+                                    <th className="text-left px-3 text-sm font-semibold text-black w-[80px]">
+                                        Promo
+                                    </th>
+                                    <th className="text-center px-3 text-sm font-semibold text-black w-[70px]">
+                                        Promo%
+                                    </th>
+                                    <th className="text-center px-3 text-sm font-semibold text-black w-[50px]">
+                                        Up
+                                    </th>
+                                    <th className="text-center px-3 text-sm font-semibold text-black w-[80px]">
+                                        NoVoucher
+                                    </th>
+                                    <th className="text-left px-3 text-sm font-semibold text-black w-[100px] rounded-tr-2xl">
+                                        Total
+                                    </th>
+                                </tr>
+                            </thead>
 
-                      <td className="p-3">
-                        <div className="flex items-center gap-3">
-                          {hasProductData ? (
-                            <>
-                              <ProductActionIcons
-                                productName={product.name}
-                                onBranchStockClick={() =>
-                                  handleBranchStockClick(product)
-                                }
-                                onMedicationDetailsClick={() =>
-                                  handleMedicationDetailsClick(product)
-                                }
-                                onDeleteClick={() =>
-                                  onRemoveProduct(product.id)
-                                }
-                              />
-                              <span
-                                className="cursor-pointer hover:text-blue-600 text-sm font-medium truncate max-w-[180px]"
-                                onClick={() => onProductNameClick?.(product.id)}
-                                title={product.name}
-                              >
-                                {product.name}
-                              </span>
-                            </>
-                          ) : (
-                            <div className="flex items-center gap-3 w-full">
-                              <button
-                                className="w-8 h-8 bg-blue-100 rounded flex items-center justify-center hover:bg-blue-200 transition-colors cursor-pointer"
-                                onClick={handleSearchFieldClick}
-                                title="Add Product"
-                              >
-                                <Plus className="w-5 h-5 text-blue-600" />
-                              </button>
-                              <Input
-                                placeholder="Cari nama produk disini"
-                                className="border-[#F0F0F0] text-sm h-11 flex-1 cursor-pointer bg-white shadow-none"
-                                onClick={handleSearchFieldClick}
-                                readOnly
-                              />
-                            </div>
-                          )}
+                            <tbody ref={tableBodyRef}>
+                                {tableData.map((product, index) => {
+                                    const hasProductData = !!product.name;
+                                    const isSearchRow = product.id === 999;
+
+                                    return (
+                                        <tr
+                                            key={product.id}
+                                            className={`border-b border-gray-100 hover:bg-blue-50 cursor-pointer ${
+                                                selectedRowId === product.id
+                                                    ? "bg-blue-50"
+                                                    : ""
+                                            } ${
+                                                isSearchRow
+                                                    ? "bg-blue-50 sticky top-14 z-5"
+                                                    : index % 2 === 0
+                                                    ? "bg-gray-50/30"
+                                                    : ""
+                                            }`}
+                                            onClick={() =>
+                                                handleRowClick(product, index)
+                                            }
+                                        >
+                                            <td className="p-3">
+                                                {hasProductData ? (
+                                                    <input
+                                                        type="checkbox"
+                                                        checked={
+                                                            selectedRowId ===
+                                                            product.id
+                                                        }
+                                                        onChange={() =>
+                                                            handleRowClick(
+                                                                product,
+                                                                index
+                                                            )
+                                                        }
+                                                        className="rounded border-gray-300 text-blue-600 focus:ring-blue-500"
+                                                    />
+                                                ) : (
+                                                    <div className="w-4 h-4"></div>
+                                                )}
+                                            </td>
+
+                                            <td className="p-3">
+                                                <div className="flex items-center gap-3">
+                                                    {hasProductData ? (
+                                                        <>
+                                                            <ProductActionIcons
+                                                                productName={
+                                                                    product.name
+                                                                }
+                                                                onBranchStockClick={() =>
+                                                                    handleBranchStockClick(
+                                                                        product
+                                                                    )
+                                                                }
+                                                                onMedicationDetailsClick={() =>
+                                                                    handleMedicationDetailsClick(
+                                                                        product
+                                                                    )
+                                                                }
+                                                                onDeleteClick={() =>
+                                                                    onRemoveProduct(
+                                                                        product.id
+                                                                    )
+                                                                }
+                                                            />
+                                                            <span
+                                                                className="cursor-pointer hover:text-blue-600 text-sm font-medium truncate max-w-[180px]"
+                                                                onClick={() =>
+                                                                    onProductNameClick?.(
+                                                                        product.id
+                                                                    )
+                                                                }
+                                                                title={
+                                                                    product.name
+                                                                }
+                                                            >
+                                                                {product.name}
+                                                            </span>
+                                                        </>
+                                                    ) : (
+                                                        <div className="flex items-center gap-3 w-full">
+                                                            <button
+                                                                className="w-8 h-8 bg-blue-100 rounded flex items-center justify-center hover:bg-blue-200 transition-colors cursor-pointer"
+                                                                onClick={(
+                                                                    e
+                                                                ) => {
+                                                                    e.stopPropagation();
+                                                                    handleOpenSelectProductDialog();
+                                                                }}
+                                                                title="Add Product"
+                                                            >
+                                                                <Plus className="w-5 h-5 text-blue-600" />
+                                                            </button>
+                                                            <Input
+                                                                placeholder="Cari nama produk disini"
+                                                                className="border-[#F0F0F0] text-sm h-11 flex-1 cursor-pointer bg-white shadow-none"
+                                                                onClick={(
+                                                                    e
+                                                                ) => {
+                                                                    e.stopPropagation();
+                                                                    handleOpenSelectProductDialog();
+                                                                }}
+                                                                readOnly
+                                                            />
+                                                        </div>
+                                                    )}
+                                                </div>
+                                            </td>
+
+                                            <td className="p-3">
+                                                <ProductTypeSelector
+                                                    type={product.type || ""}
+                                                    onChange={(newType) =>
+                                                        handleTypeChange(
+                                                            product.id,
+                                                            newType
+                                                        )
+                                                    }
+                                                    disabled={
+                                                        isSearchRow ||
+                                                        !hasProductData
+                                                    }
+                                                />
+                                            </td>
+
+                                            <td className="p-3 text-sm">
+                                                <div className="whitespace-nowrap">
+                                                    {formatCurrency(
+                                                        product.price
+                                                    )}
+                                                </div>
+                                            </td>
+
+                                            <td className="p-3">
+                                                <div className="flex justify-center">
+                                                    <Input
+                                                        type="number"
+                                                        value={
+                                                            product.quantity ||
+                                                            ""
+                                                        }
+                                                        onChange={(e) =>
+                                                            handleQuantityChangeWithFocus(
+                                                                product.id,
+                                                                parseInt(
+                                                                    e.target
+                                                                        .value
+                                                                ) || 0
+                                                            )
+                                                        }
+                                                        onBlur={
+                                                            handleQuantityInputBlur
+                                                        }
+                                                        onKeyDown={
+                                                            handleQuantityInputKeyPress
+                                                        }
+                                                        className="w-[76px] text-sm border-[#F0F0F0] h-11 text-center"
+                                                        min="0"
+                                                        data-product-id={
+                                                            product.id
+                                                        }
+                                                    />
+                                                </div>
+                                            </td>
+
+                                            <td className="p-3 text-sm font-semibold">
+                                                <div className="whitespace-nowrap">
+                                                    {formatCurrency(
+                                                        product.subtotal
+                                                    )}
+                                                </div>
+                                            </td>
+
+                                            <td className="p-3">
+                                                <div className="flex justify-center">
+                                                    <span className="w-[76px] text-sm text-center py-2">
+                                                        {product.discount || 0}%
+                                                    </span>
+                                                </div>
+                                            </td>
+
+                                            <td className="p-3 text-sm">
+                                                <div className="whitespace-nowrap">
+                                                    {formatCurrency(product.sc)}
+                                                </div>
+                                            </td>
+
+                                            <td className="p-3 text-sm">
+                                                <div className="whitespace-nowrap">
+                                                    {formatCurrency(
+                                                        product.misc
+                                                    )}
+                                                </div>
+                                            </td>
+
+                                            <td className="p-3 text-sm">
+                                                <div className="whitespace-nowrap">
+                                                    {formatCurrency(
+                                                        product.promo || 0
+                                                    )}
+                                                </div>
+                                            </td>
+
+                                            <td className="p-3 text-sm text-center">
+                                                {product.promoPercent || 0}%
+                                            </td>
+
+                                            <td className="p-3 text-sm text-center">
+                                                {product.up || "N"}
+                                            </td>
+
+                                            <td className="p-3 text-sm text-center">
+                                                {product.noVoucher || 0}
+                                            </td>
+
+                                            <td className="p-3 text-sm font-bold">
+                                                <div className="whitespace-nowrap">
+                                                    {formatCurrency(
+                                                        hasProductData &&
+                                                            product.subtotal &&
+                                                            product.discount
+                                                            ? product.subtotal -
+                                                                  product.subtotal *
+                                                                      (product.discount /
+                                                                          100)
+                                                            : product.total ||
+                                                                  product.subtotal
+                                                    )}
+                                                </div>
+                                            </td>
+                                        </tr>
+                                    );
+                                })}
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            </div>
+
+            <SelectProductDialog
+                isOpen={dialogStates.selectProduct}
+                onClose={() => {
+                    console.log("🔒 SelectProduct onClose called");
+                    closeDialog("selectProduct");
+                    setSelectedProductId(null);
+                }}
+                onSelectProduct={handleProductSelectFromDialog}
+            />
+
+            <BranchWideStockDialog
+                isOpen={dialogStates.branchStock}
+                onClose={() => closeDialog("branchStock")}
+                productName={selectedProduct?.name}
+                productCode={selectedProduct?.stockData?.kode_brg}
+                retailPrice={formatCurrency(selectedProduct?.price)}
+                wholesalePrice={formatCurrency(selectedProduct?.price)}
+                quantity={selectedProduct?.quantity || 0}
+                expiredDate="29/05/2030"
+                units={selectedProduct?.stockData?.isi || 1}
+                strips={selectedProduct?.stockData?.strip || 1}
+                qtyFree={1}
+            />
+
+            <MedicationDetailsDialog
+                isOpen={dialogStates.medicationDetails}
+                onClose={() => closeDialog("medicationDetails")}
+                productName={selectedProduct?.name}
+                productCode={selectedProduct?.stockData?.kode_brg}
+            />
+
+            <PaymentDialog
+                isOpen={dialogStates.payment}
+                onClose={() => closeDialog("payment")}
+                onPaymentSuccess={() => {
+                    closeDialog("payment");
+                    toggleDialog("paymentSuccess");
+                }}
+                totalAmount={50000}
+                orderDetails={{
+                    customer: "Test Customer",
+                    items: [],
+                }}
+            />
+
+            <AddCustomerDialog
+                isOpen={dialogStates.addCustomer}
+                onClose={() => closeDialog("addCustomer")}
+                onSubmit={(customer) => {
+                    console.log("✅ New customer added:", customer);
+                    closeDialog("addCustomer");
+                }}
+            />
+
+            <AddDoctorDialog
+                isOpen={dialogStates.addDoctor}
+                onClose={() => closeDialog("addDoctor")}
+                onSubmit={(doctor) => {
+                    console.log("✅ New doctor added:", doctor);
+                    closeDialog("addDoctor");
+                }}
+            />
+
+            <TransactionTypeDialog
+                isOpen={dialogStates.transactionType}
+                onClose={() => closeDialog("transactionType")}
+                onSubmit={(transactionData) => {
+                    console.log(
+                        "✅ Transaction type selected:",
+                        transactionData
+                    );
+                    closeDialog("transactionType");
+                }}
+            />
+
+            <EmployeeLoginDialog
+                isOpen={dialogStates.employeeLogin}
+                onClose={() => closeDialog("employeeLogin")}
+                onLogin={(userData) => {
+                    console.log("✅ Employee logged in:", userData);
+                    closeDialog("employeeLogin");
+                }}
+            />
+
+            <PaymentSuccessDialog
+                isOpen={dialogStates.paymentSuccess}
+                onClose={() => closeDialog("paymentSuccess")}
+                onPrintBills={() => {
+                    console.log("✅ Print bills requested");
+                    closeDialog("paymentSuccess");
+                }}
+            />
+
+            <CustomerDoctorDialog
+                isOpen={dialogStates.customerDoctor}
+                onClose={() => closeDialog("customerDoctor")}
+                onSelectCustomer={(customer) => {
+                    console.log("✅ Customer selected:", customer);
+                    closeDialog("customerDoctor");
+                }}
+                onSelectDoctor={(doctor) => {
+                    console.log("✅ Doctor selected:", doctor);
+                    closeDialog("customerDoctor");
+                }}
+                onSubmit={(customerData, doctorData) => {
+                    console.log("✅ Customer & Doctor submitted:", {
+                        customerData,
+                        doctorData,
+                    });
+                    closeDialog("customerDoctor");
+                }}
+                mode="both"
+                initialFocus="customer"
+            />
+
+            <FingerprintScanningDialog
+                isOpen={dialogStates.fingerprint}
+                onClose={() => closeDialog("fingerprint")}
+                onComplete={() => {
+                    closeDialog("fingerprint");
+                    console.log("✅ Fingerprint scanning completed");
+                }}
+                scanningType="finger1-scan"
+            />
+
+            {dialogStates.calculator && (
+                <div className="fixed inset-0 bg-black/50 z-50 flex items-center justify-center p-4">
+                    <div className="bg-white rounded-2xl p-6 w-full max-w-sm shadow-2xl">
+                        <div className="flex justify-between items-center mb-4">
+                            <h2 className="text-xl font-semibold">
+                                Calculator
+                            </h2>
+                            <button
+                                onClick={() => closeDialog("calculator")}
+                                className="text-gray-400 hover:text-gray-600"
+                            >
+                                ✕
+                            </button>
                         </div>
-                      </td>
+                        <Calculator />
+                    </div>
+                </div>
+            )}
 
-                      <td className="p-3">
-                        <ProductTypeSelector
-                          type={product.type || ""}
-                          onChange={(newType) =>
-                            handleTypeChange(product.id, newType)
-                          }
-                          disabled={isSearchRow || !hasProductData}
-                        />
-                      </td>
+            <KeyboardShortcutGuide
+                isOpen={dialogStates.shortcutGuide}
+                onClose={() => closeDialog("shortcutGuide")}
+            />
 
-                      <td className="p-3 text-sm">
-                        <div className="whitespace-nowrap">
-                          {formatCurrency(product.price)}
-                        </div>
-                      </td>
+            <UpsellDialog
+                isOpen={dialogStates.upsell}
+                onClose={() => closeDialog("upsell")}
+                onConfirm={() => {
+                    if (selectedRowId !== null) {
+                        console.log(
+                            `✅ Product ${selectedRowId} marked as upselling product`
+                        );
+                    }
+                    closeDialog("upsell");
+                }}
+                productName={selectedProduct?.name}
+            />
 
-                      <td className="p-3">
-                        <div className="flex justify-center">
-                          <Input
-                            type="number"
-                            value={product.quantity || ""}
-                            onChange={(e) =>
-                              handleQuantityChangeWithFocus(
-                                product.id,
-                                parseInt(e.target.value) || 0
-                              )
-                            }
-                            onBlur={handleQuantityInputBlur}
-                            onKeyDown={handleQuantityInputKeyPress}
-                            className="w-[76px] text-sm border-[#F0F0F0] h-11 text-center"
-                            min="0"
-                            data-product-id={product.id}
-                          />
-                        </div>
-                      </td>
+            <PrescriptionDiscountDialog
+                isOpen={dialogStates.prescriptionDiscount}
+                onClose={() => closeDialog("prescriptionDiscount")}
+                onSubmit={(productId, discount) => {
+                    if (onDiscountChange) {
+                        onDiscountChange(productId, discount);
+                    }
+                    closeDialog("prescriptionDiscount");
+                }}
+                selectedProduct={{
+                    id: selectedProduct?.id || 0,
+                    kode_brg: selectedProduct?.stockData?.kode_brg || "",
+                    nama_brg: selectedProduct?.name || "",
+                }}
+            />
 
-                      <td className="p-3 text-sm font-semibold">
-                        <div className="whitespace-nowrap">
-                          {formatCurrency(product.subtotal)}
-                        </div>
-                      </td>
+            <ChooseMiscDialog
+                isOpen={dialogStates.chooseMisc}
+                onClose={() => closeDialog("chooseMisc")}
+                onSubmit={(miscData) => {
+                    console.log("✅ Misc applied:", miscData);
+                    closeDialog("chooseMisc");
+                }}
+            />
 
-                      <td className="p-3">
-                        <div className="flex justify-center">
-                          <span className="w-[76px] text-sm text-center py-2">
-                            {product.discount || 0}%
-                          </span>
-                        </div>
-                      </td>
+            <CorporateDiscountDialog
+                isOpen={dialogStates.corporateDiscount}
+                onClose={() => closeDialog("corporateDiscount")}
+                onSubmit={(selectedCorporates) => {
+                    console.log(
+                        "✅ Corporate discount applied:",
+                        selectedCorporates
+                    );
+                    closeDialog("corporateDiscount");
+                }}
+            />
 
-                      <td className="p-3 text-sm">
-                        <div className="whitespace-nowrap">
-                          {formatCurrency(product.sc)}
-                        </div>
-                      </td>
+            <TransactionHistoryDialog
+                isOpen={dialogStates.transactionHistory}
+                onClose={() => closeDialog("transactionHistory")}
+            />
 
-                      <td className="p-3 text-sm">
-                        <div className="whitespace-nowrap">
-                          {formatCurrency(product.misc)}
-                        </div>
-                      </td>
+            <style jsx>{`
+                .custom-scrollbar {
+                    scrollbar-width: thin;
+                    scrollbar-color: #3b82f6 #f1f5f9;
+                }
 
-                      <td className="p-3 text-sm">
-                        <div className="whitespace-nowrap">
-                          {formatCurrency(product.promo || 0)}
-                        </div>
-                      </td>
+                .custom-scrollbar::-webkit-scrollbar {
+                    width: 8px;
+                    height: 8px;
+                }
 
-                      <td className="p-3 text-sm text-center">
-                        {product.promoPercent || 0}%
-                      </td>
+                .custom-scrollbar::-webkit-scrollbar-track {
+                    background: #f1f5f9;
+                    border-radius: 4px;
+                }
 
-                      <td className="p-3 text-sm text-center">
-                        {product.up || "N"}
-                      </td>
+                .custom-scrollbar::-webkit-scrollbar-thumb {
+                    background: #3b82f6;
+                    border-radius: 4px;
+                    border: 1px solid #f1f5f9;
+                }
 
-                      <td className="p-3 text-sm text-center">
-                        {product.noVoucher || 0}
-                      </td>
+                .custom-scrollbar::-webkit-scrollbar-thumb:hover {
+                    background: #2563eb;
+                }
 
-                      <td className="p-3 text-sm font-bold">
-                        <div className="whitespace-nowrap">
-                          {formatCurrency(
-                            hasProductData &&
-                              product.subtotal &&
-                              product.discount
-                              ? product.subtotal -
-                                  product.subtotal * (product.discount / 100)
-                              : product.total || product.subtotal
-                          )}
-                        </div>
-                      </td>
-                    </tr>
-                  );
-                })}
-              </tbody>
-            </table>
-          </div>
-        </div>
-      </div>
+                .custom-scrollbar::-webkit-scrollbar-corner {
+                    background: #f1f5f9;
+                }
 
-      <SelectProductDialog
-        isOpen={isSelectProductDialogOpen}
-        onClose={() => {
-          setIsSelectProductDialogOpen(false);
-          setSelectedProductId(null);
-        }}
-        onSelectProduct={handleProductSelectFromDialog}
-      />
-
-      <BranchWideStockDialog
-        isOpen={isBranchStockOpen}
-        onClose={() => setIsBranchStockOpen(false)}
-        productName={selectedProduct?.name}
-        productCode={selectedProduct?.stockData?.kode_brg}
-        retailPrice={formatCurrency(selectedProduct?.price)}
-        wholesalePrice={formatCurrency(selectedProduct?.price)}
-        quantity={selectedProduct?.quantity || 0}
-        expiredDate="29/05/2030"
-        units={selectedProduct?.stockData?.isi || 1}
-        strips={selectedProduct?.stockData?.strip || 1}
-        qtyFree={1}
-      />
-
-      <MedicationDetailsDialog
-        isOpen={isMedicationDetailsOpen}
-        onClose={() => setIsMedicationDetailsOpen(false)}
-        productName={selectedProduct?.name}
-        productCode={selectedProduct?.stockData?.kode_brg}
-      />
-
-      <KeyboardShortcutGuide
-        isOpen={isShortcutGuideOpen}
-        onClose={() => setIsShortcutGuideOpen(false)}
-      />
-
-      <UpsellDialog
-        isOpen={isUpsellDialogOpen}
-        onClose={() => setIsUpsellDialogOpen(false)}
-        onConfirm={() => {
-          if (selectedRowId !== null) {
-            console.log(
-              `✅ Product ${selectedRowId} marked as upselling product`
-            );
-          }
-        }}
-        productName={selectedProduct?.name}
-      />
-
-      <PrescriptionDiscountDialog
-        isOpen={isPrescriptionDiscountOpen}
-        onClose={() => setIsPrescriptionDiscountOpen(false)}
-        onSubmit={(productId, discount) => {
-          if (onDiscountChange) {
-            onDiscountChange(productId, discount);
-          }
-          setIsPrescriptionDiscountOpen(false);
-        }}
-        selectedProduct={{
-          id: selectedProduct?.id || 0,
-          kode_brg: selectedProduct?.stockData?.kode_brg || "",
-          nama_brg: selectedProduct?.name || "",
-        }}
-      />
-
-      <ChooseMiscDialog
-        isOpen={isChooseMiscOpen}
-        onClose={() => setIsChooseMiscOpen(false)}
-        onSubmit={(miscData) => {
-          console.log("✅ Misc applied:", miscData);
-          setIsChooseMiscOpen(false);
-        }}
-      />
-
-      <TransactionTypeDialog
-        isOpen={isTransactionTypeOpen}
-        onClose={() => setIsTransactionTypeOpen(false)}
-        onSubmit={(transactionData) => {
-          console.log("✅ Transaction type selected:", transactionData);
-          setIsTransactionTypeOpen(false);
-        }}
-      />
-
-      <CorporateDiscountDialog
-        isOpen={isCorporateDiscountOpen}
-        onClose={() => setIsCorporateDiscountOpen(false)}
-        onSubmit={(selectedCorporates) => {
-          console.log("✅ Corporate discount applied:", selectedCorporates);
-          setIsCorporateDiscountOpen(false);
-        }}
-      />
-
-      {/* 🔥 REMOVED: TransactionHistoryDialog - should be handled at page level */}
-
-      <style jsx>{`
-        .custom-scrollbar {
-          scrollbar-width: thin;
-          scrollbar-color: #3b82f6 #f1f5f9;
-        }
-
-        .custom-scrollbar::-webkit-scrollbar {
-          width: 8px;
-          height: 8px;
-        }
-
-        .custom-scrollbar::-webkit-scrollbar-track {
-          background: #f1f5f9;
-          border-radius: 4px;
-        }
-
-        .custom-scrollbar::-webkit-scrollbar-thumb {
-          background: #3b82f6;
-          border-radius: 4px;
-          border: 1px solid #f1f5f9;
-        }
-
-        .custom-scrollbar::-webkit-scrollbar-thumb:hover {
-          background: #2563eb;
-        }
-
-        .custom-scrollbar::-webkit-scrollbar-corner {
-          background: #f1f5f9;
-        }
-
-        kbd {
-          background-color: #f3f4f6;
-          border: 1px solid #d1d5db;
-          border-radius: 3px;
-          box-shadow: 0 1px 0 rgba(0, 0, 0, 0.2), inset 0 0 0 2px #ffffff;
-          color: #374151;
-          display: inline-block;
-          font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto,
-            "Helvetica Neue", Arial, sans-serif;
-          font-size: 11px;
-          font-weight: 600;
-          line-height: 1;
-          padding: 2px 4px;
-          white-space: nowrap;
-        }
-      `}</style>
-    </>
-  );
+                kbd {
+                    background-color: #f3f4f6;
+                    border: 1px solid #d1d5db;
+                    border-radius: 3px;
+                    box-shadow: 0 1px 0 rgba(0, 0, 0, 0.2),
+                        inset 0 0 0 2px #ffffff;
+                    color: #374151;
+                    display: inline-block;
+                    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI",
+                        Roboto, "Helvetica Neue", Arial, sans-serif;
+                    font-size: 11px;
+                    font-weight: 600;
+                    line-height: 1;
+                    padding: 2px 4px;
+                    white-space: nowrap;
+                }
+            `}</style>
+        </>
+    );
 }

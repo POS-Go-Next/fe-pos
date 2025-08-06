@@ -40,7 +40,6 @@ const BranchWideStockDialog: React.FC<BranchWideStockDialogProps> = ({
   const [pageSize, setPageSize] = useState(5);
   const [isPageSizeOpen, setIsPageSizeOpen] = useState(false);
 
-  // Hook untuk mendapatkan data branch wide stock
   const { branchStockData, branchTableData, isLoading, error, refetch } =
     useBranchWideStock({
       kode_brg: productCode || null,
@@ -49,40 +48,34 @@ const BranchWideStockDialog: React.FC<BranchWideStockDialogProps> = ({
 
   const pageSizeOptions = [5, 10, 25, 50];
 
-  // Filter data berdasarkan search term
   const filteredData: BranchStockTableData[] = branchTableData.filter(
     (branch) =>
       branch.branchName.toLowerCase().includes(searchTerm.toLowerCase()) ||
       branch.idBranch.toLowerCase().includes(searchTerm.toLowerCase())
   );
 
-  // Pagination calculations
   const totalItems = filteredData.length;
   const totalPages = Math.ceil(totalItems / pageSize);
   const startIndex = (currentPage - 1) * pageSize;
   const endIndex = Math.min(startIndex + pageSize, totalItems);
   const paginatedData = filteredData.slice(startIndex, endIndex);
 
-  // Handle search input change
   const handleSearchChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     setSearchTerm(e.target.value);
-    setCurrentPage(1); // Reset ke page 1 ketika search
+    setCurrentPage(1);
   };
 
-  // Handle page change
   const handlePageChange = (page: number) => {
     if (page < 1 || page > totalPages) return;
     setCurrentPage(page);
   };
 
-  // Handle page size change
   const handlePageSizeChange = (newPageSize: number) => {
     setPageSize(newPageSize);
-    setCurrentPage(1); // Reset ke page 1 ketika page size berubah
+    setCurrentPage(1);
     setIsPageSizeOpen(false);
   };
 
-  // Reset state when dialog opens/closes
   React.useEffect(() => {
     if (isOpen) {
       setSearchTerm("");
@@ -91,7 +84,6 @@ const BranchWideStockDialog: React.FC<BranchWideStockDialogProps> = ({
     }
   }, [isOpen]);
 
-  // Reset pagination when filtered data changes
   React.useEffect(() => {
     if (currentPage > totalPages && totalPages > 0) {
       setCurrentPage(1);
@@ -100,7 +92,6 @@ const BranchWideStockDialog: React.FC<BranchWideStockDialogProps> = ({
 
   if (!isOpen) return null;
 
-  // Gunakan data dari API jika ada, fallback ke props
   const displayData = {
     productName: branchStockData?.nama_brg || productName,
     retailPrice: branchStockData
@@ -121,7 +112,6 @@ const BranchWideStockDialog: React.FC<BranchWideStockDialogProps> = ({
   return (
     <div className="fixed inset-0 bg-black/50 z-50 flex items-center justify-center p-4">
       <div className="bg-white rounded-lg w-full max-w-6xl max-h-[90vh] flex flex-col">
-        {/* Header */}
         <div className="flex justify-between items-center p-6 border-b">
           <h2 className="text-xl font-semibold text-gray-900">
             Branch wide stock
@@ -134,9 +124,7 @@ const BranchWideStockDialog: React.FC<BranchWideStockDialogProps> = ({
           </button>
         </div>
 
-        {/* Content */}
         <div className="flex-1 overflow-auto p-6">
-          {/* Product Details Section */}
           <div className="rounded-lg border border-gray-200 mb-6">
             <div className="bg-blue-100 rounded-t-lg px-6 py-3">
               <h3 className="text-blue-600 font-medium text-center">
@@ -206,7 +194,6 @@ const BranchWideStockDialog: React.FC<BranchWideStockDialogProps> = ({
             </div>
           </div>
 
-          {/* Search */}
           <div className="relative mb-6">
             <Input
               type="text"
@@ -221,9 +208,7 @@ const BranchWideStockDialog: React.FC<BranchWideStockDialogProps> = ({
             />
           </div>
 
-          {/* Table Container */}
           <div className="border border-gray-200 rounded-lg overflow-hidden">
-            {/* Header */}
             <div className="grid grid-cols-6 bg-gray-50 p-4 text-sm font-medium text-gray-700 border-b border-gray-200">
               <div className="flex items-center gap-1">
                 ID Branch
@@ -323,7 +308,6 @@ const BranchWideStockDialog: React.FC<BranchWideStockDialogProps> = ({
               </div>
             </div>
 
-            {/* Body */}
             <div className="min-h-[300px]">
               {isLoading ? (
                 <div className="p-8 text-center">
@@ -375,7 +359,6 @@ const BranchWideStockDialog: React.FC<BranchWideStockDialogProps> = ({
             </div>
           </div>
 
-          {/* Footer with pagination and page size selector */}
           {!isLoading && !error && filteredData.length > 0 && (
             <div className="mt-6 flex justify-between items-center flex-shrink-0">
               <div className="flex items-center gap-4">
@@ -423,7 +406,6 @@ const BranchWideStockDialog: React.FC<BranchWideStockDialogProps> = ({
                 </div>
               </div>
 
-              {/* Pagination */}
               {totalPages > 1 && (
                 <div className="flex items-center gap-1">
                   <Button
@@ -448,13 +430,11 @@ const BranchWideStockDialog: React.FC<BranchWideStockDialogProps> = ({
                     </svg>
                   </Button>
 
-                  {/* Page numbers - Smart pagination */}
                   {(() => {
                     const pages = [];
                     const maxVisiblePages = 5;
 
                     if (totalPages <= maxVisiblePages) {
-                      // Show all pages if total is small
                       for (let i = 1; i <= totalPages; i++) {
                         pages.push(
                           <Button
@@ -473,7 +453,6 @@ const BranchWideStockDialog: React.FC<BranchWideStockDialogProps> = ({
                         );
                       }
                     } else {
-                      // Smart pagination for many pages
                       pages.push(
                         <Button
                           key={1}

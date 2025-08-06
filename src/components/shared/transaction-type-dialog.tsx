@@ -44,7 +44,6 @@ const TransactionTypeDialog: React.FC<TransactionTypeDialogProps> = ({
 
     const handleClose = () => {
         onClose();
-        // Reset to default values
         setMedicineType("Compounded");
         setTransactionType("Full Prescription");
         setAvailability("Available");
@@ -55,7 +54,6 @@ const TransactionTypeDialog: React.FC<TransactionTypeDialogProps> = ({
     return (
         <div className="fixed inset-0 bg-black/50 z-50 flex items-center justify-center p-4">
             <div className="bg-white rounded-2xl w-full max-w-md shadow-2xl">
-                {/* Header */}
                 <div className="flex justify-between items-center p-6 border-b border-gray-200">
                     <h2 className="text-xl font-bold text-gray-900">
                         Transaction Type
@@ -68,9 +66,7 @@ const TransactionTypeDialog: React.FC<TransactionTypeDialogProps> = ({
                     </button>
                 </div>
 
-                {/* Content */}
                 <div className="p-6 space-y-8">
-                    {/* Medicine Type */}
                     <div>
                         <h3 className="text-lg font-semibold text-gray-900 mb-4">
                             Medicine Type
@@ -99,7 +95,6 @@ const TransactionTypeDialog: React.FC<TransactionTypeDialogProps> = ({
                         </div>
                     </div>
 
-                    {/* Transaction Type */}
                     <div>
                         <h3 className="text-lg font-semibold text-gray-900 mb-4">
                             Transaction Type
@@ -132,7 +127,6 @@ const TransactionTypeDialog: React.FC<TransactionTypeDialogProps> = ({
                         </div>
                     </div>
 
-                    {/* Availability / Patient Credit */}
                     <div>
                         <h3 className="text-lg font-semibold text-gray-900 mb-4">
                             Availability / Patient Credit
@@ -164,7 +158,6 @@ const TransactionTypeDialog: React.FC<TransactionTypeDialogProps> = ({
                     </div>
                 </div>
 
-                {/* Footer */}
                 <div className="flex gap-3 p-6 border-t border-gray-200">
                     <Button
                         variant="outline"
