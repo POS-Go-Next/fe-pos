@@ -1,4 +1,4 @@
-// components/dashboard/FingerprintSetupDialog.tsx - FIXED VERSION
+// components/dashboard/FingerprintSetupDialog.tsx - UPDATED WITH DYNAMIC MAC ADDRESS
 "use client";
 
 import { useAuthManager } from "@/components/shared/AuthenticationManager";
@@ -8,6 +8,7 @@ import FingerprintCard from "@/components/shared/FingerprintCard";
 import FingerprintScanningDialog from "@/components/shared/FingerprintScanningDialog";
 import { Button } from "@/components/ui/button";
 import { useEmployeeSelection } from "@/hooks/useEmployeeSelection";
+import { useSystemInfo } from "@/hooks/useSystemInfo"; // 🔥 ADD: Import system info hook
 import { showErrorAlert } from "@/lib/swal";
 import { CheckCircle, X } from "lucide-react";
 import { FC, useCallback, useEffect, useState } from "react";
@@ -122,6 +123,7 @@ const FingerprintSetupDialog: FC<FingerprintSetupDialogProps> = ({
         handleLoginClose,
         resetAuth,
     } = useAuthManager();
+
     const {
         currentStep,
         setCurrentStep,
@@ -129,6 +131,7 @@ const FingerprintSetupDialog: FC<FingerprintSetupDialogProps> = ({
         updateFingerprintState,
         resetFlow,
     } = useFingerprintFlow();
+
     const {
         employeeState,
         employees,
@@ -140,7 +143,16 @@ const FingerprintSetupDialog: FC<FingerprintSetupDialogProps> = ({
         resetEmployee,
         refetch,
     } = useEmployeeSelection(authState.hasValidToken);
+
     const { scanState, startScanning, closeScanDialog } = useScanningManager();
+
+    // 🔥 ADD: Use system info hook to get MAC address
+    const {
+        macAddress,
+        isLoading: isSystemLoading,
+        error: systemError,
+        refetch: refetchSystemInfo,
+    } = useSystemInfo();
 
     const checkLocalStorageToken = (): boolean => {
         if (typeof window === "undefined") return false;
@@ -192,8 +204,39 @@ const FingerprintSetupDialog: FC<FingerprintSetupDialogProps> = ({
         }
     }, [isOpen, checkAuthentication, handleLoginSuccess]);
 
+    // 🔥 ADD: Check for system info and MAC address
+    useEffect(() => {
+        if (
+            isOpen &&
+            authState.hasValidToken &&
+            !macAddress &&
+            !isSystemLoading &&
+            !systemError
+        ) {
+            console.log("🔄 Refetching system info to get MAC address...");
+            refetchSystemInfo();
+        }
+    }, [
+        isOpen,
+        authState.hasValidToken,
+        macAddress,
+        isSystemLoading,
+        systemError,
+        refetchSystemInfo,
+    ]);
+
     const handleStartScanning = async (type: ScanningType) => {
         if (!employeeState.selectedEmployeeId) return;
+
+        // 🔥 ADD: Check if MAC address is available
+        if (!macAddress) {
+            await showErrorAlert(
+                "System Error",
+                "MAC address not available. Please ensure system service is running and try again.",
+                "OK"
+            );
+            return;
+        }
 
         startScanning(type);
         setCurrentStep(type as FingerprintStep);
@@ -211,11 +254,18 @@ const FingerprintSetupDialog: FC<FingerprintSetupDialogProps> = ({
                 } API call for ${type}...`
             );
 
+            // 🔥 UPDATED: Use dynamic MAC address from system info
             const fingerprintData = {
                 user_id: employeeState.selectedEmployeeId,
-                mac_address: "84-1B-77-FD-31-35",
+                mac_address: macAddress, // 🔥 CHANGED: Use dynamic MAC address
                 number_of_fingerprint: fingerprintNumber,
             };
+
+            console.log("📤 Fingerprint API payload:", {
+                ...fingerprintData,
+                endpoint: apiEndpoint,
+                type: isRescan ? "validation" : "setup",
+            });
 
             const response = await fetch(apiEndpoint, {
                 method: "POST",
@@ -386,6 +436,62 @@ const FingerprintSetupDialog: FC<FingerprintSetupDialogProps> = ({
         );
     }
 
+    // 🔥 ADD: Show loading if system info is still loading
+    if (isSystemLoading) {
+        return (
+            <div className="fixed inset-0 flex items-center justify-center z-50">
+                <div className="absolute inset-0 bg-black/50"></div>
+                <div className="bg-white rounded-lg p-8 relative z-10">
+                    <div className="flex items-center gap-3">
+                        <div className="animate-spin rounded-full h-6 w-6 border-b-2 border-blue-600"></div>
+                        <span>Loading system information...</span>
+                    </div>
+                </div>
+            </div>
+        );
+    }
+
+    // 🔥 ADD: Show error if system info failed to load
+    if (systemError) {
+        return (
+            <div className="fixed inset-0 flex items-center justify-center z-50">
+                <div
+                    className="absolute inset-0 bg-black/50"
+                    onClick={handleClose}
+                ></div>
+                <div className="bg-white rounded-lg p-8 relative z-10 max-w-md mx-4">
+                    <div className="text-center">
+                        <div className="w-16 h-16 bg-red-100 rounded-full flex items-center justify-center mx-auto mb-4">
+                            <X className="h-8 w-8 text-red-500" />
+                        </div>
+                        <h3 className="text-lg font-semibold text-gray-900 mb-2">
+                            System Error
+                        </h3>
+                        <p className="text-sm text-gray-600 mb-6">
+                            {systemError}
+                        </p>
+                        <div className="flex gap-3">
+                            <Button
+                                variant="outline"
+                                onClick={refetchSystemInfo}
+                                className="flex-1"
+                            >
+                                Retry
+                            </Button>
+                            <Button
+                                variant="outline"
+                                onClick={handleClose}
+                                className="flex-1"
+                            >
+                                Close
+                            </Button>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        );
+    }
+
     const renderStepContent = () => {
         switch (currentStep) {
             case "employee-selection":
@@ -412,7 +518,10 @@ const FingerprintSetupDialog: FC<FingerprintSetupDialogProps> = ({
                                 isCompleted={
                                     fingerprintState.finger1ScanCompleted
                                 }
-                                isEnabled={!!employeeState.selectedEmployeeId}
+                                isEnabled={
+                                    !!employeeState.selectedEmployeeId &&
+                                    !!macAddress
+                                } // 🔥 ADD: Check MAC address
                                 onAction={() =>
                                     handleStartScanning("finger1-scan")
                                 }
@@ -429,7 +538,8 @@ const FingerprintSetupDialog: FC<FingerprintSetupDialogProps> = ({
                                     fingerprintState.finger1RescanCompleted
                                 }
                                 isEnabled={
-                                    fingerprintState.finger1ScanCompleted
+                                    fingerprintState.finger1ScanCompleted &&
+                                    !!macAddress // 🔥 ADD: Check MAC address
                                 }
                                 onAction={() =>
                                     handleStartScanning("finger1-rescan")
@@ -466,7 +576,10 @@ const FingerprintSetupDialog: FC<FingerprintSetupDialogProps> = ({
                                 isCompleted={
                                     fingerprintState.finger1ScanCompleted
                                 }
-                                isEnabled={currentStep === "finger1-scan"}
+                                isEnabled={
+                                    currentStep === "finger1-scan" &&
+                                    !!macAddress
+                                }
                                 onAction={() =>
                                     handleStartScanning("finger1-scan")
                                 }
@@ -482,7 +595,10 @@ const FingerprintSetupDialog: FC<FingerprintSetupDialogProps> = ({
                                 isCompleted={
                                     fingerprintState.finger1RescanCompleted
                                 }
-                                isEnabled={currentStep === "finger1-rescan"}
+                                isEnabled={
+                                    currentStep === "finger1-rescan" &&
+                                    !!macAddress
+                                }
                                 onAction={() =>
                                     handleStartScanning("finger1-rescan")
                                 }
@@ -545,7 +661,10 @@ const FingerprintSetupDialog: FC<FingerprintSetupDialogProps> = ({
                                 isCompleted={
                                     fingerprintState.finger2ScanCompleted
                                 }
-                                isEnabled={currentStep === "finger2-scan"}
+                                isEnabled={
+                                    currentStep === "finger2-scan" &&
+                                    !!macAddress
+                                }
                                 onAction={() =>
                                     handleStartScanning("finger2-scan")
                                 }
@@ -561,7 +680,10 @@ const FingerprintSetupDialog: FC<FingerprintSetupDialogProps> = ({
                                 isCompleted={
                                     fingerprintState.finger2RescanCompleted
                                 }
-                                isEnabled={currentStep === "finger2-rescan"}
+                                isEnabled={
+                                    currentStep === "finger2-rescan" &&
+                                    !!macAddress
+                                }
                                 onAction={() =>
                                     handleStartScanning("finger2-rescan")
                                 }
