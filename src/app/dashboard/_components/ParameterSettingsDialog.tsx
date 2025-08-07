@@ -1,23 +1,17 @@
-// components/dashboard/ParameterSettingsDialog.tsx - GLITCH FIXED VERSION
+// app/dashboard/_components/ParameterSettingsDialog.tsx - REFACTORED VERSION
 "use client";
 
 import { FC, useState, useEffect, useRef } from "react";
-import { X, Loader2, Receipt, FileText } from "lucide-react";
+import { X, Loader2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
-import {
-    Select,
-    SelectContent,
-    SelectItem,
-    SelectTrigger,
-    SelectValue,
-} from "@/components/ui/select";
-import { Combobox } from "@/components/ui/combobox";
 import { useCabang } from "@/hooks/useCabang";
 import { useArea } from "@/hooks/useArea";
 import { useParameter } from "@/hooks/useParameter";
 import { showSuccessAlert, showErrorAlert } from "@/lib/swal";
 import EmployeeLoginDialog from "@/components/shared/EmployeeLoginDialog";
+import ParameterFormSection from "./ParameterFormSection";
+import ParameterReceiptSection from "./ParameterReceiptSection";
+import ParameterReceiptPreview from "./ParameterReceiptPreview";
 
 interface ParameterSettingsDialogProps {
     isOpen: boolean;
@@ -69,6 +63,7 @@ const ParameterSettingsDialog: FC<ParameterSettingsDialogProps> = ({
     const [hasValidToken, setHasValidToken] = useState(true);
     const [isLoginDialogOpen, setIsLoginDialogOpen] = useState(false);
     const [isSubmitting, setIsSubmitting] = useState(false);
+    const [showReceiptPreview, setShowReceiptPreview] = useState(false); // NEW: Receipt preview state
 
     const dialogTimeoutRef = useRef<NodeJS.Timeout>();
     const authCheckRef = useRef<boolean>(false);
@@ -143,6 +138,7 @@ const ParameterSettingsDialog: FC<ParameterSettingsDialogProps> = ({
         footer4: "",
     });
 
+    // Dialog initialization logic
     useEffect(() => {
         if (isOpen) {
             console.log("📂 Parameter dialog opening...");
@@ -154,6 +150,7 @@ const ParameterSettingsDialog: FC<ParameterSettingsDialogProps> = ({
             setIsDialogReady(false);
             setIsInitialized(false);
             authCheckRef.current = false;
+            setShowReceiptPreview(false); // Reset preview state
 
             dialogTimeoutRef.current = setTimeout(() => {
                 console.log("✅ Dialog ready for data loading");
@@ -163,6 +160,7 @@ const ParameterSettingsDialog: FC<ParameterSettingsDialogProps> = ({
             setIsDialogReady(false);
             setIsInitialized(false);
             authCheckRef.current = false;
+            setShowReceiptPreview(false);
 
             if (dialogTimeoutRef.current) {
                 clearTimeout(dialogTimeoutRef.current);
@@ -176,6 +174,7 @@ const ParameterSettingsDialog: FC<ParameterSettingsDialogProps> = ({
         };
     }, [isOpen]);
 
+    // Auth check logic
     useEffect(() => {
         if (isDialogReady && !authCheckRef.current) {
             authCheckRef.current = true;
@@ -187,6 +186,7 @@ const ParameterSettingsDialog: FC<ParameterSettingsDialogProps> = ({
         }
     }, [isDialogReady]);
 
+    // Data initialization logic
     useEffect(() => {
         if (
             isDialogReady &&
@@ -354,6 +354,15 @@ const ParameterSettingsDialog: FC<ParameterSettingsDialogProps> = ({
         }));
     };
 
+    // NEW: Handle receipt preview toggle
+    const handleViewReceipt = () => {
+        setShowReceiptPreview(true);
+    };
+
+    const handleHideReceipt = () => {
+        setShowReceiptPreview(false);
+    };
+
     const handleSubmit = async () => {
         const requiredFields = {
             namaCabang: "Nama Cabang",
@@ -408,6 +417,7 @@ const ParameterSettingsDialog: FC<ParameterSettingsDialogProps> = ({
                 footer_struk_line2: formData.footer2,
                 footer_struk_line3: formData.footer3,
                 footer_struk_line4: formData.footer4,
+                // Include all other required fields from parameterData
                 kd_pt: parameterData?.kd_pt || "001",
                 type_cab: parameterData?.type_cab || "1",
                 trana: parameterData?.trana || 30,
@@ -491,10 +501,6 @@ const ParameterSettingsDialog: FC<ParameterSettingsDialogProps> = ({
         }
     };
 
-    const handleViewReceipt = () => {
-        console.log("📄 View Receipt clicked");
-    };
-
     if (!isOpen) return null;
 
     if (!hasValidToken) {
@@ -543,673 +549,67 @@ const ParameterSettingsDialog: FC<ParameterSettingsDialogProps> = ({
                 </div>
 
                 <div className="flex-1 overflow-auto">
-                    <div className="grid grid-cols-2 gap-3 h-full py-2">
-                        <div className="space-y-6">
-                            <div className="bg-white border rounded-lg p-4 space-y-4">
-                                <div className="grid grid-cols-2 gap-4">
-                                    <div>
-                                        <label className="block text-sm font-medium text-gray-700 mb-2">
-                                            Nama Cabang
-                                        </label>
-                                        <Combobox
-                                            options={cabangOptions}
-                                            value={formData.namaCabang}
-                                            onValueChange={handleCabangChange}
-                                            placeholder={
-                                                isLoadingCabang
-                                                    ? "Loading cabang..."
-                                                    : cabangError
-                                                    ? "Error loading data"
-                                                    : "Pilih Cabang"
-                                            }
-                                            searchPlaceholder="Cari cabang..."
-                                            emptyText="Cabang tidak ditemukan"
-                                            disabled={
-                                                isLoadingCabang || isSubmitting
-                                            }
-                                            loading={isLoadingCabang}
-                                            className="w-full h-[52px]"
-                                            displayValue={
-                                                formData.namaCabangText
-                                            }
-                                            truncateAt={25}
-                                        />
-                                    </div>
-
-                                    <div>
-                                        <label className="block text-sm font-medium text-gray-700 mb-2">
-                                            Nama Area
-                                        </label>
-                                        <Combobox
-                                            options={areaOptions}
-                                            value={formData.namaArea}
-                                            onValueChange={handleAreaChange}
-                                            placeholder={
-                                                isLoadingArea
-                                                    ? "Loading area..."
-                                                    : areaError
-                                                    ? "Error loading data"
-                                                    : "Pilih Area"
-                                            }
-                                            searchPlaceholder="Cari area..."
-                                            emptyText="Area tidak ditemukan"
-                                            disabled={
-                                                isLoadingArea || isSubmitting
-                                            }
-                                            loading={isLoadingArea}
-                                            className="w-full h-[52px]"
-                                            displayValue={formData.namaAreaText}
-                                            truncateAt={25}
-                                        />
-                                    </div>
-                                </div>
-
-                                <div className="grid grid-cols-2 gap-4">
-                                    <div>
-                                        <label className="block text-sm font-medium text-gray-700 mb-2">
-                                            Lokasi Depo
-                                        </label>
-                                        <Input
-                                            value={formData.lokasiDepo}
-                                            onChange={(e) =>
-                                                handleInputChange(
-                                                    "lokasiDepo",
-                                                    e.target.value
-                                                )
-                                            }
-                                            className="bg-[#F5F5F5] border-none h-[52px]"
-                                            placeholder="Kode Depo"
-                                            disabled={isSubmitting}
-                                        />
-                                    </div>
-
-                                    <div>
-                                        <label className="block text-sm font-medium text-gray-700 mb-2">
-                                            Lokasi Satelit
-                                        </label>
-                                        <Input
-                                            value={formData.lokasiSatelit}
-                                            onChange={(e) =>
-                                                handleInputChange(
-                                                    "lokasiSatelit",
-                                                    e.target.value
-                                                )
-                                            }
-                                            className="bg-[#F5F5F5] border-none h-[52px]"
-                                            placeholder="Kode Satelit"
-                                            disabled={isSubmitting}
-                                        />
-                                    </div>
-                                </div>
-
-                                <div className="grid grid-cols-3 gap-4">
-                                    <div>
-                                        <label className="block text-sm font-medium text-gray-700 mb-2">
-                                            Cabang Baru
-                                        </label>
-                                        <Select
-                                            value={formData.cabangBaru}
-                                            onValueChange={(value) =>
-                                                handleInputChange(
-                                                    "cabangBaru",
-                                                    value
-                                                )
-                                            }
-                                            disabled={isSubmitting}
-                                        >
-                                            <SelectTrigger className="bg-[#F5F5F5] border-none h-[52px]">
-                                                <SelectValue />
-                                            </SelectTrigger>
-                                            <SelectContent>
-                                                <SelectItem value="Tidak">
-                                                    Tidak
-                                                </SelectItem>
-                                                <SelectItem value="Ya">
-                                                    Ya
-                                                </SelectItem>
-                                            </SelectContent>
-                                        </Select>
-                                    </div>
-
-                                    <div>
-                                        <label className="block text-sm font-medium text-gray-700 mb-2">
-                                            RSIA
-                                        </label>
-                                        <Select
-                                            value={formData.rsia}
-                                            onValueChange={(value) =>
-                                                handleInputChange("rsia", value)
-                                            }
-                                            disabled={isSubmitting}
-                                        >
-                                            <SelectTrigger className="bg-[#F5F5F5] border-none h-[52px]">
-                                                <SelectValue />
-                                            </SelectTrigger>
-                                            <SelectContent>
-                                                <SelectItem value="Tidak">
-                                                    Tidak
-                                                </SelectItem>
-                                                <SelectItem value="Ya">
-                                                    Ya
-                                                </SelectItem>
-                                            </SelectContent>
-                                        </Select>
-                                    </div>
-
-                                    <div>
-                                        <label className="block text-sm font-medium text-gray-700 mb-2">
-                                            Barang Transit
-                                        </label>
-                                        <Select
-                                            value={formData.barangTransit}
-                                            onValueChange={(value) =>
-                                                handleInputChange(
-                                                    "barangTransit",
-                                                    value
-                                                )
-                                            }
-                                            disabled={isSubmitting}
-                                        >
-                                            <SelectTrigger className="bg-[#F5F5F5] border-none h-[52px]">
-                                                <SelectValue />
-                                            </SelectTrigger>
-                                            <SelectContent>
-                                                <SelectItem value="Tidak">
-                                                    Tidak
-                                                </SelectItem>
-                                                <SelectItem value="Ya">
-                                                    Ya
-                                                </SelectItem>
-                                            </SelectContent>
-                                        </Select>
-                                    </div>
-                                </div>
-                            </div>
-
-                            <div className="bg-white border rounded-lg p-4 space-y-4">
-                                <div className="grid grid-cols-4 gap-4">
-                                    <div>
-                                        <label className="block text-sm font-medium text-gray-700 mb-2">
-                                            SC
-                                        </label>
-                                        <Input
-                                            value={formData.sc}
-                                            onChange={(e) =>
-                                                handleInputChange(
-                                                    "sc",
-                                                    e.target.value
-                                                )
-                                            }
-                                            className="bg-[#F5F5F5] border-none h-[52px]"
-                                            type="number"
-                                            disabled={isSubmitting}
-                                        />
-                                    </div>
-
-                                    <div>
-                                        <label className="block text-sm font-medium text-gray-700 mb-2">
-                                            SC Doctor
-                                        </label>
-                                        <Input
-                                            value={formData.scDoctor}
-                                            onChange={(e) =>
-                                                handleInputChange(
-                                                    "scDoctor",
-                                                    e.target.value
-                                                )
-                                            }
-                                            className="bg-[#F5F5F5] border-none h-[52px]"
-                                            type="number"
-                                            disabled={isSubmitting}
-                                        />
-                                    </div>
-
-                                    <div>
-                                        <label className="block text-sm font-medium text-gray-700 mb-2">
-                                            RU Resep
-                                        </label>
-                                        <Input
-                                            value={formData.ruResep}
-                                            onChange={(e) =>
-                                                handleInputChange(
-                                                    "ruResep",
-                                                    e.target.value
-                                                )
-                                            }
-                                            className="bg-[#F5F5F5] border-none h-[52px]"
-                                            type="number"
-                                            disabled={isSubmitting}
-                                        />
-                                    </div>
-
-                                    <div>
-                                        <label className="block text-sm font-medium text-gray-700 mb-2">
-                                            RU Swalayan
-                                        </label>
-                                        <Input
-                                            value={formData.ruSwalayan}
-                                            onChange={(e) =>
-                                                handleInputChange(
-                                                    "ruSwalayan",
-                                                    e.target.value
-                                                )
-                                            }
-                                            className="bg-[#F5F5F5] border-none h-[52px]"
-                                            type="number"
-                                            disabled={isSubmitting}
-                                        />
-                                    </div>
-                                </div>
-                            </div>
-
-                            <div className="bg-white border rounded-lg p-4 space-y-4">
-                                <div className="grid grid-cols-2 gap-6">
-                                    <div>
-                                        <label className="block text-sm font-medium text-gray-700 mb-2">
-                                            Shift 1
-                                        </label>
-                                        <div className="flex items-center gap-2">
-                                            <Input
-                                                type="time"
-                                                value={formData.shift1Start}
-                                                onChange={(e) =>
-                                                    handleInputChange(
-                                                        "shift1Start",
-                                                        e.target.value
-                                                    )
-                                                }
-                                                className="bg-[#F5F5F5] border-none h-[52px]"
-                                                disabled={isSubmitting}
-                                            />
-                                            <span>-</span>
-                                            <Input
-                                                type="time"
-                                                value={formData.shift1End}
-                                                onChange={(e) =>
-                                                    handleInputChange(
-                                                        "shift1End",
-                                                        e.target.value
-                                                    )
-                                                }
-                                                className="bg-[#F5F5F5] border-none h-[52px]"
-                                                disabled={isSubmitting}
-                                            />
-                                        </div>
-                                    </div>
-
-                                    <div>
-                                        <label className="block text-sm font-medium text-gray-700 mb-2">
-                                            Shift 2
-                                        </label>
-                                        <div className="flex items-center gap-2">
-                                            <Input
-                                                type="time"
-                                                value={formData.shift2Start}
-                                                onChange={(e) =>
-                                                    handleInputChange(
-                                                        "shift2Start",
-                                                        e.target.value
-                                                    )
-                                                }
-                                                className="bg-[#F5F5F5] border-none h-[52px]"
-                                                disabled={isSubmitting}
-                                            />
-                                            <span>-</span>
-                                            <Input
-                                                type="time"
-                                                value={formData.shift2End}
-                                                onChange={(e) =>
-                                                    handleInputChange(
-                                                        "shift2End",
-                                                        e.target.value
-                                                    )
-                                                }
-                                                className="bg-[#F5F5F5] border-none h-[52px]"
-                                                disabled={isSubmitting}
-                                            />
-                                        </div>
-                                    </div>
-                                </div>
-
-                                <div className="grid grid-cols-2 gap-6">
-                                    <div>
-                                        <label className="block text-sm font-medium text-gray-700 mb-2">
-                                            Shift 3
-                                        </label>
-                                        <div className="flex items-center gap-2">
-                                            <Input
-                                                type="time"
-                                                value={formData.shift3Start}
-                                                onChange={(e) =>
-                                                    handleInputChange(
-                                                        "shift3Start",
-                                                        e.target.value
-                                                    )
-                                                }
-                                                className="bg-[#F5F5F5] border-none h-[52px]"
-                                                disabled={isSubmitting}
-                                            />
-                                            <span>-</span>
-                                            <Input
-                                                type="time"
-                                                value={formData.shift3End}
-                                                onChange={(e) =>
-                                                    handleInputChange(
-                                                        "shift3End",
-                                                        e.target.value
-                                                    )
-                                                }
-                                                className="bg-[#F5F5F5] border-none h-[52px]"
-                                                disabled={isSubmitting}
-                                            />
-                                        </div>
-                                    </div>
-
-                                    <div>
-                                        <label className="block text-sm font-medium text-gray-700 mb-2">
-                                            Toleransi Waktu (min)
-                                        </label>
-                                        <div className="flex items-center gap-2">
-                                            <Input
-                                                value={
-                                                    formData.toleransiWaktuMin
-                                                }
-                                                onChange={(e) =>
-                                                    handleInputChange(
-                                                        "toleransiWaktuMin",
-                                                        e.target.value
-                                                    )
-                                                }
-                                                className="bg-[#F5F5F5] border-none h-[52px]"
-                                                type="number"
-                                                disabled={isSubmitting}
-                                            />
-                                            <span>-</span>
-                                            <Input
-                                                value={
-                                                    formData.toleransiWaktuMax
-                                                }
-                                                onChange={(e) =>
-                                                    handleInputChange(
-                                                        "toleransiWaktuMax",
-                                                        e.target.value
-                                                    )
-                                                }
-                                                className="bg-[#F5F5F5] border-none h-[52px]"
-                                                type="number"
-                                                disabled={isSubmitting}
-                                            />
-                                        </div>
-                                    </div>
-                                </div>
-                            </div>
+                    <div
+                        className={`transition-all duration-500 ease-in-out ${
+                            showReceiptPreview
+                                ? "grid grid-cols-2 gap-3 h-full py-2"
+                                : "grid grid-cols-2 gap-3 h-full py-2"
+                        }`}
+                    >
+                        {/* LEFT SIDE: Changes based on receipt preview state */}
+                        <div
+                            className={`transition-all duration-500 ease-in-out ${
+                                showReceiptPreview ? "space-y-6" : "space-y-6"
+                            }`}
+                        >
+                            {showReceiptPreview ? (
+                                // Receipt Form when preview is shown
+                                <ParameterReceiptSection
+                                    formData={formData}
+                                    isSubmitting={isSubmitting}
+                                    onInputChange={handleInputChange}
+                                    onViewReceipt={handleHideReceipt} // Button becomes "Hide Receipt"
+                                    showPreview={true}
+                                />
+                            ) : (
+                                // Parameter Form when no preview
+                                <ParameterFormSection
+                                    formData={formData}
+                                    cabangOptions={cabangOptions}
+                                    areaOptions={areaOptions}
+                                    isLoadingCabang={isLoadingCabang}
+                                    isLoadingArea={isLoadingArea}
+                                    cabangError={cabangError}
+                                    areaError={areaError}
+                                    isSubmitting={isSubmitting}
+                                    onInputChange={handleInputChange}
+                                    onCabangChange={handleCabangChange}
+                                    onAreaChange={handleAreaChange}
+                                />
+                            )}
                         </div>
 
-                        <div className="bg-white border rounded-lg p-4 h-fit">
-                            <div className="flex gap-4 mb-6">
-                                <div
-                                    className={`flex-1 p-4 rounded-2xl border-2 cursor-pointer transition-all duration-200 ${
-                                        formData.receiptType === "header"
-                                            ? "border-blue-500 bg-blue-50"
-                                            : "border-gray-200 bg-white hover:border-gray-300"
-                                    } ${
-                                        isSubmitting
-                                            ? "opacity-50 cursor-not-allowed"
-                                            : ""
-                                    }`}
-                                    onClick={() =>
-                                        !isSubmitting &&
-                                        handleInputChange(
-                                            "receiptType",
-                                            "header"
-                                        )
-                                    }
-                                >
-                                    <div className="flex items-center justify-between mb-3">
-                                        <div className="w-8 h-8 bg-black rounded-sm flex items-center justify-center">
-                                            <Receipt className="w-5 h-5 text-white" />
-                                        </div>
-                                        <div
-                                            className={`w-5 h-5 rounded-full border-2 flex items-center justify-center transition-colors ${
-                                                formData.receiptType ===
-                                                "header"
-                                                    ? "border-blue-500 bg-blue-500"
-                                                    : "border-gray-300 bg-white"
-                                            }`}
-                                        >
-                                            {formData.receiptType ===
-                                                "header" && (
-                                                <div className="w-2 h-2 bg-white rounded-full"></div>
-                                            )}
-                                        </div>
-                                    </div>
-                                    <span
-                                        className={`text-sm font-medium block ${
-                                            formData.receiptType === "header"
-                                                ? "text-blue-600"
-                                                : "text-gray-700"
-                                        }`}
-                                    >
-                                        Header Receipt
-                                    </span>
-                                </div>
-
-                                <div
-                                    className={`flex-1 p-4 rounded-2xl border-2 cursor-pointer transition-all duration-200 ${
-                                        formData.receiptType === "footer"
-                                            ? "border-blue-500 bg-blue-50"
-                                            : "border-gray-200 bg-white hover:border-gray-300"
-                                    } ${
-                                        isSubmitting
-                                            ? "opacity-50 cursor-not-allowed"
-                                            : ""
-                                    }`}
-                                    onClick={() =>
-                                        !isSubmitting &&
-                                        handleInputChange(
-                                            "receiptType",
-                                            "footer"
-                                        )
-                                    }
-                                >
-                                    <div className="flex items-center justify-between mb-3">
-                                        <div className="w-8 h-8 bg-black rounded-sm flex items-center justify-center">
-                                            <FileText className="w-5 h-5 text-white" />
-                                        </div>
-                                        <div
-                                            className={`w-5 h-5 rounded-full border-2 flex items-center justify-center transition-colors ${
-                                                formData.receiptType ===
-                                                "footer"
-                                                    ? "border-blue-500 bg-blue-500"
-                                                    : "border-gray-300 bg-white"
-                                            }`}
-                                        >
-                                            {formData.receiptType ===
-                                                "footer" && (
-                                                <div className="w-2 h-2 bg-white rounded-full"></div>
-                                            )}
-                                        </div>
-                                    </div>
-                                    <span
-                                        className={`text-sm font-medium block ${
-                                            formData.receiptType === "footer"
-                                                ? "text-blue-600"
-                                                : "text-gray-700"
-                                        }`}
-                                    >
-                                        Footer Receipt
-                                    </span>
-                                </div>
-                            </div>
-
-                            <div className="space-y-4 mb-6">
-                                {formData.receiptType === "header" ? (
-                                    <>
-                                        <div>
-                                            <label className="block text-sm font-medium text-gray-700 mb-2">
-                                                Header 1
-                                            </label>
-                                            <Input
-                                                value={formData.header1}
-                                                onChange={(e) =>
-                                                    handleInputChange(
-                                                        "header1",
-                                                        e.target.value
-                                                    )
-                                                }
-                                                className="bg-[#F5F5F5] border-none h-[52px]"
-                                                disabled={isSubmitting}
-                                            />
-                                        </div>
-
-                                        <div>
-                                            <label className="block text-sm font-medium text-gray-700 mb-2">
-                                                Header 2
-                                            </label>
-                                            <Input
-                                                value={formData.header2}
-                                                onChange={(e) =>
-                                                    handleInputChange(
-                                                        "header2",
-                                                        e.target.value
-                                                    )
-                                                }
-                                                className="bg-[#F5F5F5] border-none h-[52px]"
-                                                disabled={isSubmitting}
-                                            />
-                                        </div>
-
-                                        <div>
-                                            <label className="block text-sm font-medium text-gray-700 mb-2">
-                                                Header 3
-                                            </label>
-                                            <Input
-                                                value={formData.header3}
-                                                onChange={(e) =>
-                                                    handleInputChange(
-                                                        "header3",
-                                                        e.target.value
-                                                    )
-                                                }
-                                                className="bg-[#F5F5F5] border-none h-[52px]"
-                                                disabled={isSubmitting}
-                                            />
-                                        </div>
-
-                                        <div>
-                                            <label className="block text-sm font-medium text-gray-700 mb-2">
-                                                Header 4
-                                            </label>
-                                            <Input
-                                                value={formData.header4}
-                                                onChange={(e) =>
-                                                    handleInputChange(
-                                                        "header4",
-                                                        e.target.value
-                                                    )
-                                                }
-                                                className="bg-[#F5F5F5] border-none h-[52px]"
-                                                disabled={isSubmitting}
-                                            />
-                                        </div>
-
-                                        <div>
-                                            <label className="block text-sm font-medium text-gray-700 mb-2">
-                                                Header 5
-                                            </label>
-                                            <Input
-                                                value={formData.header5}
-                                                onChange={(e) =>
-                                                    handleInputChange(
-                                                        "header5",
-                                                        e.target.value
-                                                    )
-                                                }
-                                                className="bg-[#F5F5F5] border-none h-[52px]"
-                                                disabled={isSubmitting}
-                                            />
-                                        </div>
-                                    </>
-                                ) : (
-                                    <>
-                                        <div>
-                                            <label className="block text-sm font-medium text-gray-700 mb-2">
-                                                Footer 1
-                                            </label>
-                                            <Input
-                                                value={formData.footer1}
-                                                onChange={(e) =>
-                                                    handleInputChange(
-                                                        "footer1",
-                                                        e.target.value
-                                                    )
-                                                }
-                                                className="bg-[#F5F5F5] border-none h-[52px]"
-                                                disabled={isSubmitting}
-                                            />
-                                        </div>
-
-                                        <div>
-                                            <label className="block text-sm font-medium text-gray-700 mb-2">
-                                                Footer 2
-                                            </label>
-                                            <Input
-                                                value={formData.footer2}
-                                                onChange={(e) =>
-                                                    handleInputChange(
-                                                        "footer2",
-                                                        e.target.value
-                                                    )
-                                                }
-                                                className="bg-[#F5F5F5] border-none h-[52px]"
-                                                disabled={isSubmitting}
-                                            />
-                                        </div>
-
-                                        <div>
-                                            <label className="block text-sm font-medium text-gray-700 mb-2">
-                                                Footer 3
-                                            </label>
-                                            <Input
-                                                value={formData.footer3}
-                                                onChange={(e) =>
-                                                    handleInputChange(
-                                                        "footer3",
-                                                        e.target.value
-                                                    )
-                                                }
-                                                className="bg-[#F5F5F5] border-none h-[52px]"
-                                                disabled={isSubmitting}
-                                            />
-                                        </div>
-
-                                        <div>
-                                            <label className="block text-sm font-medium text-gray-700 mb-2">
-                                                Footer 4
-                                            </label>
-                                            <Input
-                                                value={formData.footer4}
-                                                onChange={(e) =>
-                                                    handleInputChange(
-                                                        "footer4",
-                                                        e.target.value
-                                                    )
-                                                }
-                                                className="bg-[#F5F5F5] border-none h-[52px]"
-                                                disabled={isSubmitting}
-                                            />
-                                        </div>
-                                    </>
-                                )}
-                            </div>
-
-                            <Button
-                                onClick={handleViewReceipt}
-                                className="w-full bg-blue-600 hover:bg-blue-700 h-[44px]"
-                                disabled={isSubmitting}
-                            >
-                                View Receipt
-                            </Button>
+                        {/* RIGHT SIDE: Changes based on receipt preview state */}
+                        <div
+                            className={`transition-all duration-500 ease-in-out transform ${
+                                showReceiptPreview
+                                    ? "translate-x-0 opacity-100"
+                                    : "translate-x-0 opacity-100"
+                            }`}
+                        >
+                            {showReceiptPreview ? (
+                                // Receipt Preview when viewing receipt
+                                <ParameterReceiptPreview formData={formData} />
+                            ) : (
+                                // Receipt Section when no preview
+                                <ParameterReceiptSection
+                                    formData={formData}
+                                    isSubmitting={isSubmitting}
+                                    onInputChange={handleInputChange}
+                                    onViewReceipt={handleViewReceipt}
+                                    showPreview={false}
+                                />
+                            )}
                         </div>
                     </div>
                 </div>
@@ -1225,7 +625,7 @@ const ParameterSettingsDialog: FC<ParameterSettingsDialogProps> = ({
                     </Button>
                     <Button
                         onClick={handleSubmit}
-                        className="bg-blue-600 hover:bg-blue-700 px-8  h-[44px]"
+                        className="bg-blue-600 hover:bg-blue-700 px-8 h-[44px]"
                         disabled={isSubmitting}
                     >
                         {isSubmitting ? (
