@@ -1,4 +1,4 @@
-// app/create-order/choose-menu/_components/ChooseMenuProductTable.tsx - ONLY CTRL+SHIFT+F1-F12
+// app/create-order/choose-menu/_components/ChooseMenuProductTable.tsx - ENHANCED PRODUCT SELECTION FLOW (MINIMAL CHANGES)
 "use client";
 
 import BranchWideStockDialog from "@/components/shared/branch-wide-stock-dialog";
@@ -166,8 +166,16 @@ export default function ChooseMenuProductTable({
         useState<ProductTableItem | null>(null);
     const [selectedRowId, setSelectedRowId] = useState<number | null>(null);
 
+    // NEW: Enhanced product search states
+    const [searchValue, setSearchValue] = useState("");
+    const [preSearchQuery, setPreSearchQuery] = useState("");
+    const [searchTimeout, setSearchTimeout] = useState<NodeJS.Timeout | null>(
+        null
+    ); // NEW: For managing typing delay
+
     const tableContainerRef = useRef<HTMLDivElement>(null);
     const tableBodyRef = useRef<HTMLTableSectionElement>(null);
+    const searchInputRef = useRef<HTMLInputElement>(null); // NEW
     const { logout } = useLogout();
 
     useEffect(() => {
@@ -274,6 +282,8 @@ export default function ChooseMenuProductTable({
 
         closeDialog("selectProduct");
         setSelectedProductId(null);
+        setSearchValue(""); // NEW: Clear search value
+        setPreSearchQuery(""); // NEW: Clear pre-search query
         console.log("✅ Dialog closed and product added");
     };
 
@@ -328,8 +338,60 @@ export default function ChooseMenuProductTable({
         }
     };
 
+    // UPDATED: Enhanced search input change handler with 2-second delay
+    const handleSearchInputChange = (
+        e: React.ChangeEvent<HTMLInputElement>
+    ) => {
+        const value = e.target.value;
+        setSearchValue(value);
+
+        // Clear existing timeout
+        if (searchTimeout) {
+            clearTimeout(searchTimeout);
+        }
+
+        // Only trigger dialog if user types 3+ characters and stops typing for 2 seconds
+        if (value.trim().length >= 3) {
+            const timeoutId = setTimeout(() => {
+                console.log(
+                    "🔍 Auto-triggering product dialog with query after 2s delay:",
+                    value.trim()
+                );
+                setPreSearchQuery(value.trim());
+                setSelectedProductId(999);
+                closeDialog("selectProduct");
+                setTimeout(() => {
+                    toggleDialog("selectProduct");
+                }, 50);
+            }, 500); // 2 second delay
+
+            setSearchTimeout(timeoutId);
+        } else {
+            // Clear timeout if less than 3 characters
+            setSearchTimeout(null);
+        }
+    };
+
+    // REMOVED: handleSearchInputClick function - no longer needed
+
+    // NEW: Handle ESC key to clear search
+    const handleSearchKeyDown = (e: React.KeyboardEvent) => {
+        if (e.key === "Escape") {
+            // Clear timeout when ESC is pressed
+            if (searchTimeout) {
+                clearTimeout(searchTimeout);
+                setSearchTimeout(null);
+            }
+            setSearchValue("");
+            setPreSearchQuery("");
+            console.log("🔄 Search cleared via ESC key");
+        }
+    };
+
+    // Legacy function kept for compatibility (only used by Plus button now)
     const handleOpenSelectProductDialog = () => {
-        console.log("🔍 Opening Select Product Dialog");
+        console.log("🔍 Opening Select Product Dialog (legacy)");
+        setPreSearchQuery("");
         setSelectedProductId(999);
         closeDialog("selectProduct");
         setTimeout(() => {
@@ -362,6 +424,24 @@ export default function ChooseMenuProductTable({
     useEffect(() => {
         console.log("🎭 Dialog states:", dialogStates);
     }, [dialogStates]);
+
+    // NEW: Focus search input on mount
+    useEffect(() => {
+        if (isClient && searchInputRef.current) {
+            setTimeout(() => {
+                searchInputRef.current?.focus();
+            }, 100);
+        }
+    }, [isClient]);
+
+    // NEW: Cleanup timeout on unmount
+    useEffect(() => {
+        return () => {
+            if (searchTimeout) {
+                clearTimeout(searchTimeout);
+            }
+        };
+    }, [searchTimeout]);
 
     if (!isClient) {
         return (
@@ -521,16 +601,22 @@ export default function ChooseMenuProductTable({
                                                             >
                                                                 <Plus className="w-5 h-5 text-blue-600" />
                                                             </button>
+                                                            {/* UPDATED: Search input without onClick handler */}
                                                             <Input
+                                                                ref={
+                                                                    searchInputRef
+                                                                }
                                                                 placeholder="Cari nama produk disini"
-                                                                className="border-[#F0F0F0] text-sm h-11 flex-1 cursor-pointer bg-white shadow-none"
-                                                                onClick={(
-                                                                    e
-                                                                ) => {
-                                                                    e.stopPropagation();
-                                                                    handleOpenSelectProductDialog();
-                                                                }}
-                                                                readOnly
+                                                                className="border-[#F0F0F0] text-sm h-11 flex-1 bg-white shadow-none"
+                                                                value={
+                                                                    searchValue
+                                                                }
+                                                                onChange={
+                                                                    handleSearchInputChange
+                                                                }
+                                                                onKeyDown={
+                                                                    handleSearchKeyDown
+                                                                }
                                                             />
                                                         </div>
                                                     )}
@@ -667,14 +753,24 @@ export default function ChooseMenuProductTable({
                 </div>
             </div>
 
+            {/* ENHANCED: Select Product Dialog with pre-search query */}
             <SelectProductDialog
                 isOpen={dialogStates.selectProduct}
                 onClose={() => {
                     console.log("🔒 SelectProduct onClose called");
                     closeDialog("selectProduct");
                     setSelectedProductId(null);
+                    setSearchValue("");
+                    setPreSearchQuery("");
+                    // Clear timeout when dialog closes
+                    if (searchTimeout) {
+                        clearTimeout(searchTimeout);
+                        setSearchTimeout(null);
+                    }
                 }}
                 onSelectProduct={handleProductSelectFromDialog}
+                initialSearchQuery={preSearchQuery}
+                autoSearch={preSearchQuery.length >= 3}
             />
 
             <BranchWideStockDialog

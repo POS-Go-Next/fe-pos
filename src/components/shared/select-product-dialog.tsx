@@ -1,4 +1,4 @@
-// components/shared/select-product-dialog.tsx - FIXED: Auto close and add product on click
+// components/shared/select-product-dialog.tsx - ENHANCED VERSION (MINIMAL CHANGES)
 "use client";
 
 import { useState, useEffect, useRef } from "react";
@@ -13,12 +13,16 @@ interface SelectProductDialogProps {
     isOpen: boolean;
     onClose: () => void;
     onSelectProduct: (product: StockData) => void;
+    initialSearchQuery?: string; // NEW: Initial search query
+    autoSearch?: boolean; // NEW: Whether to auto-search on open
 }
 
 export default function SelectProductDialog({
     isOpen,
     onClose,
     onSelectProduct,
+    initialSearchQuery = "", // NEW
+    autoSearch = false, // NEW
 }: SelectProductDialogProps) {
     const [searchInput, setSearchInput] = useState("");
     const [searchTerm, setSearchTerm] = useState("");
@@ -39,20 +43,47 @@ export default function SelectProductDialog({
 
     const pageSizeOptions = [5, 10, 25, 50, 100];
 
+    // NEW: Enhanced useEffect for initial search query
     useEffect(() => {
         if (isOpen) {
             setCurrentPage(1);
             setPageSize(10);
-            setApiParams({ offset: 0, limit: 10, search: "" });
-            setSearchInput("");
-            setSearchTerm("");
-            setIsSearchActive(false);
 
+            // NEW: Handle initial search query
+            if (initialSearchQuery && initialSearchQuery.trim().length >= 3) {
+                console.log(
+                    "🔍 Setting initial search query:",
+                    initialSearchQuery
+                );
+                setSearchInput(initialSearchQuery);
+                setSearchTerm(initialSearchQuery.trim());
+                setIsSearchActive(true);
+                setApiParams({
+                    offset: 0,
+                    limit: 10,
+                    search: initialSearchQuery.trim(),
+                });
+            } else {
+                // Reset to default state
+                setApiParams({ offset: 0, limit: 10, search: "" });
+                setSearchInput("");
+                setSearchTerm("");
+                setIsSearchActive(false);
+            }
+
+            // NEW: Enhanced focus management
             setTimeout(() => {
                 searchInputRef.current?.focus();
+                // If there's initial query, move cursor to end
+                if (initialSearchQuery && searchInputRef.current) {
+                    searchInputRef.current.setSelectionRange(
+                        initialSearchQuery.length,
+                        initialSearchQuery.length
+                    );
+                }
             }, 100);
         }
-    }, [isOpen]);
+    }, [isOpen, initialSearchQuery]); // NEW: Added initialSearchQuery dependency
 
     useEffect(() => {
         const trimmedSearch = searchInput.trim();
@@ -86,8 +117,8 @@ export default function SelectProductDialog({
 
         onSelectProduct(product);
 
+        // Close dialog and reset state
         onClose();
-
         setSearchInput("");
         setSearchTerm("");
         setIsSearchActive(false);
@@ -120,7 +151,7 @@ export default function SelectProductDialog({
 
     const handleKeyPress = (e: React.KeyboardEvent) => {
         if (e.key === "Escape") {
-            onClose();
+            handleClose();
         }
     };
 
@@ -158,7 +189,7 @@ export default function SelectProductDialog({
                                     ref={searchInputRef}
                                     type="text"
                                     placeholder="Search SKU or Product Name (min 3 characters)"
-                                    className="pl-10 bg-[#F5F5F5] h-12 border-none"
+                                    className="pl-10 pr-10 bg-[#F5F5F5] h-12 border-none"
                                     value={searchInput}
                                     onChange={(e) =>
                                         setSearchInput(e.target.value)
@@ -169,6 +200,15 @@ export default function SelectProductDialog({
                                     className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400"
                                     size={18}
                                 />
+                                {searchInput && (
+                                    <button
+                                        onClick={handleSearchReset}
+                                        className="absolute right-3 top-1/2 transform -translate-y-1/2 text-gray-400 hover:text-gray-600 transition-colors"
+                                        title="Clear search"
+                                    >
+                                        <X size={18} />
+                                    </button>
+                                )}
                             </div>
                             <Button
                                 variant="outline"
@@ -371,7 +411,7 @@ export default function SelectProductDialog({
                                                 className="p-8 text-center text-gray-500"
                                             >
                                                 {isSearchActive
-                                                    ? "No products found for your search."
+                                                    ? `No products found for "${searchTerm}".`
                                                     : "No products found."}
                                             </td>
                                         </tr>
@@ -429,6 +469,7 @@ export default function SelectProductDialog({
                                         from {totalDocs || 0}
                                     </span>
                                 </div>
+                                {/* Removed search status indicator and filtered results text */}
                             </div>
                             {totalPages && totalPages > 1 && (
                                 <Pagination
