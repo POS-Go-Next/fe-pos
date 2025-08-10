@@ -818,47 +818,6 @@ const KassaSetupDialog: FC<KassaSetupDialogProps> = ({
                             </SelectContent>
                         </Select>
                     </div>
-
-                    {/* Error Display */}
-                    {(kassaError || printerError) && (
-                        <div className="p-4 bg-red-50 rounded-lg">
-                            <div className="flex items-center gap-2 mb-2">
-                                <AlertCircle className="h-4 w-4 text-red-500" />
-                                <h4 className="text-sm font-medium text-red-700">
-                                    {kassaError
-                                        ? "Error Loading Kassa Data"
-                                        : "Error Loading Printer Data"}
-                                </h4>
-                            </div>
-                            <p className="text-xs text-red-600">
-                                {kassaError || printerError}
-                            </p>
-                            <Button
-                                variant="outline"
-                                size="sm"
-                                onClick={
-                                    kassaError
-                                        ? refetchKassaData
-                                        : refetchPrinters
-                                }
-                                className="mt-2 text-red-600 border-red-300 hover:bg-red-50"
-                                disabled={
-                                    kassaError
-                                        ? isKassaLoading
-                                        : isPrinterLoading
-                                }
-                            >
-                                {(
-                                    kassaError
-                                        ? isKassaLoading
-                                        : isPrinterLoading
-                                ) ? (
-                                    <Loader2 className="h-3 w-3 animate-spin mr-1" />
-                                ) : null}
-                                Retry
-                            </Button>
-                        </div>
-                    )}
                 </div>
 
                 <div className="flex gap-4 mt-8">

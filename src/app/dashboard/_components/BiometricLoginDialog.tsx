@@ -1,3 +1,4 @@
+// src\app\dashboard\_components\BiometricLoginDialog.tsx
 import { Button } from "@/components/ui/button";
 import { useFingerprintAuth } from "@/hooks/useFingerprintAuth";
 import { ArrowLeft, Check, X } from "lucide-react";
@@ -9,10 +10,33 @@ interface BiometricLoginDialogProps {
     onBack: () => void;
     onSuccess: (userData: any) => void;
     scanDuration?: number;
-    macAddress?: string;
 }
 
-type BiometricState = "idle" | "scanning" | "success" | "error";
+type BiometricState =
+    | "idle"
+    | "scanning"
+    | "success"
+    | "error"
+    | "loading_system_info";
+
+interface SystemInfoData {
+    hostname: string;
+    ipAddresses: Array<{
+        name: string;
+        ipAddress: string;
+        macAddress: string;
+        isUp: boolean;
+        isLoopback: boolean;
+    }>;
+    macAddresses: string[];
+    osInfo: {
+        platform: string;
+        architecture: string;
+        numCPU: number;
+    };
+    workingDir: string;
+    timestamp: string;
+}
 
 const BiometricLoginDialog: React.FC<BiometricLoginDialogProps> = ({
     isOpen,
@@ -20,23 +44,78 @@ const BiometricLoginDialog: React.FC<BiometricLoginDialogProps> = ({
     onBack,
     onSuccess,
     scanDuration = 3000,
-    macAddress = "84-1B-77-FD-31-35",
 }) => {
     const [biometricState, setBiometricState] =
         useState<BiometricState>("idle");
     const [progress, setProgress] = useState(0);
     const [errorMessage, setErrorMessage] = useState<string>("");
+    const [macAddress, setMacAddress] = useState<string>("");
 
     const { fingerprintLogin, isLoading } = useFingerprintAuth();
+
+    // Fetch system info to get MAC address
+    const fetchSystemInfo = async () => {
+        try {
+            setBiometricState("loading_system_info");
+
+            const response = await fetch("/api/system-info");
+            const data = await response.json();
+
+            if (!response.ok || !data.success) {
+                throw new Error(
+                    data.message || "Failed to fetch system information"
+                );
+            }
+
+            const systemData: SystemInfoData = data.data;
+
+            // Get the first non-loopback MAC address
+            const primaryInterface = systemData.ipAddresses.find(
+                (iface) => !iface.isLoopback && iface.isUp && iface.macAddress
+            );
+
+            if (!primaryInterface?.macAddress) {
+                throw new Error("No valid MAC address found");
+            }
+
+            setMacAddress(primaryInterface.macAddress);
+            setBiometricState("idle");
+
+            console.log("System info fetched:", {
+                hostname: systemData.hostname,
+                selectedMacAddress: primaryInterface.macAddress,
+                interfaceName: primaryInterface.name,
+            });
+        } catch (error) {
+            console.error("Failed to fetch system info:", error);
+            setErrorMessage(
+                error instanceof Error
+                    ? error.message
+                    : "Failed to get system information"
+            );
+            setBiometricState("error");
+        }
+    };
 
     useEffect(() => {
         if (isOpen) {
             setBiometricState("idle");
             setProgress(0);
+            setErrorMessage("");
+            setMacAddress("");
+
+            // Fetch system info when dialog opens
+            fetchSystemInfo();
         }
     }, [isOpen]);
 
     const handleStartScan = async () => {
+        if (!macAddress) {
+            setErrorMessage("MAC address not available");
+            setBiometricState("error");
+            return;
+        }
+
         setBiometricState("scanning");
         setProgress(0);
         setErrorMessage("");
@@ -87,19 +166,20 @@ const BiometricLoginDialog: React.FC<BiometricLoginDialogProps> = ({
     };
 
     useEffect(() => {
-        if (isOpen && biometricState === "idle") {
+        if (isOpen && biometricState === "idle" && macAddress) {
             const timer = setTimeout(() => {
                 handleStartScan();
             }, 500);
 
             return () => clearTimeout(timer);
         }
-    }, [isOpen, biometricState]);
+    }, [isOpen, biometricState, macAddress]);
 
     const handleClose = () => {
         setBiometricState("idle");
         setProgress(0);
         setErrorMessage("");
+        setMacAddress("");
         onClose();
     };
 
@@ -107,6 +187,7 @@ const BiometricLoginDialog: React.FC<BiometricLoginDialogProps> = ({
         setBiometricState("idle");
         setProgress(0);
         setErrorMessage("");
+        setMacAddress("");
         onBack();
     };
 
@@ -114,6 +195,24 @@ const BiometricLoginDialog: React.FC<BiometricLoginDialogProps> = ({
 
     const renderContent = () => {
         switch (biometricState) {
+            case "loading_system_info":
+                return (
+                    <>
+                        <div className="w-32 h-32 mx-auto mb-8 flex items-center justify-center">
+                            <div className="w-16 h-16 border-4 border-blue-500 border-t-transparent rounded-full animate-spin" />
+                        </div>
+
+                        <div className="text-center mb-8">
+                            <p className="text-gray-600 text-sm mb-4">
+                                Preparing biometric authentication
+                            </p>
+                            <p className="text-gray-900 font-medium">
+                                Loading system information...
+                            </p>
+                        </div>
+                    </>
+                );
+
             case "idle":
                 return (
                     <>
@@ -140,6 +239,11 @@ const BiometricLoginDialog: React.FC<BiometricLoginDialogProps> = ({
                             <p className="text-gray-900 font-medium">
                                 Touch Sensor
                             </p>
+                            {macAddress && (
+                                <p className="text-gray-400 text-xs mt-2">
+                                    Device: {macAddress}
+                                </p>
+                            )}
                         </div>
                     </>
                 );
@@ -277,6 +381,7 @@ const BiometricLoginDialog: React.FC<BiometricLoginDialogProps> = ({
                                     setBiometricState("idle");
                                     setProgress(0);
                                     setErrorMessage("");
+                                    fetchSystemInfo(); // Retry fetching system info
                                 }}
                                 className="px-8 py-3 border-red-500 text-red-500 hover:bg-red-50 transition-all duration-200"
                             >
@@ -288,7 +393,9 @@ const BiometricLoginDialog: React.FC<BiometricLoginDialogProps> = ({
                                 onClick={handleBack}
                                 className="px-8 py-3 border-blue-500 text-blue-500 hover:bg-blue-50 transition-all duration-200"
                                 disabled={
-                                    biometricState === "scanning" || isLoading
+                                    biometricState === "scanning" ||
+                                    biometricState === "loading_system_info" ||
+                                    isLoading
                                 }
                             >
                                 <ArrowLeft className="h-4 w-4 mr-2" />
