@@ -102,7 +102,7 @@ export default function PaymentDialog({
     // Helper function to get system info
     const getSystemInfo = async () => {
         try {
-            const response = await fetch("/api/system-info");
+            const response = await fetch("http://localhost:8321/api/system/info");
             const data = await response.json();
 
             if (data.success && data.data.ipAddresses) {
