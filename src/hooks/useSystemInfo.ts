@@ -31,7 +31,7 @@ export const useSystemInfo = (): UseSystemInfoReturn => {
         try {
             console.log("🔄 Fetching system info...");
 
-            const response = await fetch("/api/system-info", {
+            const response = await fetch("http://localhost:8321/api/system/info", {
                 method: "GET",
                 headers: {
                     "Content-Type": "application/json",

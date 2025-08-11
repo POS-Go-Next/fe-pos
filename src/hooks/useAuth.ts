@@ -35,7 +35,7 @@ const getSystemMacAddress = async (): Promise<string | null> => {
     try {
         console.log("🔍 Fetching system info for MAC address...");
 
-        const response = await fetch("/api/system-info");
+        const response = await fetch("http://localhost:8321/api/system/info");
         const data = await response.json();
 
         console.log("📡 System info response:", {
