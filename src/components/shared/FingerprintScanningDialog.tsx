@@ -1,4 +1,4 @@
-// components/shared/FingerprintScanningDialog.tsx - UPDATED FOR 2-SECOND SCANNING
+// components/shared/FingerprintScanningDialog.tsx - FIXED TIMING ISSUE WITH API
 "use client";
 
 import { FC, useState, useEffect } from "react";
@@ -15,7 +15,7 @@ interface FingerprintScanningDialogProps {
         | "finger2-scan"
         | "finger2-rescan"
         | "";
-    scanDuration?: number;
+    isApiProcessing?: boolean;
 }
 
 const FingerprintScanningDialog: FC<FingerprintScanningDialogProps> = ({
@@ -23,49 +23,46 @@ const FingerprintScanningDialog: FC<FingerprintScanningDialogProps> = ({
     onClose,
     onComplete,
     scanningType,
-    scanDuration = 2000,
+    isApiProcessing = false,
 }) => {
-    const [isScanning, setIsScanning] = useState(false);
     const [scanCompleted, setScanCompleted] = useState(false);
     const [progress, setProgress] = useState(0);
 
     useEffect(() => {
         if (isOpen) {
-            setIsScanning(true);
             setScanCompleted(false);
             setProgress(0);
 
-            const progressInterval = setInterval(() => {
-                setProgress((prev) => {
-                    const newProgress = prev + 100 / (scanDuration / 100);
-                    return newProgress >= 100 ? 100 : newProgress;
-                });
-            }, 100);
+            if (isApiProcessing) {
+                const progressInterval = setInterval(() => {
+                    setProgress((prev) => {
+                        const newProgress = prev + 2;
+                        return newProgress >= 95 ? 95 : newProgress;
+                    });
+                }, 100);
 
-            const timer = setTimeout(() => {
-                setIsScanning(false);
-                setScanCompleted(true);
-                setProgress(100);
-                clearInterval(progressInterval);
-            }, scanDuration);
-
-            return () => {
-                clearTimeout(timer);
-                clearInterval(progressInterval);
-            };
+                return () => {
+                    clearInterval(progressInterval);
+                };
+            }
         }
-    }, [isOpen, scanDuration]);
+    }, [isOpen, isApiProcessing]);
+
+    useEffect(() => {
+        if (!isApiProcessing && progress > 0) {
+            setProgress(100);
+            setScanCompleted(true);
+        }
+    }, [isApiProcessing, progress]);
 
     const handleComplete = () => {
         onComplete();
-        setIsScanning(false);
         setScanCompleted(false);
         setProgress(0);
     };
 
     const handleClose = () => {
         onClose();
-        setIsScanning(false);
         setScanCompleted(false);
         setProgress(0);
     };
@@ -129,17 +126,9 @@ const FingerprintScanningDialog: FC<FingerprintScanningDialogProps> = ({
 
                 <div className="p-8 text-center">
                     <div className="w-32 h-32 mx-auto mb-6 flex items-center justify-center relative">
-                        {isScanning && (
+                        {isApiProcessing && (
                             <div className="absolute inset-0 rounded-full border-4 border-blue-200">
-                                <div
-                                    className="absolute inset-0 rounded-full border-4 border-blue-500 border-t-transparent animate-spin"
-                                    style={{
-                                        animationDuration: `${
-                                            scanDuration / 1000
-                                        }s`,
-                                        animationTimingFunction: "linear",
-                                    }}
-                                ></div>
+                                <div className="absolute inset-0 rounded-full border-4 border-blue-500 border-t-transparent animate-spin"></div>
                             </div>
                         )}
 
@@ -147,7 +136,7 @@ const FingerprintScanningDialog: FC<FingerprintScanningDialogProps> = ({
                             className={`text-8xl transition-all duration-500 z-10 ${
                                 scanCompleted
                                     ? "text-green-500 scale-110"
-                                    : isScanning
+                                    : isApiProcessing
                                     ? "text-blue-500 animate-pulse"
                                     : "text-gray-300"
                             }`}
@@ -176,7 +165,7 @@ const FingerprintScanningDialog: FC<FingerprintScanningDialogProps> = ({
                         <p className="text-gray-600 mb-3">
                             {scanCompleted
                                 ? "Scan completed successfully!"
-                                : isScanning
+                                : isApiProcessing
                                 ? "Scanning in progress..."
                                 : displayText.instruction}
                         </p>
@@ -185,7 +174,7 @@ const FingerprintScanningDialog: FC<FingerprintScanningDialogProps> = ({
                         </p>
                     </div>
 
-                    {isScanning && (
+                    {(isApiProcessing || progress > 0) && (
                         <div className="mb-6">
                             <div className="w-full bg-gray-200 rounded-full h-2">
                                 <div

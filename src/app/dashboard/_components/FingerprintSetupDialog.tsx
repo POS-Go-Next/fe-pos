@@ -1,4 +1,4 @@
-// components/dashboard/FingerprintSetupDialog.tsx - UPDATED WITH DYNAMIC MAC ADDRESS
+// components/dashboard/FingerprintSetupDialog.tsx - FIXED API TIMING ISSUE
 "use client";
 
 import { useAuthManager } from "@/components/shared/AuthenticationManager";
@@ -8,7 +8,7 @@ import FingerprintCard from "@/components/shared/FingerprintCard";
 import FingerprintScanningDialog from "@/components/shared/FingerprintScanningDialog";
 import { Button } from "@/components/ui/button";
 import { useEmployeeSelection } from "@/hooks/useEmployeeSelection";
-import { useSystemInfo } from "@/hooks/useSystemInfo"; // 🔥 ADD: Import system info hook
+import { useSystemInfo } from "@/hooks/useSystemInfo";
 import { showErrorAlert } from "@/lib/swal";
 import { CheckCircle, X } from "lucide-react";
 import { FC, useCallback, useEffect, useState } from "react";
@@ -46,6 +46,7 @@ interface FingerprintState {
 interface ScanState {
     isDialogOpen: boolean;
     scanningType: ScanningType;
+    isApiProcessing: boolean;
 }
 
 const useFingerprintFlow = () => {
@@ -88,25 +89,36 @@ const useScanningManager = () => {
     const [scanState, setScanState] = useState<ScanState>({
         isDialogOpen: false,
         scanningType: "",
+        isApiProcessing: false,
     });
 
     const startScanning = useCallback((type: ScanningType) => {
         setScanState({
             isDialogOpen: true,
             scanningType: type,
+            isApiProcessing: true,
         });
+    }, []);
+
+    const setApiComplete = useCallback((success: boolean) => {
+        setScanState((prev) => ({
+            ...prev,
+            isApiProcessing: false,
+        }));
     }, []);
 
     const closeScanDialog = useCallback(() => {
         setScanState({
             isDialogOpen: false,
             scanningType: "",
+            isApiProcessing: false,
         });
     }, []);
 
     return {
         scanState,
         startScanning,
+        setApiComplete,
         closeScanDialog,
     };
 };
@@ -144,9 +156,9 @@ const FingerprintSetupDialog: FC<FingerprintSetupDialogProps> = ({
         refetch,
     } = useEmployeeSelection(authState.hasValidToken);
 
-    const { scanState, startScanning, closeScanDialog } = useScanningManager();
+    const { scanState, startScanning, setApiComplete, closeScanDialog } =
+        useScanningManager();
 
-    // 🔥 ADD: Use system info hook to get MAC address
     const {
         macAddress,
         isLoading: isSystemLoading,
@@ -204,7 +216,6 @@ const FingerprintSetupDialog: FC<FingerprintSetupDialogProps> = ({
         }
     }, [isOpen, checkAuthentication, handleLoginSuccess]);
 
-    // 🔥 ADD: Check for system info and MAC address
     useEffect(() => {
         if (
             isOpen &&
@@ -228,7 +239,6 @@ const FingerprintSetupDialog: FC<FingerprintSetupDialogProps> = ({
     const handleStartScanning = async (type: ScanningType) => {
         if (!employeeState.selectedEmployeeId) return;
 
-        // 🔥 ADD: Check if MAC address is available
         if (!macAddress) {
             await showErrorAlert(
                 "System Error",
@@ -254,10 +264,9 @@ const FingerprintSetupDialog: FC<FingerprintSetupDialogProps> = ({
                 } API call for ${type}...`
             );
 
-            // 🔥 UPDATED: Use dynamic MAC address from system info
             const fingerprintData = {
                 user_id: employeeState.selectedEmployeeId,
-                mac_address: macAddress, // 🔥 CHANGED: Use dynamic MAC address
+                mac_address: macAddress,
                 number_of_fingerprint: fingerprintNumber,
             };
 
@@ -277,6 +286,7 @@ const FingerprintSetupDialog: FC<FingerprintSetupDialogProps> = ({
             if (!response.ok) {
                 if (response.status === 401) {
                     resetAuth();
+                    setApiComplete(false);
                     closeScanDialog();
                     return;
                 }
@@ -293,6 +303,7 @@ const FingerprintSetupDialog: FC<FingerprintSetupDialogProps> = ({
 
             if (isRescan) {
                 if (!result.data?.matched) {
+                    setApiComplete(false);
                     closeScanDialog();
                     setTimeout(async () => {
                         await showErrorAlert(
@@ -311,8 +322,11 @@ const FingerprintSetupDialog: FC<FingerprintSetupDialogProps> = ({
                     `✅ Fingerprint ${fingerprintNumber} setup successful`
                 );
             }
+
+            setApiComplete(true);
         } catch (error) {
             console.error(`❌ Error calling API for ${type}:`, error);
+            setApiComplete(false);
             closeScanDialog();
 
             setTimeout(async () => {
@@ -436,7 +450,6 @@ const FingerprintSetupDialog: FC<FingerprintSetupDialogProps> = ({
         );
     }
 
-    // 🔥 ADD: Show loading if system info is still loading
     if (isSystemLoading) {
         return (
             <div className="fixed inset-0 flex items-center justify-center z-50">
@@ -451,7 +464,6 @@ const FingerprintSetupDialog: FC<FingerprintSetupDialogProps> = ({
         );
     }
 
-    // 🔥 ADD: Show error if system info failed to load
     if (systemError) {
         return (
             <div className="fixed inset-0 flex items-center justify-center z-50">
@@ -496,7 +508,7 @@ const FingerprintSetupDialog: FC<FingerprintSetupDialogProps> = ({
         switch (currentStep) {
             case "employee-selection":
                 return (
-                    <div className="p-6">
+                    <>
                         <EmployeeDropdown
                             employees={employees}
                             isLoading={isLoading}
@@ -521,7 +533,7 @@ const FingerprintSetupDialog: FC<FingerprintSetupDialogProps> = ({
                                 isEnabled={
                                     !!employeeState.selectedEmployeeId &&
                                     !!macAddress
-                                } // 🔥 ADD: Check MAC address
+                                }
                                 onAction={() =>
                                     handleStartScanning("finger1-scan")
                                 }
@@ -539,7 +551,7 @@ const FingerprintSetupDialog: FC<FingerprintSetupDialogProps> = ({
                                 }
                                 isEnabled={
                                     fingerprintState.finger1ScanCompleted &&
-                                    !!macAddress // 🔥 ADD: Check MAC address
+                                    !!macAddress
                                 }
                                 onAction={() =>
                                     handleStartScanning("finger1-rescan")
@@ -550,7 +562,7 @@ const FingerprintSetupDialog: FC<FingerprintSetupDialogProps> = ({
                                 actionText="Validate Fingerprint"
                             />
                         </div>
-                    </div>
+                    </>
                 );
 
             case "finger1-scan":
@@ -709,29 +721,40 @@ const FingerprintSetupDialog: FC<FingerprintSetupDialogProps> = ({
                     onClick={handleClose}
                 ></div>
 
-                <div className="bg-white rounded-lg w-full max-w-2xl relative z-10">
-                    <div className="flex justify-between items-center p-6 border-b">
-                        <h2 className="text-xl font-semibold text-[#202325]">
+                <div className="bg-[#f5f5f5] rounded-2xl w-full max-w-2xl relative z-10 shadow-2xl p-5">
+                    <div className="flex justify-between items-center mb-5">
+                        <h2 className="text-2xl font-semibold text-black">
                             Fingerprint Setup
                         </h2>
-                        <button onClick={handleClose}>
-                            <X className="h-5 w-5 text-gray-600" />
+                        <button
+                            onClick={handleClose}
+                            className="w-8 h-8 flex items-center justify-center rounded-md border border-black hover:scale-105 transition-all"
+                        >
+                            <X className="h-4 w-4 text-gray-600" />
                         </button>
                     </div>
 
                     {renderStepContent()}
 
-                    {currentStep === "employee-selection" && (
-                        <div className="flex gap-4 justify-end p-6 border-t">
-                            <Button
-                                variant="outline"
-                                onClick={handleReset}
-                                className="px-8 border-blue-600 text-blue-600 hover:bg-blue-50"
-                            >
-                                Reset
-                            </Button>
-                        </div>
-                    )}
+                    {currentStep === "employee-selection" &&
+                        fingerprintState.finger1ScanCompleted && (
+                            <div className="flex gap-4 justify-end p-6 border-t">
+                                <Button
+                                    variant="outline"
+                                    onClick={handleReset}
+                                    className="px-8 border-[#003DF6] text-[#003DF6] hover:text-blue-800 h-[44px]"
+                                >
+                                    Reset
+                                </Button>
+                                <Button
+                                    variant="outline"
+                                    onClick={handleClose}
+                                    className="px-8 border-gray-400 text-gray-600 hover:text-gray-800 h-[44px]"
+                                >
+                                    Cancel
+                                </Button>
+                            </div>
+                        )}
                 </div>
             </div>
 
@@ -740,7 +763,7 @@ const FingerprintSetupDialog: FC<FingerprintSetupDialogProps> = ({
                 onClose={closeScanDialog}
                 onComplete={handleScanComplete}
                 scanningType={scanState.scanningType}
-                scanDuration={2000}
+                isApiProcessing={scanState.isApiProcessing}
             />
         </>
     );

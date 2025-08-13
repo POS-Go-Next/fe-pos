@@ -125,23 +125,23 @@ export default function EmployeeLoginDialog({
     return (
         <>
             <div className="fixed inset-0 bg-black/50 z-50 flex items-center justify-center">
-                <div className="bg-white rounded-2xl w-full max-w-md mx-4 relative">
-                    <div className="flex justify-between items-center p-6 border-b border-gray-100">
-                        <h2 className="text-xl font-semibold text-gray-900">
+                <div className="bg-[#f5f5f5] rounded-2xl w-full max-w-[408px] mx-4 relative shadow-2xl p-5">
+                    <div className="flex justify-between items-center mb-5">
+                        <h2 className="text-2xl font-semibold text-gray-900">
                             Employee Login
                         </h2>
                         <button
                             onClick={handleClose}
-                            className="w-8 h-8 flex items-center justify-center rounded-full border border-gray-300 hover:border-gray-400 transition-colors"
+                            className="w-8 h-8 flex items-center justify-center rounded-md border border-black hover:scale-105 transition-all"
                         >
                             <X className="h-4 w-4 text-gray-600" />
                         </button>
                     </div>
 
-                    <div className="p-6">
-                        <form onSubmit={handleSubmit} className="space-y-4">
+                    <form onSubmit={handleSubmit}>
+                        <div className="bg-white rounded-2xl p-5 space-y-4 mb-5">
                             <div>
-                                <label className="block text-sm font-medium text-gray-700 mb-2">
+                                <label className="block text-sm font-medium text-black mb-2">
                                     Username
                                 </label>
                                 <Input
@@ -150,14 +150,14 @@ export default function EmployeeLoginDialog({
                                     onChange={(e) =>
                                         setUsername(e.target.value)
                                     }
-                                    placeholder="Rangga"
-                                    className="w-full border-blue-500 focus:border-blue-600 focus:ring-blue-500"
+                                    placeholder="Input your Username"
+                                    className="w-full bg-[#F5F5F5] h-[52px] border-none focus:border-blue-600 focus:ring-blue-500"
                                     disabled={isLoading}
                                 />
                             </div>
 
                             <div>
-                                <label className="block text-sm font-medium text-gray-700 mb-2">
+                                <label className="block text-sm font-medium text-black mb-2">
                                     Password
                                 </label>
                                 <div className="relative">
@@ -169,8 +169,8 @@ export default function EmployeeLoginDialog({
                                         onChange={(e) =>
                                             setPassword(e.target.value)
                                         }
-                                        placeholder="Securely enter your password"
-                                        className="w-full pr-10 border-gray-300 focus:border-blue-600 focus:ring-blue-500"
+                                        placeholder="Input your Password"
+                                        className="w-full pr-10 bg-[#F5F5F5] border-none h-[52px] focus:border-blue-600 focus:ring-blue-500"
                                         disabled={isLoading}
                                     />
                                     <button
@@ -188,41 +188,40 @@ export default function EmployeeLoginDialog({
                                     </button>
                                 </div>
                             </div>
+                        </div>
+                        <div className="flex justify-end gap-3">
+                            <Button
+                                type="submit"
+                                className="flex-1 bg-blue-600 hover:bg-blue-700 text-white h-[44px] max-w-max px-7"
+                                disabled={isLoading}
+                            >
+                                {isLoading ? "Logging in..." : "Login"}
+                            </Button>
 
-                            <div className="flex gap-3 pt-4">
-                                <Button
-                                    type="submit"
-                                    className="flex-1 bg-blue-600 hover:bg-blue-700 text-white"
-                                    disabled={isLoading}
+                            <Button
+                                type="button"
+                                variant="outline"
+                                onClick={handleBiometricClick}
+                                className="px-4 bg-[#E6ECFE] hover:bg-[#cbd7fb] text-blue-700 hover:text-blue-900 h-[44px]"
+                                disabled={isLoading}
+                                title="Biometric Login"
+                            >
+                                <svg
+                                    className="w-8 h-8"
+                                    fill="none"
+                                    stroke="currentColor"
+                                    viewBox="0 0 24 24"
                                 >
-                                    {isLoading ? "Logging in..." : "Login"}
-                                </Button>
-
-                                <Button
-                                    type="button"
-                                    variant="outline"
-                                    onClick={handleBiometricClick}
-                                    className="px-4 border-blue-500 text-blue-500 hover:bg-blue-50"
-                                    disabled={isLoading}
-                                    title="Biometric Login"
-                                >
-                                    <svg
-                                        className="w-5 h-5"
-                                        fill="none"
-                                        stroke="currentColor"
-                                        viewBox="0 0 24 24"
-                                    >
-                                        <path
-                                            strokeLinecap="round"
-                                            strokeLinejoin="round"
-                                            strokeWidth={2}
-                                            d="M12 11c0 3.517-1.009 6.799-2.753 9.571m-3.44-2.04l.054-.09A13.916 13.916 0 008 11a4 4 0 118 0c0 1.017-.07 2.019-.203 3m-2.118 6.844A21.88 21.88 0 0015.171 17m3.839 1.132c.645-2.266.99-4.659.99-7.132A8 8 0 008 4.07M3 15.364c.64-1.319 1-2.8 1-4.364 0-1.457.39-2.823 1.07-4"
-                                        />
-                                    </svg>
-                                </Button>
-                            </div>
-                        </form>
-                    </div>
+                                    <path
+                                        strokeLinecap="round"
+                                        strokeLinejoin="round"
+                                        strokeWidth={2}
+                                        d="M12 11c0 3.517-1.009 6.799-2.753 9.571m-3.44-2.04l.054-.09A13.916 13.916 0 008 11a4 4 0 118 0c0 1.017-.07 2.019-.203 3m-2.118 6.844A21.88 21.88 0 0015.171 17m3.839 1.132c.645-2.266.99-4.659.99-7.132A8 8 0 008 4.07M3 15.364c.64-1.319 1-2.8 1-4.364 0-1.457.39-2.823 1.07-4"
+                                    />
+                                </svg>
+                            </Button>
+                        </div>
+                    </form>
                 </div>
             </div>
 

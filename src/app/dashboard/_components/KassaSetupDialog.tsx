@@ -461,15 +461,15 @@ const KassaSetupDialog: FC<KassaSetupDialogProps> = ({
                 onClick={handleCancel}
             ></div>
 
-            <div className="bg-white rounded-2xl w-full max-w-2xl relative z-10 p-6">
+            <div className="bg-[#f5f5f5] rounded-2xl w-full max-w-2xl relative z-10 p-6">
                 <div className="flex justify-between items-center mb-6">
-                    <h2 className="text-xl font-semibold text-[#202325]">
+                    <h2 className="text-2xl font-semibold text-black">
                         Kassa Setup (1)
                     </h2>
                     <button
                         onClick={handleCancel}
                         disabled={isSubmitting}
-                        className="w-8 h-8 rounded-full bg-gray-100 flex items-center justify-center hover:bg-gray-200 transition-colors disabled:opacity-50"
+                        className="w-8 h-8 flex items-center justify-center rounded-md border border-black hover:scale-105 transition-all"
                     >
                         <X className="h-4 w-4 text-gray-600" />
                     </button>
@@ -489,9 +489,9 @@ const KassaSetupDialog: FC<KassaSetupDialogProps> = ({
                     </div>
                 )}
 
-                <div className="space-y-6">
-                    <div className="grid grid-cols-2 gap-6">
-                        <div className="space-y-4">
+                <div className="space-y-3">
+                    <div className="grid grid-cols-2 gap-3">
+                        <div className="space-y-4 bg-white rounded-2xl p-4">
                             <div className="flex items-center justify-between">
                                 <h3 className="text-base font-medium text-gray-900">
                                     Default POS
@@ -549,7 +549,7 @@ const KassaSetupDialog: FC<KassaSetupDialogProps> = ({
                             </div>
                         </div>
 
-                        <div className="space-y-4">
+                        <div className="space-y-4 bg-white rounded-2xl p-4">
                             <div className="flex items-center justify-between">
                                 <h3 className="text-base font-medium text-gray-900">
                                     Status
@@ -594,8 +594,8 @@ const KassaSetupDialog: FC<KassaSetupDialogProps> = ({
                         </div>
                     </div>
 
-                    <div className="grid grid-cols-2 gap-6">
-                        <div className="space-y-4">
+                    <div className="grid grid-cols-2 gap-3">
+                        <div className="space-y-4 bg-white rounded-2xl p-4">
                             <div className="flex items-center justify-between">
                                 <h3 className="text-base font-medium text-gray-900">
                                     Queue (Antrian)
@@ -639,7 +639,7 @@ const KassaSetupDialog: FC<KassaSetupDialogProps> = ({
                             </div>
                         </div>
 
-                        <div className="space-y-4">
+                        <div className="space-y-4 bg-white rounded-2xl p-4">
                             <div className="flex items-center justify-between">
                                 <h3 className="text-base font-medium text-gray-900">
                                     Fingerprint
@@ -682,8 +682,8 @@ const KassaSetupDialog: FC<KassaSetupDialogProps> = ({
                         </div>
                     </div>
 
-                    <div className="grid grid-cols-2 gap-6">
-                        <div className="space-y-4">
+                    <div className="grid grid-cols-2 gap-3">
+                        <div className="space-y-4 bg-white rounded-2xl p-4">
                             <div className="flex items-center justify-between">
                                 <h3 className="text-base font-medium text-gray-900">
                                     IP Address
@@ -723,7 +723,7 @@ const KassaSetupDialog: FC<KassaSetupDialogProps> = ({
                             </div>
                         </div>
 
-                        <div className="space-y-4">
+                        <div className="space-y-4 bg-white rounded-2xl p-4">
                             <div className="flex items-center justify-between">
                                 <h3 className="text-base font-medium text-gray-900">
                                     MAC Address
@@ -764,7 +764,7 @@ const KassaSetupDialog: FC<KassaSetupDialogProps> = ({
                         </div>
                     </div>
 
-                    <div className="space-y-4">
+                    <div className="space-y-4 bg-white rounded-2xl p-4">
                         <div className="flex items-center justify-between">
                             <h3 className="text-base font-medium text-gray-900">
                                 Active Printer
@@ -820,13 +820,13 @@ const KassaSetupDialog: FC<KassaSetupDialogProps> = ({
                     </div>
                 </div>
 
-                <div className="flex gap-4 mt-8">
+                <div className="flex justify-end gap-4 mt-8">
                     <Button
                         type="button"
                         variant="outline"
                         onClick={handleCancel}
                         disabled={isLoading}
-                        className="flex-1 py-3 border-gray-300 text-gray-700 hover:bg-gray-50"
+                        className="flex-1 py-3 h-[44px] max-w-[86px] border-gray-300 text-gray-700 hover:bg-gray-50"
                     >
                         Cancel
                     </Button>
@@ -834,7 +834,7 @@ const KassaSetupDialog: FC<KassaSetupDialogProps> = ({
                         type="button"
                         onClick={handleSubmit}
                         disabled={isLoading}
-                        className="flex-1 py-3 bg-blue-600 hover:bg-blue-700 text-white"
+                        className="flex-1 py-3 h-[44px] max-w-[86px] bg-blue-600 hover:bg-blue-700 text-white"
                     >
                         {isSubmitting ? (
                             <>
