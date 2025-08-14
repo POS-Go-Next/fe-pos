@@ -140,6 +140,7 @@ export const createSafeDialogShortcuts = (actions: {
     showShortcutGuide?: () => void; // Ctrl+Shift+F1 -> F1 (Petunjuk Shortcut)
     showPaymentDialog?: () => void; // ✅ FIXED: Ctrl+Shift+F2 -> F2 (Payment Dialog)
     showPrescriptionDiscount?: () => void; // Ctrl+Shift+F3 -> F3 (Discount Resep)
+    showGlobalDiscount?: () => void; // Shift+Alt+F3 -> F3 (Global Discount)
     clearAllProducts?: () => void; // Ctrl+Shift+F4 -> F4 (Batal/Void)
     showPromoList?: () => void; // Ctrl+Shift+F5 -> F5 (Daftar Promo)
     showUpSelling?: () => void; // Ctrl+Shift+F6 -> F6 (Up Selling)
@@ -180,6 +181,17 @@ export const createSafeDialogShortcuts = (actions: {
             shift: true,
             action: actions.showPrescriptionDiscount,
             description: "Discount (hanya untuk resep)",
+        });
+    }
+
+    // NEW: Global Discount with Shift+Alt+F3
+    if (actions.showGlobalDiscount) {
+        shortcuts.push({
+            key: "F3",
+            shift: true,
+            alt: true,
+            action: actions.showGlobalDiscount,
+            description: "Discount Global",
         });
     }
 

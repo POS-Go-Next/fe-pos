@@ -12,3 +12,4 @@ export { default as PrescriptionDiscountDialog } from "./PrescriptionDiscountDia
 export { default as ChooseMiscDialog } from "./ChooseMiscDialog";
 export { default as CorporateDiscountDialog } from "./CorporateDiscountDialog";
 export { default as TransactionHistoryDialog } from "./TransactionHistoryDialog";
+export { default as GlobalDiscountDialog } from "./GlobalDiscountDialog";

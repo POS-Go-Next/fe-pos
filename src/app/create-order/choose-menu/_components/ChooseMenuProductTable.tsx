@@ -27,6 +27,7 @@ import PrescriptionDiscountDialog from "./PrescriptionDiscountDialog";
 import ChooseMiscDialog from "./ChooseMiscDialog";
 import CorporateDiscountDialog from "./CorporateDiscountDialog";
 import TransactionHistoryDialog from "./TransactionHistoryDialog";
+import GlobalDiscountDialog from "./GlobalDiscountDialog";
 
 export interface Product extends ProductTableItem {}
 
@@ -157,6 +158,7 @@ export default function ChooseMenuProductTable({
         chooseMisc: false,
         corporateDiscount: false,
         transactionHistory: false,
+        globalDiscount: false,
     });
 
     const [selectedProductId, setSelectedProductId] = useState<number | null>(
@@ -179,7 +181,7 @@ export default function ChooseMenuProductTable({
 
     useEffect(() => {
         setIsClient(true);
-        console.log("🔍 Component mounted");
+        console.log("🎯 Component mounted");
     }, []);
 
     const toggleDialog = (dialogName: keyof typeof dialogStates) => {
@@ -220,6 +222,10 @@ export default function ChooseMenuProductTable({
                 } else {
                     console.log("⚠️ No product selected for discount");
                 }
+            },
+            showGlobalDiscount: () => {
+                console.log("🔥 Shift+Alt+F3: Opening Global Discount");
+                toggleDialog("globalDiscount");
             },
             clearAllProducts: () => {
                 console.log("🔥 Ctrl+Shift+F4: Clear all products");
@@ -950,6 +956,18 @@ export default function ChooseMenuProductTable({
             <TransactionHistoryDialog
                 isOpen={dialogStates.transactionHistory}
                 onClose={() => closeDialog("transactionHistory")}
+            />
+
+            <GlobalDiscountDialog
+                isOpen={dialogStates.globalDiscount}
+                onClose={() => closeDialog("globalDiscount")}
+                onSubmit={(globalDiscountData) => {
+                    console.log(
+                        "✅ Global discount applied:",
+                        globalDiscountData
+                    );
+                    closeDialog("globalDiscount");
+                }}
             />
 
             <style jsx>{`
