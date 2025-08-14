@@ -253,6 +253,14 @@ export default function CustomerDoctorDialog({
         setViewMode("both");
     };
 
+    const handleCancel = () => {
+        if (viewMode === "both") {
+            handleClose();
+        } else {
+            handleBackToBoth();
+        }
+    };
+
     const handleSubmit = () => {
         if (!validateCustomerForm()) {
             return;
@@ -373,7 +381,7 @@ export default function CustomerDoctorDialog({
             <div className="bg-[#f5f5f5] rounded-2xl w-full max-w-3xl max-h-[95vh] flex flex-col animate-in fade-in-0 zoom-in-95 duration-300 p-5">
                 <div className="flex justify-between items-center mb-5">
                     <div className="flex items-center gap-3">
-                        {viewMode !== "both" && (
+                        {/* {viewMode !== "both" && (
                             <button
                                 onClick={handleBackToBoth}
                                 className="p-1 hover:bg-gray-100 rounded-lg transition-colors"
@@ -381,7 +389,7 @@ export default function CustomerDoctorDialog({
                             >
                                 <ArrowLeft className="h-5 w-5 text-gray-600" />
                             </button>
-                        )}
+                        )} */}
                         <h2 className="text-2xl font-semibold text-gray-900">
                             {getDialogTitle()}
                         </h2>
@@ -864,7 +872,7 @@ export default function CustomerDoctorDialog({
                 <div className="flex justify-end gap-3 pt-6 border-t mt-6">
                     <Button
                         variant="outline"
-                        onClick={handleClose}
+                        onClick={handleCancel}
                         className="px-6 border-gray-300 text-gray-700 hover:bg-gray-50 transition-all duration-200"
                     >
                         Cancel
