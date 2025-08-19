@@ -1,16 +1,6 @@
-// components/shared/customer-doctor-dialog.tsx - COMPLETE FIXED VERSION
+// components/shared/customer-doctor-dialog.tsx - COMPLETE FIXED VERSION WITH API INTEGRATION
 "use client";
 
-import React, { useState, useEffect, useRef } from "react";
-import {
-    X,
-    Plus,
-    User,
-    Stethoscope,
-    ArrowLeft,
-    ChevronDown,
-    Search,
-} from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import {
@@ -20,11 +10,13 @@ import {
     SelectTrigger,
     SelectValue,
 } from "@/components/ui/select";
-import { useDoctor } from "@/hooks/useDoctor";
 import { useCustomer } from "@/hooks/useCustomer";
-import type { DoctorData } from "@/types/doctor";
+import { useDoctor } from "@/hooks/useDoctor";
 import type { CustomerData as CustomerApiData } from "@/types/customer";
 import { transformCustomerApiToForm } from "@/types/customer";
+import type { DoctorData } from "@/types/doctor";
+import { ChevronDown, Plus, Search, Stethoscope, User, X } from "lucide-react";
+import React, { useEffect, useRef, useState } from "react";
 
 interface CustomerData {
     id: number;
@@ -79,15 +71,16 @@ export default function CustomerDoctorDialog({
     const [validationErrors, setValidationErrors] = useState<
         Record<string, string>
     >({});
+    const [isCreatingCustomer, setIsCreatingCustomer] = useState(false);
 
     const [customerForm, setCustomerForm] = useState<CustomerData>({
         id: 0,
         name: "",
-        gender: "Female",
+        gender: "female",
         age: "",
-        phone: "+62 ",
+        phone: "62",
         address: "",
-        status: "AKTIF",
+        status: "true",
     });
 
     const [doctorForm, setDoctorForm] = useState<DoctorFormData>({
@@ -134,9 +127,11 @@ export default function CustomerDoctorDialog({
         customerList,
         isLoading: isCustomerLoading,
         error: customerError,
+        refetch: refetchCustomers,
     } = useCustomer({
         limit: 100,
         offset: 0,
+        search: customerSearch, // Add search parameter
     });
 
     const validateCustomerForm = (): boolean => {
@@ -146,12 +141,20 @@ export default function CustomerDoctorDialog({
             errors.customerName = "Customer name is required";
         }
 
+        if (!customerForm.age || parseInt(customerForm.age) <= 0) {
+            errors.customerAge = "Valid age is required";
+        }
+
         if (
-            customerForm.phone &&
-            customerForm.phone !== "+62 " &&
+            !customerForm.phone ||
+            customerForm.phone === "62" ||
             customerForm.phone.length < 10
         ) {
-            errors.customerPhone = "Please enter a valid phone number";
+            errors.customerPhone = "Valid phone number is required";
+        }
+
+        if (!customerForm.address.trim()) {
+            errors.customerAddress = "Address is required";
         }
 
         setValidationErrors(errors);
@@ -261,20 +264,129 @@ export default function CustomerDoctorDialog({
         }
     };
 
-    const handleSubmit = () => {
+    const createCustomerViaAPI = async (): Promise<CustomerData | null> => {
+        try {
+            console.log("🌐 Starting API call to create customer");
+            setIsCreatingCustomer(true);
+
+            const requestBody = {
+                nm_cust: customerForm.name,
+                usia_cust: parseInt(customerForm.age),
+                gender: customerForm.gender,
+                telp_cust: customerForm.phone,
+                al_cust: customerForm.address,
+                status: customerForm.status === "true",
+            };
+
+            console.log("📤 Request body:", requestBody);
+
+            const response = await fetch("/api/customer", {
+                method: "POST",
+                headers: {
+                    "Content-Type": "application/json",
+                },
+                body: JSON.stringify(requestBody),
+            });
+
+            console.log("📥 Response status:", response.status);
+            const data = await response.json();
+            console.log("📥 Response data:", data);
+
+            if (!response.ok) {
+                throw new Error(data.message || "Failed to create customer");
+            }
+
+            // Transform the response data back to the format expected by the parent component
+            const createdCustomer: CustomerData = {
+                id: data.data.kd_cust,
+                name: data.data.nm_cust,
+                gender: data.data.gender,
+                age: data.data.usia_cust.toString(),
+                phone: data.data.telp_cust,
+                address: data.data.al_cust,
+                status: data.data.status ? "true" : "false",
+            };
+
+            console.log("✅ Customer created successfully:", createdCustomer);
+
+            // Refresh customer list to include the new customer
+            if (refetchCustomers) {
+                console.log("🔄 Refreshing customer list...");
+                refetchCustomers();
+            }
+
+            return createdCustomer;
+        } catch (error) {
+            console.error("❌ Error creating customer:", error);
+            setValidationErrors({
+                submit:
+                    error instanceof Error
+                        ? error.message
+                        : "Failed to create customer",
+            });
+            return null;
+        } finally {
+            setIsCreatingCustomer(false);
+        }
+    };
+
+    const handleSubmit = async () => {
+        console.log("🚀 Submit button clicked!");
+        console.log("Current form data:", customerForm);
+        console.log("View mode:", viewMode);
+        console.log("Selected customer ID:", selectedCustomerId);
+
         if (!validateCustomerForm()) {
+            console.log("❌ Form validation failed");
             return;
         }
 
+        console.log("✅ Form validation passed");
+
         if (viewMode === "customer-only" && customerForm.name) {
-            onSelectCustomer(customerForm);
-            onClose();
+            console.log(
+                "📝 Creating new customer via API (customer-only mode)..."
+            );
+            const createdCustomer = await createCustomerViaAPI();
+            if (createdCustomer) {
+                console.log(
+                    "✅ Customer created successfully:",
+                    createdCustomer
+                );
+                onSelectCustomer(createdCustomer);
+                onClose();
+            } else {
+                console.log("❌ Customer creation failed");
+            }
         } else if (viewMode === "doctor-only" && doctorForm.fullname) {
+            console.log("👨‍⚕️ Submitting doctor data");
             onSelectDoctor(doctorForm);
             onClose();
         } else if (viewMode === "both" && customerForm.name) {
+            console.log("👥 Submitting both customer and doctor data");
+            let finalCustomerData = customerForm;
+
+            // Check if this is a new customer (not selected from existing list)
+            if (!selectedCustomerId) {
+                console.log("📝 Creating new customer via API (both mode)...");
+                const createdCustomer = await createCustomerViaAPI();
+                if (!createdCustomer) {
+                    console.log(
+                        "❌ Customer creation failed, stopping submission"
+                    );
+                    return;
+                }
+                console.log(
+                    "✅ Customer created successfully:",
+                    createdCustomer
+                );
+                finalCustomerData = createdCustomer;
+            } else {
+                console.log("🔄 Using existing customer from selection");
+            }
+
             const doctorData = doctorForm.fullname ? doctorForm : undefined;
-            onSubmit(customerForm, doctorData);
+            onSubmit(finalCustomerData, doctorData);
             onClose();
         }
     };
@@ -284,11 +396,11 @@ export default function CustomerDoctorDialog({
         setCustomerForm({
             id: 0,
             name: "",
-            gender: "Female",
+            gender: "female",
             age: "",
-            phone: "+62 ",
+            phone: "62",
             address: "",
-            status: "AKTIF",
+            status: "true",
         });
         setDoctorForm({
             id: 0,
@@ -307,6 +419,7 @@ export default function CustomerDoctorDialog({
         setSelectedCustomerId(null);
         setCustomerSearch("");
         setIsCustomerDropdownOpen(false);
+        setIsCreatingCustomer(false);
     };
 
     const getDialogTitle = () => {
@@ -329,6 +442,8 @@ export default function CustomerDoctorDialog({
             return customerForm.name.trim() !== "";
         }
     };
+
+    const isSubmitLoading = isCreatingCustomer;
 
     useEffect(() => {
         if (!isClient) return;
@@ -370,9 +485,7 @@ export default function CustomerDoctorDialog({
         doctor.fullname.toLowerCase().includes(doctorSearch.toLowerCase())
     );
 
-    const filteredCustomers = customerList.filter((customer) =>
-        customer.nm_cust.toLowerCase().includes(customerSearch.toLowerCase())
-    );
+    const filteredCustomers = customerList; // Remove local filtering since we're now using API search
 
     if (!isOpen) return null;
 
@@ -381,22 +494,14 @@ export default function CustomerDoctorDialog({
             <div className="bg-[#f5f5f5] rounded-2xl w-full max-w-3xl max-h-[95vh] flex flex-col animate-in fade-in-0 zoom-in-95 duration-300 p-5">
                 <div className="flex justify-between items-center mb-5">
                     <div className="flex items-center gap-3">
-                        {/* {viewMode !== "both" && (
-                            <button
-                                onClick={handleBackToBoth}
-                                className="p-1 hover:bg-gray-100 rounded-lg transition-colors"
-                                title="Back to both sections"
-                            >
-                                <ArrowLeft className="h-5 w-5 text-gray-600" />
-                            </button>
-                        )} */}
                         <h2 className="text-2xl font-semibold text-gray-900">
                             {getDialogTitle()}
                         </h2>
                     </div>
                     <button
                         onClick={handleClose}
-                        className="w-8 h-8 flex items-center justify-center rounded-md border border-black hover:scale-105 transition-all"
+                        disabled={isSubmitLoading}
+                        className="w-8 h-8 flex items-center justify-center rounded-md border border-black hover:scale-105 transition-all disabled:opacity-50"
                     >
                         <X className="h-4 w-4 text-gray-600" />
                     </button>
@@ -427,6 +532,7 @@ export default function CustomerDoctorDialog({
                                         size="sm"
                                         className="bg-blue-600 hover:bg-blue-700 transform hover:scale-105 transition-all duration-200"
                                         onClick={handleCustomerButtonClick}
+                                        disabled={isSubmitLoading}
                                     >
                                         <Plus className="h-4 w-4 mr-1" />
                                         Customer
@@ -434,122 +540,168 @@ export default function CustomerDoctorDialog({
                                 )}
                             </div>
 
+                            {validationErrors.submit && (
+                                <div className="mb-4 p-3 bg-red-50 border border-red-200 rounded-lg">
+                                    <p className="text-red-600 text-sm">
+                                        {validationErrors.submit}
+                                    </p>
+                                </div>
+                            )}
+
                             <div className="grid grid-cols-2 gap-4">
                                 <div>
                                     <label className="block text-sm font-medium text-gray-700 mb-2">
                                         Full Name{" "}
                                         <span className="text-red-500">*</span>
                                     </label>
-                                    <div
-                                        className="relative"
-                                        ref={customerContainerRef}
-                                    >
+                                    {viewMode === "customer-only" ? (
+                                        // Customer-only mode: Simple input text for new customer
                                         <Input
                                             type="text"
-                                            placeholder="Enter Customer Name or Search"
+                                            placeholder="Enter Customer Name"
                                             value={customerForm.name}
-                                            onChange={handleCustomerInputChange}
-                                            onFocus={handleCustomerInputFocus}
-                                            className={`bg-[#F5F5F5] border-none h-[52px] focus:ring-2 focus:ring-blue-500 transition-all duration-200 pr-10 ${
+                                            onChange={(e) =>
+                                                handleCustomerChange(
+                                                    "name",
+                                                    e.target.value
+                                                )
+                                            }
+                                            disabled={isSubmitLoading}
+                                            className={`bg-[#F5F5F5] border-none h-[52px] focus:ring-2 focus:ring-blue-500 transition-all duration-200 ${
                                                 validationErrors.customerName
                                                     ? "ring-2 ring-red-500"
                                                     : ""
                                             }`}
                                         />
-                                        <button
-                                            type="button"
-                                            onClick={() =>
-                                                setIsCustomerDropdownOpen(
-                                                    !isCustomerDropdownOpen
-                                                )
-                                            }
-                                            className="absolute right-2 top-1/2 transform -translate-y-1/2 p-1 hover:bg-gray-200 rounded"
+                                    ) : (
+                                        // Both mode: Dropdown for existing customers + new customer option
+                                        <div
+                                            className="relative"
+                                            ref={customerContainerRef}
                                         >
-                                            <ChevronDown className="h-4 w-4 text-gray-500" />
-                                        </button>
+                                            <Input
+                                                type="text"
+                                                placeholder="Enter Customer Name or Search"
+                                                value={customerForm.name}
+                                                onChange={
+                                                    handleCustomerInputChange
+                                                }
+                                                onFocus={
+                                                    handleCustomerInputFocus
+                                                }
+                                                disabled={isSubmitLoading}
+                                                className={`bg-[#F5F5F5] border-none h-[52px] focus:ring-2 focus:ring-blue-500 transition-all duration-200 pr-10 ${
+                                                    validationErrors.customerName
+                                                        ? "ring-2 ring-red-500"
+                                                        : ""
+                                                }`}
+                                            />
+                                            <button
+                                                type="button"
+                                                onClick={() =>
+                                                    setIsCustomerDropdownOpen(
+                                                        !isCustomerDropdownOpen
+                                                    )
+                                                }
+                                                disabled={isSubmitLoading}
+                                                className="absolute right-2 top-1/2 transform -translate-y-1/2 p-1 hover:bg-gray-200 rounded disabled:opacity-50"
+                                            >
+                                                <ChevronDown className="h-4 w-4 text-gray-500" />
+                                            </button>
 
-                                        {isCustomerDropdownOpen && isClient && (
-                                            <div className="absolute top-full left-0 right-0 mt-1 bg-white border border-gray-300 rounded-md shadow-2xl z-50 max-h-60 overflow-hidden">
-                                                <div className="p-2 border-b border-gray-100 bg-white sticky top-0">
-                                                    <div className="relative">
-                                                        <Search className="absolute left-2 top-1/2 transform -translate-y-1/2 h-4 w-4 text-gray-400" />
-                                                        <input
-                                                            type="text"
-                                                            placeholder="Search customers..."
-                                                            value={
-                                                                customerSearch
-                                                            }
-                                                            onChange={(e) =>
-                                                                setCustomerSearch(
-                                                                    e.target
-                                                                        .value
-                                                                )
-                                                            }
-                                                            className="w-full pl-8 pr-3 py-1 text-sm border border-gray-200 rounded focus:outline-none focus:ring-1 focus:ring-blue-500"
-                                                        />
-                                                    </div>
-                                                </div>
-
-                                                <div className="max-h-48 overflow-y-auto">
-                                                    {isCustomerLoading ? (
-                                                        <div className="px-3 py-2 text-sm text-gray-500">
-                                                            Loading customers...
-                                                        </div>
-                                                    ) : customerError ? (
-                                                        <div className="px-3 py-2 text-sm text-red-500">
-                                                            Error:{" "}
-                                                            {customerError}
-                                                        </div>
-                                                    ) : filteredCustomers.length ===
-                                                      0 ? (
-                                                        <div className="px-3 py-2 text-sm text-gray-500">
-                                                            No customers found
-                                                        </div>
-                                                    ) : (
-                                                        filteredCustomers.map(
-                                                            (customer) => (
-                                                                <button
-                                                                    key={
-                                                                        customer.kd_cust
+                                            {isCustomerDropdownOpen &&
+                                                isClient && (
+                                                    <div className="absolute top-full left-0 right-0 mt-1 bg-white border border-gray-300 rounded-md shadow-2xl z-50 max-h-60 overflow-hidden">
+                                                        <div className="p-2 border-b border-gray-100 bg-white sticky top-0">
+                                                            <div className="relative">
+                                                                <Search className="absolute left-2 top-1/2 transform -translate-y-1/2 h-4 w-4 text-gray-400" />
+                                                                <input
+                                                                    type="text"
+                                                                    placeholder="Search customers..."
+                                                                    value={
+                                                                        customerSearch
                                                                     }
-                                                                    type="button"
-                                                                    onClick={() =>
-                                                                        handleCustomerSelect(
-                                                                            customer
+                                                                    onChange={(
+                                                                        e
+                                                                    ) =>
+                                                                        setCustomerSearch(
+                                                                            e
+                                                                                .target
+                                                                                .value
                                                                         )
                                                                     }
-                                                                    className={`w-full px-3 py-2 text-left hover:bg-gray-100 transition-colors ${
-                                                                        selectedCustomerId ===
-                                                                        customer.kd_cust
-                                                                            ? "bg-blue-50 text-blue-600"
-                                                                            : "text-gray-900"
-                                                                    }`}
-                                                                >
-                                                                    <div className="text-sm font-medium">
-                                                                        {
-                                                                            customer.nm_cust
-                                                                        }
-                                                                    </div>
-                                                                    <div className="text-xs text-gray-500">
-                                                                        {customer.gender ===
-                                                                        "male"
-                                                                            ? "Male"
-                                                                            : "Female"}{" "}
-                                                                        •{" "}
-                                                                        {
-                                                                            customer.usia_cust
-                                                                        }{" "}
-                                                                        years
-                                                                        old
-                                                                    </div>
-                                                                </button>
-                                                            )
-                                                        )
-                                                    )}
-                                                </div>
-                                            </div>
-                                        )}
-                                    </div>
+                                                                    className="w-full pl-8 pr-3 py-1 text-sm border border-gray-200 rounded focus:outline-none focus:ring-1 focus:ring-blue-500"
+                                                                />
+                                                            </div>
+                                                        </div>
+
+                                                        <div className="max-h-48 overflow-y-auto">
+                                                            {isCustomerLoading ? (
+                                                                <div className="px-3 py-2 text-sm text-gray-500">
+                                                                    Loading
+                                                                    customers...
+                                                                </div>
+                                                            ) : customerError ? (
+                                                                <div className="px-3 py-2 text-sm text-red-500">
+                                                                    Error:{" "}
+                                                                    {
+                                                                        customerError
+                                                                    }
+                                                                </div>
+                                                            ) : filteredCustomers.length ===
+                                                              0 ? (
+                                                                <div className="px-3 py-2 text-sm text-gray-500">
+                                                                    No customers
+                                                                    found
+                                                                </div>
+                                                            ) : (
+                                                                filteredCustomers.map(
+                                                                    (
+                                                                        customer
+                                                                    ) => (
+                                                                        <button
+                                                                            key={
+                                                                                customer.kd_cust
+                                                                            }
+                                                                            type="button"
+                                                                            onClick={() =>
+                                                                                handleCustomerSelect(
+                                                                                    customer
+                                                                                )
+                                                                            }
+                                                                            className={`w-full px-3 py-2 text-left hover:bg-gray-100 transition-colors ${
+                                                                                selectedCustomerId ===
+                                                                                customer.kd_cust
+                                                                                    ? "bg-blue-50 text-blue-600"
+                                                                                    : "text-gray-900"
+                                                                            }`}
+                                                                        >
+                                                                            <div className="text-sm font-medium">
+                                                                                {
+                                                                                    customer.nm_cust
+                                                                                }
+                                                                            </div>
+                                                                            <div className="text-xs text-gray-500">
+                                                                                {customer.gender ===
+                                                                                "male"
+                                                                                    ? "Male"
+                                                                                    : "Female"}{" "}
+                                                                                •{" "}
+                                                                                {
+                                                                                    customer.usia_cust
+                                                                                }{" "}
+                                                                                years
+                                                                                old
+                                                                            </div>
+                                                                        </button>
+                                                                    )
+                                                                )
+                                                            )}
+                                                        </div>
+                                                    </div>
+                                                )}
+                                        </div>
+                                    )}
                                     {validationErrors.customerName && (
                                         <p className="text-red-500 text-sm mt-1">
                                             {validationErrors.customerName}
@@ -569,15 +721,16 @@ export default function CustomerDoctorDialog({
                                                 value
                                             )
                                         }
+                                        disabled={isSubmitLoading}
                                     >
                                         <SelectTrigger className="bg-[#F5F5F5] border-none h-[52px] focus:ring-2 focus:ring-blue-500 transition-all duration-200">
                                             <SelectValue placeholder="Select gender" />
                                         </SelectTrigger>
                                         <SelectContent>
-                                            <SelectItem value="Female">
+                                            <SelectItem value="female">
                                                 Female
                                             </SelectItem>
-                                            <SelectItem value="Male">
+                                            <SelectItem value="male">
                                                 Male
                                             </SelectItem>
                                         </SelectContent>
@@ -586,7 +739,8 @@ export default function CustomerDoctorDialog({
 
                                 <div>
                                     <label className="block text-sm font-medium text-gray-700 mb-2">
-                                        Age
+                                        Age{" "}
+                                        <span className="text-red-500">*</span>
                                     </label>
                                     <Input
                                         type="text"
@@ -598,17 +752,28 @@ export default function CustomerDoctorDialog({
                                                 e.target.value
                                             )
                                         }
-                                        className="bg-[#F5F5F5] border-none h-[52px] focus:ring-2 focus:ring-blue-500 transition-all duration-200"
+                                        disabled={isSubmitLoading}
+                                        className={`bg-[#F5F5F5] border-none h-[52px] focus:ring-2 focus:ring-blue-500 transition-all duration-200 ${
+                                            validationErrors.customerAge
+                                                ? "ring-2 ring-red-500"
+                                                : ""
+                                        }`}
                                     />
+                                    {validationErrors.customerAge && (
+                                        <p className="text-red-500 text-sm mt-1">
+                                            {validationErrors.customerAge}
+                                        </p>
+                                    )}
                                 </div>
 
                                 <div>
                                     <label className="block text-sm font-medium text-gray-700 mb-2">
-                                        Phone Number
+                                        Phone Number{" "}
+                                        <span className="text-red-500">*</span>
                                     </label>
                                     <Input
                                         type="text"
-                                        placeholder="+62 6214646 5757"
+                                        placeholder="628214646757"
                                         value={customerForm.phone}
                                         onChange={(e) =>
                                             handleCustomerChange(
@@ -616,6 +781,7 @@ export default function CustomerDoctorDialog({
                                                 e.target.value
                                             )
                                         }
+                                        disabled={isSubmitLoading}
                                         className={`bg-[#F5F5F5] border-none h-[52px] focus:ring-2 focus:ring-blue-500 transition-all duration-200 ${
                                             validationErrors.customerPhone
                                                 ? "ring-2 ring-red-500"
@@ -631,7 +797,8 @@ export default function CustomerDoctorDialog({
 
                                 <div>
                                     <label className="block text-sm font-medium text-gray-700 mb-2">
-                                        Address
+                                        Address{" "}
+                                        <span className="text-red-500">*</span>
                                     </label>
                                     <Input
                                         type="text"
@@ -643,8 +810,18 @@ export default function CustomerDoctorDialog({
                                                 e.target.value
                                             )
                                         }
-                                        className="bg-[#F5F5F5] border-none h-[52px] focus:ring-2 focus:ring-blue-500 transition-all duration-200"
+                                        disabled={isSubmitLoading}
+                                        className={`bg-[#F5F5F5] border-none h-[52px] focus:ring-2 focus:ring-blue-500 transition-all duration-200 ${
+                                            validationErrors.customerAddress
+                                                ? "ring-2 ring-red-500"
+                                                : ""
+                                        }`}
                                     />
+                                    {validationErrors.customerAddress && (
+                                        <p className="text-red-500 text-sm mt-1">
+                                            {validationErrors.customerAddress}
+                                        </p>
+                                    )}
                                 </div>
 
                                 <div>
@@ -659,15 +836,16 @@ export default function CustomerDoctorDialog({
                                                 value
                                             )
                                         }
+                                        disabled={isSubmitLoading}
                                     >
                                         <SelectTrigger className="bg-[#F5F5F5] border-none h-[52px] focus:ring-2 focus:ring-blue-500 transition-all duration-200">
                                             <SelectValue placeholder="Select status" />
                                         </SelectTrigger>
                                         <SelectContent>
-                                            <SelectItem value="AKTIF">
+                                            <SelectItem value="true">
                                                 AKTIF
                                             </SelectItem>
-                                            <SelectItem value="TIDAK AKTIF">
+                                            <SelectItem value="false">
                                                 TIDAK AKTIF
                                             </SelectItem>
                                         </SelectContent>
@@ -701,6 +879,7 @@ export default function CustomerDoctorDialog({
                                         size="sm"
                                         className="bg-blue-600 hover:bg-blue-700 transform hover:scale-105 transition-all duration-200"
                                         onClick={handleDoctorButtonClick}
+                                        disabled={isSubmitLoading}
                                     >
                                         <Plus className="h-4 w-4 mr-1" />
                                         Doctor
@@ -723,6 +902,7 @@ export default function CustomerDoctorDialog({
                                             value={doctorForm.fullname}
                                             onChange={handleDoctorInputChange}
                                             onFocus={handleDoctorInputFocus}
+                                            disabled={isSubmitLoading}
                                             className="bg-[#F5F5F5] border-none h-[52px] focus:ring-2 focus:ring-blue-500 transition-all duration-200 pr-10"
                                         />
                                         <button
@@ -732,7 +912,8 @@ export default function CustomerDoctorDialog({
                                                     !isDoctorDropdownOpen
                                                 )
                                             }
-                                            className="absolute right-2 top-1/2 transform -translate-y-1/2 p-1 hover:bg-gray-200 rounded"
+                                            disabled={isSubmitLoading}
+                                            className="absolute right-2 top-1/2 transform -translate-y-1/2 p-1 hover:bg-gray-200 rounded disabled:opacity-50"
                                         >
                                             <ChevronDown className="h-4 w-4 text-gray-500" />
                                         </button>
@@ -825,6 +1006,7 @@ export default function CustomerDoctorDialog({
                                                 e.target.value
                                             )
                                         }
+                                        disabled={isSubmitLoading}
                                         className="bg-[#F5F5F5] border-none h-[52px] focus:ring-2 focus:ring-blue-500 transition-all duration-200"
                                     />
                                 </div>
@@ -843,6 +1025,7 @@ export default function CustomerDoctorDialog({
                                                 e.target.value
                                             )
                                         }
+                                        disabled={isSubmitLoading}
                                         className="bg-[#F5F5F5] border-none h-[52px] focus:ring-2 focus:ring-blue-500 transition-all duration-200"
                                     />
                                 </div>
@@ -861,6 +1044,7 @@ export default function CustomerDoctorDialog({
                                                 e.target.value
                                             )
                                         }
+                                        disabled={isSubmitLoading}
                                         className="bg-[#F5F5F5] border-none h-[52px] focus:ring-2 focus:ring-blue-500 transition-all duration-200"
                                     />
                                 </div>
@@ -873,6 +1057,7 @@ export default function CustomerDoctorDialog({
                     <Button
                         variant="outline"
                         onClick={handleCancel}
+                        disabled={isSubmitLoading}
                         className="px-6 border-gray-300 text-gray-700 hover:bg-gray-50 transition-all duration-200"
                     >
                         Cancel
@@ -880,9 +1065,9 @@ export default function CustomerDoctorDialog({
                     <Button
                         onClick={handleSubmit}
                         className="px-6 bg-blue-600 hover:bg-blue-700 text-white transform hover:scale-105 transition-all duration-200"
-                        disabled={!isFormValid()}
+                        disabled={!isFormValid() || isSubmitLoading}
                     >
-                        Submit
+                        {isSubmitLoading ? "Creating..." : "Submit"}
                     </Button>
                 </div>
             </div>

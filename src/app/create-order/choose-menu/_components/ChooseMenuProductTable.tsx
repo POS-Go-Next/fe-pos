@@ -1,4 +1,3 @@
-// app/create-order/choose-menu/_components/ChooseMenuProductTable.tsx - ENHANCED PRODUCT SELECTION FLOW (MINIMAL CHANGES)
 "use client";
 
 import BranchWideStockDialog from "@/components/shared/branch-wide-stock-dialog";
@@ -14,6 +13,7 @@ import EmployeeLoginDialog from "@/components/shared/EmployeeLoginDialog";
 import PaymentSuccessDialog from "@/components/shared/payment-success-dialog";
 import Calculator from "@/components/shared/calculator";
 import FingerprintScanningDialog from "@/components/shared/FingerprintScanningDialog";
+import ProductHistoryDialog from "@/components/shared/product-history-dialog"; // ✅ NEW IMPORT
 
 import { Input } from "@/components/ui/input";
 import { usePOSKeyboardShortcuts } from "@/hooks/useKeyboardShortcuts";
@@ -28,6 +28,7 @@ import ChooseMiscDialog from "./ChooseMiscDialog";
 import CorporateDiscountDialog from "./CorporateDiscountDialog";
 import TransactionHistoryDialog from "./TransactionHistoryDialog";
 import GlobalDiscountDialog from "./GlobalDiscountDialog";
+import MonthlyPromoDialog from "./MonthlyPromoDialog"; // ✅ NEW IMPORT
 
 export interface Product extends ProductTableItem {}
 
@@ -159,6 +160,8 @@ export default function ChooseMenuProductTable({
         corporateDiscount: false,
         transactionHistory: false,
         globalDiscount: false,
+        productHistory: false, // ✅ NEW DIALOG STATE
+        monthlyPromo: false, // ✅ NEW: Monthly Promo Dialog State
     });
 
     const [selectedProductId, setSelectedProductId] = useState<number | null>(
@@ -211,9 +214,14 @@ export default function ChooseMenuProductTable({
                 console.log("🔥 Ctrl+Shift+F1: Opening Shortcut Guide");
                 toggleDialog("shortcutGuide");
             },
-            showPaymentDialog: () => {
-                console.log("🔥 Ctrl+Shift+F2: Opening Payment Dialog");
-                toggleDialog("transactionType");
+            showProductHistory: () => {
+                // ✅ NEW SHORTCUT HANDLER
+                console.log("🔥 Ctrl+Shift+F2: Opening Product History Dialog");
+                if (selectedRowId !== null && selectedProduct) {
+                    toggleDialog("productHistory");
+                } else {
+                    console.log("⚠️ No product selected for history");
+                }
             },
             showPrescriptionDiscount: () => {
                 console.log("🔥 Ctrl+Shift+F3: Opening Prescription Discount");
@@ -231,7 +239,10 @@ export default function ChooseMenuProductTable({
                 console.log("🔥 Ctrl+Shift+F4: Clear all products");
             },
             showPromoList: () => {
-                console.log("🔥 Ctrl+Shift+F5: Opening Promo List");
+                console.log(
+                    "🔥 Ctrl+Shift+F5: Opening Monthly Promo Highlights"
+                );
+                toggleDialog("monthlyPromo");
             },
             showUpSelling: () => {
                 console.log("🔥 Ctrl+Shift+F6: Opening Up Selling Dialog");
@@ -263,7 +274,15 @@ export default function ChooseMenuProductTable({
                 toggleDialog("chooseMisc");
             },
         },
-        {},
+        {
+            showCustomerDoctorDialog: () => {
+                // ✅ NEW: Ctrl+Space for Customer & Doctor Dialog
+                console.log(
+                    "🔥 Ctrl+Space: Opening Customer and Doctor Dialog"
+                );
+                toggleDialog("customerDoctor");
+            },
+        },
         { enabled: isClient, debug: true }
     );
 
@@ -784,6 +803,13 @@ export default function ChooseMenuProductTable({
                 productCode={selectedProduct?.stockData?.kode_brg}
             />
 
+            {/* ✅ NEW: Product History Dialog */}
+            <ProductHistoryDialog
+                isOpen={dialogStates.productHistory}
+                onClose={() => closeDialog("productHistory")}
+                productName={selectedProduct?.name}
+            />
+
             <PaymentDialog
                 isOpen={dialogStates.payment}
                 onClose={() => closeDialog("payment")}
@@ -968,6 +994,12 @@ export default function ChooseMenuProductTable({
                     );
                     closeDialog("globalDiscount");
                 }}
+            />
+
+            {/* ✅ NEW: Monthly Promo Dialog */}
+            <MonthlyPromoDialog
+                isOpen={dialogStates.monthlyPromo}
+                onClose={() => closeDialog("monthlyPromo")}
             />
 
             <style jsx>{`

@@ -1,10 +1,9 @@
 // components/shared/customer-info-with-dialog.tsx - CORRECTED VERSION
 "use client";
 
-import { useState } from "react";
-import { ChevronRight } from "lucide-react";
 import { Button } from "@/components/ui/button";
-import CustomerDoctorDialog from "./customer-doctor-dialog";
+import { ChevronRight } from "lucide-react";
+import { useState } from "react";
 
 interface CustomerData {
     id: number;

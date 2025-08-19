@@ -96,10 +96,13 @@ export const useTransactionInfo = (): UseTransactionInfoReturn => {
         try {
             console.log("🔄 Fetching MAC address from system service...");
 
-            const response = await fetch("http://localhost:8321/api/system/info", {
-                method: "GET",
-                headers: { "Content-Type": "application/json" },
-            });
+            const response = await fetch(
+                "http://localhost:8321/api/system/info",
+                {
+                    method: "GET",
+                    headers: { "Content-Type": "application/json" },
+                }
+            );
 
             if (response.ok) {
                 const data: SystemInfoResponse = await response.json();

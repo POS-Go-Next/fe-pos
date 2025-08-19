@@ -1,4 +1,4 @@
-// hooks/useKeyboardShortcuts.ts - FIXED DIALOG MAPPING
+// hooks/useKeyboardShortcuts.ts - UPDATED WITH PRODUCT HISTORY DIALOG
 "use client";
 
 import { useEffect, useState } from "react";
@@ -135,16 +135,16 @@ export const useKeyboardShortcuts = ({
     };
 };
 
-// ✅ FIXED: Safe F1-F12 shortcuts creator with CORRECT mapping
+// ✅ UPDATED: Safe F1-F12 shortcuts creator with Product History Dialog
 export const createSafeDialogShortcuts = (actions: {
     showShortcutGuide?: () => void; // Ctrl+Shift+F1 -> F1 (Petunjuk Shortcut)
-    showPaymentDialog?: () => void; // ✅ FIXED: Ctrl+Shift+F2 -> F2 (Payment Dialog)
+    showProductHistory?: () => void; // Ctrl+Shift+F2 -> F2 (Product History Dialog)
     showPrescriptionDiscount?: () => void; // Ctrl+Shift+F3 -> F3 (Discount Resep)
     showGlobalDiscount?: () => void; // Shift+Alt+F3 -> F3 (Global Discount)
     clearAllProducts?: () => void; // Ctrl+Shift+F4 -> F4 (Batal/Void)
-    showPromoList?: () => void; // Ctrl+Shift+F5 -> F5 (Daftar Promo)
+    showPromoList?: () => void; // ✅ NEW: Ctrl+Shift+F5 -> F5 (Monthly Promo Highlights)
     showUpSelling?: () => void; // Ctrl+Shift+F6 -> F6 (Up Selling)
-    showTransactionList?: () => void; // ✅ FIXED: Ctrl+Shift+F7 -> F7 (Daftar Transaksi)
+    showTransactionList?: () => void; // Ctrl+Shift+F7 -> F7 (Daftar Transaksi)
     showTransactionCorrection?: () => void; // Ctrl+Shift+F8 -> F8 (Koreksi Transaksi)
     addPendingBill?: () => void; // Ctrl+Shift+F9 -> F9 (Tambah Bon Gantung)
     showMemberCorporate?: () => void; // Ctrl+Shift+F10 -> F10 (Member Corporate)
@@ -163,14 +163,14 @@ export const createSafeDialogShortcuts = (actions: {
         });
     }
 
-    // ✅ FIXED: F2 should open Payment Dialog, not Transaction Type
-    if (actions.showPaymentDialog) {
+    // ✅ NEW: F2 should open Product History Dialog
+    if (actions.showProductHistory) {
         shortcuts.push({
             key: "F2",
             ctrl: true,
             shift: true,
-            action: actions.showPaymentDialog,
-            description: "Bayar/Payment Dialog",
+            action: actions.showProductHistory,
+            description: "Product History Dialog",
         });
     }
 
@@ -205,13 +205,14 @@ export const createSafeDialogShortcuts = (actions: {
         });
     }
 
+    // ✅ NEW: F5 should open Monthly Promo Highlights
     if (actions.showPromoList) {
         shortcuts.push({
             key: "F5",
             ctrl: true,
             shift: true,
             action: actions.showPromoList,
-            description: "Daftar Promo Bulan Ini",
+            description: "Monthly Promo Highlights",
         });
     }
 
@@ -225,7 +226,6 @@ export const createSafeDialogShortcuts = (actions: {
         });
     }
 
-    // ✅ FIXED: Use showTransactionList instead of transactionHistory
     if (actions.showTransactionList) {
         shortcuts.push({
             key: "F7",
@@ -300,6 +300,7 @@ export const createPOSShortcuts = (actions: {
     pendingBill?: () => void;
     memberCorporate?: () => void;
     transactionHistory?: () => void;
+    showCustomerDoctorDialog?: () => void; // ✅ NEW: Ctrl+Space for Customer & Doctor Dialog
 }): KeyboardShortcut[] => {
     const shortcuts: KeyboardShortcut[] = [];
 
@@ -369,6 +370,17 @@ export const createPOSShortcuts = (actions: {
             key: "F10",
             action: actions.memberCorporate,
             description: "Member Corporate",
+        });
+    }
+
+    // ✅ NEW: Ctrl+Space for Customer & Doctor Dialog
+    if (actions.showCustomerDoctorDialog) {
+        shortcuts.push({
+            key: " ", // Space key
+            ctrl: true,
+            action: actions.showCustomerDoctorDialog,
+            description: "Enter Customer and Doctor Data",
+            preventDefault: true,
         });
     }
 

@@ -58,7 +58,9 @@ const BiometricLoginDialog: React.FC<BiometricLoginDialogProps> = ({
         try {
             setBiometricState("loading_system_info");
 
-            const response = await fetch("http://localhost:8321/api/system/info");
+            const response = await fetch(
+                "http://localhost:8321/api/system/info"
+            );
             const data = await response.json();
 
             if (!response.ok || !data.success) {

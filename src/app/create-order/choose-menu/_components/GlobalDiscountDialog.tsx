@@ -5,6 +5,11 @@ import React, { useState, useEffect } from "react";
 import { X, Search, ChevronDown } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
+import { useCorporate } from "@/hooks/useCorporate";
+import type {
+    CorporateData,
+    transformCorporateApiToDialog,
+} from "@/types/corporate";
 
 interface GlobalDiscountDialogProps {
     isOpen: boolean;
@@ -45,52 +50,20 @@ const GlobalDiscountDialog: React.FC<GlobalDiscountDialogProps> = ({
 
     const pageSizeOptions = [5, 10, 25, 50];
 
-    // Mock employee data - replace with actual API call
-    const mockEmployees: EmployeeData[] = [
-        {
-            id: "001",
-            corporate_name: "Mathew Hicks",
-            rules: "-50",
-            rules1: "0",
-            piutang: true,
-            margin: false,
-        },
-        {
-            id: "002",
-            corporate_name: "Dixie Brewer",
-            rules: "-50",
-            rules1: "0",
-            piutang: true,
-            margin: false,
-        },
-        {
-            id: "003",
-            corporate_name: "Cecilia Schultz",
-            rules: "-50",
-            rules1: "0",
-            piutang: true,
-            margin: false,
-        },
-        {
-            id: "004",
-            corporate_name: "Jimmie Stevens",
-            rules: "-50",
-            rules1: "0",
-            piutang: true,
-            margin: false,
-        },
-        {
-            id: "005",
-            corporate_name: "Thelma Robertson",
-            rules: "-50",
-            rules1: "0",
-            piutang: true,
-            margin: false,
-        },
-    ];
-
-    const [employeeList] = useState<EmployeeData[]>(mockEmployees);
-    const [isLoading] = useState(false);
+    // Employee API integration
+    const {
+        corporateList,
+        isLoading,
+        error,
+        refetch,
+        totalPages: apiTotalPages = 0,
+        totalDocs: apiTotalDocs = 0,
+    } = useCorporate({
+        limit: pageSize,
+        offset: (currentPage - 1) * pageSize,
+        search: debouncedSearch,
+        type: "employee" as "corporate", // Type assertion for API compatibility
+    });
 
     useEffect(() => {
         const timeoutId = setTimeout(() => {
@@ -116,7 +89,19 @@ const GlobalDiscountDialog: React.FC<GlobalDiscountDialogProps> = ({
 
     if (!isOpen) return null;
 
-    const filteredEmployees = employeeList.filter((employee) => {
+    // Transform corporate data to employee data format
+    const employeeList: EmployeeData[] = corporateList.map(
+        (corporate: CorporateData) => ({
+            id: corporate.kd_corp,
+            corporate_name: corporate.nm_corp.trim(),
+            rules: corporate.rules.toString(),
+            rules1: corporate.rules2.toString(),
+            piutang: corporate.piutang,
+            margin: corporate.margin || false,
+        })
+    );
+
+    const filteredEmployees = employeeList.filter((employee: EmployeeData) => {
         if (!debouncedSearch) return true;
         const searchLower = debouncedSearch.toLowerCase();
         return (
@@ -125,17 +110,15 @@ const GlobalDiscountDialog: React.FC<GlobalDiscountDialogProps> = ({
         );
     });
 
-    const totalDocs = filteredEmployees.length;
-    const totalPages = Math.ceil(totalDocs / pageSize);
-    const offset = (currentPage - 1) * pageSize;
-    const paginatedEmployees = filteredEmployees.slice(
-        offset,
-        offset + pageSize
-    );
+    const displayTotalDocs = apiTotalDocs;
+    const displayTotalPages = apiTotalPages;
+    const paginatedEmployees = filteredEmployees;
 
     const handleSubmit = () => {
         const selectedEmployeeData = selectedEmployee
-            ? employeeList.find((emp) => emp.id === selectedEmployee)
+            ? employeeList.find(
+                  (emp: EmployeeData) => emp.id === selectedEmployee
+              )
             : undefined;
 
         onSubmit({
@@ -179,7 +162,7 @@ const GlobalDiscountDialog: React.FC<GlobalDiscountDialogProps> = ({
     };
 
     const handlePageChange = (page: number) => {
-        if (page < 1 || page > totalPages) return;
+        if (page < 1 || page > displayTotalPages) return;
         setCurrentPage(page);
     };
 
@@ -325,9 +308,37 @@ const GlobalDiscountDialog: React.FC<GlobalDiscountDialogProps> = ({
                                                     </div>
                                                 </td>
                                             </tr>
+                                        ) : error ? (
+                                            <tr>
+                                                <td
+                                                    colSpan={6}
+                                                    className="text-center py-20"
+                                                >
+                                                    <div className="text-red-500 mb-4">
+                                                        <p className="font-medium">
+                                                            Error loading
+                                                            employees
+                                                        </p>
+                                                        <p className="text-sm text-gray-600 mt-1">
+                                                            {error}
+                                                        </p>
+                                                    </div>
+                                                    <button
+                                                        onClick={() =>
+                                                            refetch()
+                                                        }
+                                                        className="px-4 py-2 bg-blue-500 text-white rounded hover:bg-blue-600 transition-colors"
+                                                    >
+                                                        Retry
+                                                    </button>
+                                                </td>
+                                            </tr>
                                         ) : paginatedEmployees.length > 0 ? (
                                             paginatedEmployees.map(
-                                                (employee, index) => (
+                                                (
+                                                    employee: EmployeeData,
+                                                    index: number
+                                                ) => (
                                                     <tr
                                                         key={employee.id}
                                                         className={`border-b border-gray-100 hover:bg-blue-50 cursor-pointer transition-colors ${
@@ -431,11 +442,11 @@ const GlobalDiscountDialog: React.FC<GlobalDiscountDialogProps> = ({
                                                 )}
                                             </div>
                                             <span className="text-sm text-gray-600">
-                                                from {totalDocs}
+                                                from {displayTotalDocs}
                                             </span>
                                         </div>
                                     </div>
-                                    {totalPages > 1 && (
+                                    {displayTotalPages > 1 && (
                                         <div className="flex items-center gap-1">
                                             <button
                                                 onClick={() =>
@@ -453,12 +464,14 @@ const GlobalDiscountDialog: React.FC<GlobalDiscountDialogProps> = ({
                                                 {
                                                     length: Math.min(
                                                         5,
-                                                        totalPages
+                                                        displayTotalPages
                                                     ),
                                                 },
                                                 (_, i) => {
                                                     let pageNum;
-                                                    if (totalPages <= 5) {
+                                                    if (
+                                                        displayTotalPages <= 5
+                                                    ) {
                                                         pageNum = i + 1;
                                                     } else if (
                                                         currentPage <= 3
@@ -466,10 +479,12 @@ const GlobalDiscountDialog: React.FC<GlobalDiscountDialogProps> = ({
                                                         pageNum = i + 1;
                                                     } else if (
                                                         currentPage >=
-                                                        totalPages - 2
+                                                        displayTotalPages - 2
                                                     ) {
                                                         pageNum =
-                                                            totalPages - 4 + i;
+                                                            displayTotalPages -
+                                                            4 +
+                                                            i;
                                                     } else {
                                                         pageNum =
                                                             currentPage - 2 + i;
@@ -496,9 +511,9 @@ const GlobalDiscountDialog: React.FC<GlobalDiscountDialogProps> = ({
                                                 }
                                             )}
 
-                                            {totalPages > 5 &&
+                                            {displayTotalPages > 5 &&
                                                 currentPage <
-                                                    totalPages - 2 && (
+                                                    displayTotalPages - 2 && (
                                                     <>
                                                         <span className="px-2">
                                                             ...
@@ -506,12 +521,12 @@ const GlobalDiscountDialog: React.FC<GlobalDiscountDialogProps> = ({
                                                         <button
                                                             onClick={() =>
                                                                 handlePageChange(
-                                                                    totalPages
+                                                                    displayTotalPages
                                                                 )
                                                             }
                                                             className="h-8 w-8 flex items-center justify-center rounded-md hover:bg-gray-100"
                                                         >
-                                                            {totalPages}
+                                                            {displayTotalPages}
                                                         </button>
                                                     </>
                                                 )}
@@ -523,7 +538,8 @@ const GlobalDiscountDialog: React.FC<GlobalDiscountDialogProps> = ({
                                                     )
                                                 }
                                                 disabled={
-                                                    currentPage === totalPages
+                                                    currentPage ===
+                                                    displayTotalPages
                                                 }
                                                 className="h-8 w-8 flex items-center justify-center rounded-md hover:bg-gray-100 disabled:opacity-50 disabled:cursor-not-allowed"
                                             >
