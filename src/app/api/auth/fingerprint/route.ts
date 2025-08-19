@@ -3,7 +3,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { createSession, type AppUser } from "@/lib/auth";
 import { cookies } from "next/headers";
 
-const API_BASE_URL = "https://api-pos.masivaguna.com/api";
+const API_BASE_URL = "http://localhost:8081/api";
 
 interface FingerprintLoginRequest {
     mac_address: string;
@@ -73,56 +73,113 @@ export async function POST(request: NextRequest) {
             );
         }
 
-        if (responseData.message !== "Login successful" || !responseData.data) {
+        // FIXED: Check for success message properly
+        if (
+            responseData.message === "Fingerprint login successful" &&
+            responseData.data
+        ) {
+            const apiUser = responseData.data.user;
+            const userData: AppUser = {
+                id: apiUser.id.toString(),
+                username: apiUser.username,
+                name: apiUser.fullname,
+                role: apiUser.role_id?.toString(),
+                email: apiUser.email,
+            };
+
+            const session = await createSession(userData.id, userData);
+
+            const cookieStore = cookies();
+            if (responseData.data.token) {
+                cookieStore.set("auth-token", responseData.data.token, {
+                    httpOnly: true,
+                    secure: process.env.NODE_ENV === "production",
+                    sameSite: "lax",
+                    maxAge: 60 * 60 * 24 * 7,
+                    path: "/",
+                });
+            }
+
+            // FIXED: Return 200 status for successful login
             return NextResponse.json(
                 {
-                    success: false,
-                    message: responseData.message || "Fingerprint login failed",
+                    success: true,
+                    message: "Fingerprint login successful",
+                    data: {
+                        user: {
+                            id: apiUser.id,
+                            fullname: apiUser.fullname,
+                            username: apiUser.username,
+                            email: apiUser.email,
+                            phone: apiUser.phone,
+                            role_id: apiUser.role_id,
+                            position_id: apiUser.position_id,
+                        },
+                        sessionId: session.id,
+                        expiresAt: session.expiresAt,
+                        token: responseData.data.token,
+                    },
                 },
-                { status: 400 }
-            );
+                { status: 200 }
+            ); // EXPLICIT: Set 200 status
         }
 
-        const apiUser = responseData.data.user;
-        const userData: AppUser = {
-            id: apiUser.id.toString(),
-            username: apiUser.username,
-            name: apiUser.fullname,
-            role: apiUser.role_id?.toString(),
-            email: apiUser.email,
-        };
+        // FIXED: Handle different success message
+        if (responseData.message === "Login successful" && responseData.data) {
+            const apiUser = responseData.data.user;
+            const userData: AppUser = {
+                id: apiUser.id.toString(),
+                username: apiUser.username,
+                name: apiUser.fullname,
+                role: apiUser.role_id?.toString(),
+                email: apiUser.email,
+            };
 
-        const session = await createSession(userData.id, userData);
+            const session = await createSession(userData.id, userData);
 
-        const cookieStore = cookies();
-        if (responseData.data.token) {
-            cookieStore.set("auth-token", responseData.data.token, {
-                httpOnly: true,
-                secure: process.env.NODE_ENV === "production",
-                sameSite: "lax",
-                maxAge: 60 * 60 * 24 * 7,
-                path: "/",
-            });
+            const cookieStore = cookies();
+            if (responseData.data.token) {
+                cookieStore.set("auth-token", responseData.data.token, {
+                    httpOnly: true,
+                    secure: process.env.NODE_ENV === "production",
+                    sameSite: "lax",
+                    maxAge: 60 * 60 * 24 * 7,
+                    path: "/",
+                });
+            }
+
+            // FIXED: Return 200 status for successful login
+            return NextResponse.json(
+                {
+                    success: true,
+                    message: "Fingerprint login successful",
+                    data: {
+                        user: {
+                            id: apiUser.id,
+                            fullname: apiUser.fullname,
+                            username: apiUser.username,
+                            email: apiUser.email,
+                            phone: apiUser.phone,
+                            role_id: apiUser.role_id,
+                            position_id: apiUser.position_id,
+                        },
+                        sessionId: session.id,
+                        expiresAt: session.expiresAt,
+                        token: responseData.data.token,
+                    },
+                },
+                { status: 200 }
+            ); // EXPLICIT: Set 200 status
         }
 
-        return NextResponse.json({
-            success: true,
-            message: "Fingerprint login successful",
-            data: {
-                user: {
-                    id: apiUser.id,
-                    fullname: apiUser.fullname,
-                    username: apiUser.username,
-                    email: apiUser.email,
-                    phone: apiUser.phone,
-                    role_id: apiUser.role_id,
-                    position_id: apiUser.position_id,
-                },
-                sessionId: session.id,
-                expiresAt: session.expiresAt,
-                token: responseData.data.token,
+        // If message doesn't match expected success messages
+        return NextResponse.json(
+            {
+                success: false,
+                message: responseData.message || "Fingerprint login failed",
             },
-        });
+            { status: 400 }
+        );
     } catch (error) {
         console.error("Fingerprint login error:", error);
 

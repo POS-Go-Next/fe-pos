@@ -476,7 +476,7 @@ const KassaSetupDialog: FC<KassaSetupDialogProps> = ({
                 </div>
 
                 {/* Loading overlay */}
-                {isLoading && (
+                {/* {isLoading && (
                     <div className="absolute inset-0 bg-white/80 flex items-center justify-center rounded-2xl z-10">
                         <div className="flex items-center gap-3">
                             <Loader2 className="h-6 w-6 animate-spin text-blue-600" />
@@ -487,7 +487,7 @@ const KassaSetupDialog: FC<KassaSetupDialogProps> = ({
                             </span>
                         </div>
                     </div>
-                )}
+                )} */}
 
                 <div className="space-y-3">
                     <div className="grid grid-cols-2 gap-3">

@@ -9,7 +9,7 @@ import type {
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
 
-const API_BASE_URL = "https://api-pos.masivaguna.com/api";
+const API_BASE_URL = "http://localhost:8081/api";
 
 // POST method for creating new transactions (MISSING IN YOUR VERSION)
 export async function POST(request: NextRequest) {

@@ -50,6 +50,7 @@ const BiometricLoginDialog: React.FC<BiometricLoginDialogProps> = ({
     const [progress, setProgress] = useState(0);
     const [errorMessage, setErrorMessage] = useState<string>("");
     const [macAddress, setMacAddress] = useState<string>("");
+    const [hasTriedScan, setHasTriedScan] = useState(false); // NEW: Track if scan already attempted
 
     const { fingerprintLogin, isLoading } = useFingerprintAuth();
 
@@ -105,6 +106,7 @@ const BiometricLoginDialog: React.FC<BiometricLoginDialogProps> = ({
             setProgress(0);
             setErrorMessage("");
             setMacAddress("");
+            setHasTriedScan(false); // RESET: Reset scan attempt flag
 
             // Fetch system info when dialog opens
             fetchSystemInfo();
@@ -121,6 +123,7 @@ const BiometricLoginDialog: React.FC<BiometricLoginDialogProps> = ({
         setBiometricState("scanning");
         setProgress(0);
         setErrorMessage("");
+        setHasTriedScan(true); // MARK: Set flag that scan was attempted
 
         const progressInterval = setInterval(() => {
             setProgress((prev) => {
@@ -150,38 +153,39 @@ const BiometricLoginDialog: React.FC<BiometricLoginDialogProps> = ({
                     result.message || "Fingerprint verification failed"
                 );
 
-                setTimeout(() => {
-                    setBiometricState("idle");
-                    setProgress(0);
-                }, 3000);
+                // REMOVED: Auto-retry timeout - now stays in error state
             }
         } catch (error) {
             clearInterval(progressInterval);
             setBiometricState("error");
             setErrorMessage("Failed to verify fingerprint. Please try again.");
 
-            setTimeout(() => {
-                setBiometricState("idle");
-                setProgress(0);
-            }, 3000);
+            // REMOVED: Auto-retry timeout - now stays in error state
         }
     };
 
+    // MODIFIED: Only auto-scan if hasn't tried before
     useEffect(() => {
-        if (isOpen && biometricState === "idle" && macAddress) {
+        if (
+            isOpen &&
+            biometricState === "idle" &&
+            macAddress &&
+            !hasTriedScan
+        ) {
             const timer = setTimeout(() => {
                 handleStartScan();
             }, 500);
 
             return () => clearTimeout(timer);
         }
-    }, [isOpen, biometricState, macAddress]);
+    }, [isOpen, biometricState, macAddress, hasTriedScan]);
 
     const handleClose = () => {
         setBiometricState("idle");
         setProgress(0);
         setErrorMessage("");
         setMacAddress("");
+        setHasTriedScan(false); // RESET: Reset scan attempt flag
         onClose();
     };
 
@@ -190,7 +194,21 @@ const BiometricLoginDialog: React.FC<BiometricLoginDialogProps> = ({
         setProgress(0);
         setErrorMessage("");
         setMacAddress("");
+        setHasTriedScan(false); // RESET: Reset scan attempt flag
         onBack();
+    };
+
+    // NEW: Manual retry function
+    const handleRetry = () => {
+        setBiometricState("idle");
+        setProgress(0);
+        setErrorMessage("");
+        setHasTriedScan(false); // RESET: Allow new scan attempt
+
+        // Start scanning again
+        setTimeout(() => {
+            handleStartScan();
+        }, 500);
     };
 
     if (!isOpen) return null;
@@ -379,12 +397,7 @@ const BiometricLoginDialog: React.FC<BiometricLoginDialogProps> = ({
                         {biometricState === "error" ? (
                             <Button
                                 variant="outline"
-                                onClick={() => {
-                                    setBiometricState("idle");
-                                    setProgress(0);
-                                    setErrorMessage("");
-                                    fetchSystemInfo(); // Retry fetching system info
-                                }}
+                                onClick={handleRetry} // CHANGED: Use retry function instead of inline reset
                                 className="px-8 py-3 border-red-500 text-red-500 hover:bg-red-50 transition-all duration-200"
                             >
                                 Try Again
