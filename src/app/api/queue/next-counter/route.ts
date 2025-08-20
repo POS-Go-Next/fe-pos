@@ -24,7 +24,7 @@ export async function GET(request: NextRequest) {
 
         // Call external API
         const response = await fetch(
-            "http://localhost:8081/api/queue/next-counter",
+            "https://api-pos.masivaguna.com/queue/next-counter",
             {
                 method: "GET",
                 headers: {

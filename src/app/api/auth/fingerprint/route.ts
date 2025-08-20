@@ -3,7 +3,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { createSession, type AppUser } from "@/lib/auth";
 import { cookies } from "next/headers";
 
-const API_BASE_URL = "http://localhost:8081/api";
+const API_BASE_URL = "https://api-pos.masivaguna.com";
 
 interface FingerprintLoginRequest {
     mac_address: string;

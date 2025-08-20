@@ -1,4 +1,4 @@
-// components/shared/customer-doctor-dialog.tsx - COMPLETE FIXED VERSION WITH API INTEGRATION
+// components/shared/customer-doctor-dialog.tsx - FIXED FLOW INTEGRATION
 "use client";
 
 import { Button } from "@/components/ui/button";
@@ -50,6 +50,8 @@ interface CustomerDoctorDialogProps {
     initialDoctor?: DoctorFormData;
     mode?: DialogMode;
     initialFocus?: "customer" | "doctor";
+    // 🔥 NEW: Add support for direct payment flow
+    triggerPaymentFlow?: boolean;
 }
 
 export default function CustomerDoctorDialog({
@@ -62,6 +64,7 @@ export default function CustomerDoctorDialog({
     initialDoctor,
     mode = "both",
     initialFocus = "customer",
+    triggerPaymentFlow = false, // 🔥 NEW: Flag to trigger payment flow
 }: CustomerDoctorDialogProps) {
     const [currentFocus, setCurrentFocus] = useState<"customer" | "doctor">(
         initialFocus
@@ -131,7 +134,7 @@ export default function CustomerDoctorDialog({
     } = useCustomer({
         limit: 100,
         offset: 0,
-        search: customerSearch, // Add search parameter
+        search: customerSearch,
     });
 
     const validateCustomerForm = (): boolean => {
@@ -288,15 +291,14 @@ export default function CustomerDoctorDialog({
                 body: JSON.stringify(requestBody),
             });
 
-            console.log("📥 Response status:", response.status);
+            console.log("🔥 Response status:", response.status);
             const data = await response.json();
-            console.log("📥 Response data:", data);
+            console.log("🔥 Response data:", data);
 
             if (!response.ok) {
                 throw new Error(data.message || "Failed to create customer");
             }
 
-            // Transform the response data back to the format expected by the parent component
             const createdCustomer: CustomerData = {
                 id: data.data.kd_cust,
                 name: data.data.nm_cust,
@@ -309,7 +311,6 @@ export default function CustomerDoctorDialog({
 
             console.log("✅ Customer created successfully:", createdCustomer);
 
-            // Refresh customer list to include the new customer
             if (refetchCustomers) {
                 console.log("🔄 Refreshing customer list...");
                 refetchCustomers();
@@ -330,11 +331,13 @@ export default function CustomerDoctorDialog({
         }
     };
 
+    // 🔥 FIXED: Handle submit with proper flow integration
     const handleSubmit = async () => {
         console.log("🚀 Submit button clicked!");
         console.log("Current form data:", customerForm);
         console.log("View mode:", viewMode);
         console.log("Selected customer ID:", selectedCustomerId);
+        console.log("Trigger payment flow:", triggerPaymentFlow); // 🔥 NEW
 
         if (!validateCustomerForm()) {
             console.log("❌ Form validation failed");
@@ -345,7 +348,7 @@ export default function CustomerDoctorDialog({
 
         if (viewMode === "customer-only" && customerForm.name) {
             console.log(
-                "📝 Creating new customer via API (customer-only mode)..."
+                "🏪 Creating new customer via API (customer-only mode)..."
             );
             const createdCustomer = await createCustomerViaAPI();
             if (createdCustomer) {
@@ -354,21 +357,29 @@ export default function CustomerDoctorDialog({
                     createdCustomer
                 );
                 onSelectCustomer(createdCustomer);
-                onClose();
+
+                // 🔥 FIXED: Don't close dialog if triggerPaymentFlow is true
+                if (!triggerPaymentFlow) {
+                    onClose();
+                }
             } else {
                 console.log("❌ Customer creation failed");
             }
         } else if (viewMode === "doctor-only" && doctorForm.fullname) {
             console.log("👨‍⚕️ Submitting doctor data");
             onSelectDoctor(doctorForm);
-            onClose();
+
+            // 🔥 FIXED: Don't close dialog if triggerPaymentFlow is true
+            if (!triggerPaymentFlow) {
+                onClose();
+            }
         } else if (viewMode === "both" && customerForm.name) {
             console.log("👥 Submitting both customer and doctor data");
             let finalCustomerData = customerForm;
 
             // Check if this is a new customer (not selected from existing list)
             if (!selectedCustomerId) {
-                console.log("📝 Creating new customer via API (both mode)...");
+                console.log("🏪 Creating new customer via API (both mode)...");
                 const createdCustomer = await createCustomerViaAPI();
                 if (!createdCustomer) {
                     console.log(
@@ -382,12 +393,19 @@ export default function CustomerDoctorDialog({
                 );
                 finalCustomerData = createdCustomer;
             } else {
-                console.log("🔄 Using existing customer from selection");
+                console.log("📄 Using existing customer from selection");
             }
 
             const doctorData = doctorForm.fullname ? doctorForm : undefined;
+
+            // 🔥 FIXED: Call onSubmit with both customer and doctor data
+            // This will trigger the payment flow in the parent component
             onSubmit(finalCustomerData, doctorData);
-            onClose();
+
+            // 🔥 FIXED: Only close if not triggering payment flow
+            if (!triggerPaymentFlow) {
+                onClose();
+            }
         }
     };
 
@@ -485,7 +503,7 @@ export default function CustomerDoctorDialog({
         doctor.fullname.toLowerCase().includes(doctorSearch.toLowerCase())
     );
 
-    const filteredCustomers = customerList; // Remove local filtering since we're now using API search
+    const filteredCustomers = customerList;
 
     if (!isOpen) return null;
 
@@ -497,6 +515,11 @@ export default function CustomerDoctorDialog({
                         <h2 className="text-2xl font-semibold text-gray-900">
                             {getDialogTitle()}
                         </h2>
+                        {triggerPaymentFlow && (
+                            <span className="text-sm bg-blue-100 text-blue-600 px-2 py-1 rounded">
+                                Payment Flow
+                            </span>
+                        )}
                     </div>
                     <button
                         onClick={handleClose}
@@ -508,6 +531,7 @@ export default function CustomerDoctorDialog({
                 </div>
 
                 <div className="flex-1 overflow-auto space-y-6">
+                    {/* Customer Info Section - Same as before */}
                     <div
                         className={`transition-all duration-500 ease-in-out overflow-hidden ${
                             viewMode === "doctor-only"
@@ -555,7 +579,6 @@ export default function CustomerDoctorDialog({
                                         <span className="text-red-500">*</span>
                                     </label>
                                     {viewMode === "customer-only" ? (
-                                        // Customer-only mode: Simple input text for new customer
                                         <Input
                                             type="text"
                                             placeholder="Enter Customer Name"
@@ -574,7 +597,6 @@ export default function CustomerDoctorDialog({
                                             }`}
                                         />
                                     ) : (
-                                        // Both mode: Dropdown for existing customers + new customer option
                                         <div
                                             className="relative"
                                             ref={customerContainerRef}
@@ -669,7 +691,7 @@ export default function CustomerDoctorDialog({
                                                                                     customer
                                                                                 )
                                                                             }
-                                                                            className={`w-full px-3 py-2 text-left hover:bg-gray-100 transition-colors ${
+                                                                            className={`w-full px-3 py-2 text-left hover:bg-gray-100 border-b last:border-b-0 transition-colors ${
                                                                                 selectedCustomerId ===
                                                                                 customer.kd_cust
                                                                                     ? "bg-blue-50 text-blue-600"
@@ -855,6 +877,7 @@ export default function CustomerDoctorDialog({
                         </div>
                     </div>
 
+                    {/* Doctor Info Section - Same as before */}
                     <div
                         className={`transition-all duration-500 ease-in-out overflow-hidden ${
                             viewMode === "customer-only"

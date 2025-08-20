@@ -119,10 +119,21 @@ const MedicationDetailsDialog: React.FC<MedicationDetailsDialogProps> = ({
                                                         src={
                                                             productImages[
                                                                 currentImageIndex
-                                                            ].url
+                                                            ]?.url ||
+                                                            productImages[
+                                                                currentImageIndex
+                                                            ]?.gambar
                                                         }
                                                         alt={productName}
                                                         className="w-full h-48 object-contain rounded"
+                                                        onError={(e) => {
+                                                            console.error(
+                                                                "Image load error:",
+                                                                e
+                                                            );
+                                                            e.currentTarget.style.display =
+                                                                "none";
+                                                        }}
                                                     />
                                                     {productImages.length >
                                                         1 && (

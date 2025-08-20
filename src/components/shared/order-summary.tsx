@@ -1,4 +1,4 @@
-// components/shared/order-summary.tsx - FIXED VERSION WITH CORRECT TYPES
+// components/shared/order-summary.tsx - FIXED CTRL+SPACE FLOW INTEGRATION
 "use client";
 
 import { useState } from "react";
@@ -58,6 +58,10 @@ interface OrderSummaryProps {
     onPendingBill?: () => void;
     onPayNow?: (customerData?: CustomerData, doctorData?: DoctorData) => void;
     products?: ProductItem[];
+    // 🔥 NEW: Props for external dialog control from Ctrl+Space
+    isCustomerDoctorDialogOpen?: boolean;
+    onCustomerDoctorDialogClose?: () => void;
+    triggerPaymentFlow?: boolean;
 }
 
 export default function OrderSummary({
@@ -70,9 +74,13 @@ export default function OrderSummary({
     onPendingBill,
     onPayNow,
     products = [],
+    // 🔥 NEW: External dialog control props
+    isCustomerDoctorDialogOpen = false,
+    onCustomerDoctorDialogClose,
+    triggerPaymentFlow = false,
 }: OrderSummaryProps) {
-    const [isCustomerDoctorDialogOpen, setIsCustomerDoctorDialogOpen] =
-        useState(false);
+    // 🔥 MODIFIED: Use external control or internal state
+    const [internalDialogOpen, setInternalDialogOpen] = useState(false);
     const [isTransactionTypeDialogOpen, setIsTransactionTypeDialogOpen] =
         useState(false);
     const [isPaymentDialogOpen, setIsPaymentDialogOpen] = useState(false);
@@ -90,6 +98,9 @@ export default function OrderSummary({
         useState<TransactionTypeData | null>(null);
 
     const grandTotal = subtotal - discount + serviceCharge + misc - promo;
+
+    // 🔥 COMPUTED: Determine which dialog state to use
+    const isDialogOpen = isCustomerDoctorDialogOpen || internalDialogOpen;
 
     const handlePendingBillClick = () => {
         if (products.length === 0) {
@@ -118,22 +129,42 @@ export default function OrderSummary({
             alert("No products to process payment");
             return;
         }
-        setIsCustomerDoctorDialogOpen(true);
+
+        // 🔥 FIXED: Use internal state for Pay Now button
+        setInternalDialogOpen(true);
     };
 
+    // 🔥 FIXED: Unified handler for both flows (Pay Now button & Ctrl+Space)
     const handleCustomerDoctorSubmit = (
         customerData: CustomerData,
         doctorData?: DoctorData
     ) => {
-        console.log("✅ Customer & Doctor selected:", {
+        console.log("🔥 CustomerDoctorSubmit called:", {
             customerData,
             doctorData,
+            triggerPaymentFlow,
+            isExternal: isCustomerDoctorDialogOpen,
         });
 
+        // Save the selected data
         setSelectedCustomer(customerData);
         setSelectedDoctor(doctorData || null);
-        setIsCustomerDoctorDialogOpen(false);
-        setIsTransactionTypeDialogOpen(true);
+
+        // Close the customer/doctor dialog
+        if (isCustomerDoctorDialogOpen && onCustomerDoctorDialogClose) {
+            // External control - close via parent
+            onCustomerDoctorDialogClose();
+        } else {
+            // Internal control - close internal dialog
+            setInternalDialogOpen(false);
+        }
+
+        // 🔥 FIXED: Always proceed to Transaction Type dialog when triggerPaymentFlow is true
+        // This should happen for BOTH Pay Now button and Ctrl+Space
+        if (triggerPaymentFlow || !isCustomerDoctorDialogOpen) {
+            console.log("🔥 Opening Transaction Type Dialog");
+            setIsTransactionTypeDialogOpen(true);
+        }
     };
 
     const handleTransactionTypeSubmit = (
@@ -175,12 +206,23 @@ export default function OrderSummary({
         setSelectedDoctor(doctor);
     };
 
+    // 🔥 FIXED: Unified close handler
     const handleCustomerDoctorClose = () => {
-        setIsCustomerDoctorDialogOpen(false);
+        if (isCustomerDoctorDialogOpen && onCustomerDoctorDialogClose) {
+            // External control
+            onCustomerDoctorDialogClose();
+        } else {
+            // Internal control
+            setInternalDialogOpen(false);
+        }
+
+        // Reset states when closing
+        resetAllStates();
     };
 
     const handleTransactionTypeClose = () => {
         setIsTransactionTypeDialogOpen(false);
+        resetAllStates();
     };
 
     const handlePaymentClose = () => {
@@ -325,14 +367,18 @@ export default function OrderSummary({
                 onDone={handlePendingBillSavedDone}
             />
 
+            {/* 🔥 FIXED: Use unified dialog state and proper flow integration */}
             <CustomerDoctorDialog
-                isOpen={isCustomerDoctorDialogOpen}
+                isOpen={isDialogOpen}
                 onClose={handleCustomerDoctorClose}
                 onSelectCustomer={handleCustomerSelect}
                 onSelectDoctor={handleDoctorSelect}
                 onSubmit={handleCustomerDoctorSubmit}
                 mode="both"
                 initialFocus="customer"
+                triggerPaymentFlow={
+                    triggerPaymentFlow || !isCustomerDoctorDialogOpen
+                }
             />
 
             <TransactionTypeDialog

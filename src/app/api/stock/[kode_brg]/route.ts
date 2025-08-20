@@ -5,7 +5,7 @@ import { cookies } from "next/headers";
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
 
-const API_BASE_URL = "http://localhost:8081/api";
+const API_BASE_URL = "https://api-pos.masivaguna.com";
 
 export async function GET(
     request: NextRequest,
@@ -60,7 +60,18 @@ export async function GET(
         );
 
         const responseData = await response.json();
-        console.log("Stock detail API Response:", responseData);
+
+        // Enhanced logging to debug the issue
+        console.log("Stock detail API Response:", {
+            message: responseData.message,
+            dataKeys: responseData.data ? Object.keys(responseData.data) : [],
+            hasProductImages: responseData.data?.product_images ? true : false,
+            productImagesLength: responseData.data?.product_images?.length || 0,
+            productImages: responseData.data?.product_images
+                ? JSON.stringify(responseData.data.product_images, null, 2)
+                : "No images",
+            hasInfoObat: responseData.data?.info_obat ? true : false,
+        });
 
         if (!response.ok) {
             if (response.status === 401) {
@@ -84,11 +95,31 @@ export async function GET(
             );
         }
 
+        // Ensure the data is properly structured before returning
+        const stockData = responseData.data;
+
+        // Transform product_images to ensure proper URL structure
+        if (
+            stockData?.product_images &&
+            Array.isArray(stockData.product_images)
+        ) {
+            stockData.product_images = stockData.product_images.map(
+                (img: any) => ({
+                    id: img.id,
+                    kd_brgdg: img.kd_brgdg,
+                    url: img.gambar, // Map 'gambar' to 'url' for consistency with frontend
+                    gambar: img.gambar, // Keep original field
+                    main_display: img.main_display,
+                    created_at: img.created_at,
+                })
+            );
+        }
+
         // Return success response
         return NextResponse.json({
             success: true,
             message: "Stock detail retrieved successfully",
-            data: responseData.data,
+            data: stockData,
         });
     } catch (error) {
         console.error("Stock detail API error:", error);

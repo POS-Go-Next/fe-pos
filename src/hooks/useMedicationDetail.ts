@@ -4,139 +4,173 @@
 import { useState, useEffect } from "react";
 
 interface MedicationDetailData {
-  kode_brg: string;
-  nama_brg: string;
-  id_dept: string;
-  isi: number;
-  id_satuan: number;
-  mark_up: number;
-  hb_netto: number;
-  hb_gross: number;
-  hj_ecer: number;
-  hj_bbs: number;
-  id_pabrik: string;
-  barcode: string;
-  q_bbs: number;
-  moq: number;
-  hna: number;
-  tgl_berlaku_nie: string;
-  // Additional fields from with_info_obat
-  info_obat?: {
-    deskripsi?: string;
-    indikasi?: string;
-    komposisi?: string;
-    dosis?: string;
-    aturan_pakai?: string;
-    peringatan?: string;
-    kontraindikasi?: string;
-    efek_samping?: string;
-    segmentasi?: string;
-    kemasan?: string;
-    nama_pabrik?: string;
-    no_reg?: string;
-  };
-  // Additional fields from with_product_images
-  product_images?: Array<{
-    id: number;
-    url: string;
-    is_primary: boolean;
-  }>;
+    kode_brg: string;
+    nama_brg: string;
+    id_dept: string;
+    isi: number;
+    id_satuan: number;
+    mark_up: number;
+    hb_netto: number;
+    hb_gross: number;
+    hj_ecer: number;
+    hj_bbs: number;
+    id_pabrik: string;
+    barcode: string;
+    q_bbs: number;
+    moq: number;
+    hna: number;
+    tgl_berlaku_nie: string;
+    // Additional fields from with_info_obat
+    info_obat?: {
+        deskripsi?: string;
+        indikasi?: string;
+        komposisi?: string;
+        dosis?: string;
+        aturan_pakai?: string;
+        peringatan?: string;
+        kontraindikasi?: string;
+        efek_samping?: string;
+        segmentasi?: string;
+        kemasan?: string;
+        nama_pabrik?: string;
+        no_reg?: string;
+    };
+    // Additional fields from with_product_images - Updated structure
+    product_images?: Array<{
+        id: number;
+        kd_brgdg: string;
+        url: string;
+        gambar: string;
+        main_display: boolean;
+        created_at: string;
+        is_primary?: boolean; // Keep for backward compatibility
+    }>;
 }
 
 interface MedicationDetailApiResponse {
-  success: boolean;
-  message: string;
-  data?: MedicationDetailData;
-  errors?: any;
+    success: boolean;
+    message: string;
+    data?: MedicationDetailData;
+    errors?: any;
 }
 
 interface UseMedicationDetailReturn {
-  medicationDetail: MedicationDetailData | null;
-  isLoading: boolean;
-  error: string | null;
-  refetch: () => void;
+    medicationDetail: MedicationDetailData | null;
+    isLoading: boolean;
+    error: string | null;
+    refetch: () => void;
 }
 
 interface UseMedicationDetailParams {
-  kode_brg: string | null;
-  enabled?: boolean;
+    kode_brg: string | null;
+    enabled?: boolean;
 }
 
 export const useMedicationDetail = ({
-  kode_brg,
-  enabled = true,
+    kode_brg,
+    enabled = true,
 }: UseMedicationDetailParams): UseMedicationDetailReturn => {
-  const [medicationDetail, setMedicationDetail] =
-    useState<MedicationDetailData | null>(null);
-  const [isLoading, setIsLoading] = useState(false);
-  const [error, setError] = useState<string | null>(null);
+    const [medicationDetail, setMedicationDetail] =
+        useState<MedicationDetailData | null>(null);
+    const [isLoading, setIsLoading] = useState(false);
+    const [error, setError] = useState<string | null>(null);
 
-  const fetchMedicationDetail = async () => {
-    if (!kode_brg || !enabled) {
-      setMedicationDetail(null);
-      return;
-    }
-
-    try {
-      setIsLoading(true);
-      setError(null);
-
-      // Build query parameters
-      const queryParams = new URLSearchParams({
-        with_info_obat: "true",
-        with_product_images: "true",
-      });
-
-      // Call our Next.js API route
-      const response = await fetch(
-        `/api/stock/${kode_brg}?${queryParams.toString()}`,
-        {
-          method: "GET",
-          headers: {
-            "Content-Type": "application/json",
-          },
+    const fetchMedicationDetail = async () => {
+        if (!kode_brg || !enabled) {
+            setMedicationDetail(null);
+            return;
         }
-      );
 
-      const data: MedicationDetailApiResponse = await response.json();
+        try {
+            setIsLoading(true);
+            setError(null);
 
-      if (!response.ok) {
-        if (response.status === 401) {
-          throw new Error("Session expired. Please login again.");
+            // Build query parameters
+            const queryParams = new URLSearchParams({
+                with_info_obat: "true",
+                with_product_images: "true",
+            });
+
+            // Call our Next.js API route
+            const response = await fetch(
+                `/api/stock/${kode_brg}?${queryParams.toString()}`,
+                {
+                    method: "GET",
+                    headers: {
+                        "Content-Type": "application/json",
+                    },
+                }
+            );
+
+            const data: MedicationDetailApiResponse = await response.json();
+
+            // Enhanced logging for debugging
+            console.log("Frontend received medication detail:", {
+                success: data.success,
+                hasData: !!data.data,
+                hasProductImages: !!data.data?.product_images,
+                productImagesCount: data.data?.product_images?.length || 0,
+                productImages: data.data?.product_images,
+                hasInfoObat: !!data.data?.info_obat,
+            });
+
+            if (!response.ok) {
+                if (response.status === 401) {
+                    throw new Error("Session expired. Please login again.");
+                }
+                throw new Error(
+                    data.message || `HTTP error! status: ${response.status}`
+                );
+            }
+
+            if (data.success && data.data) {
+                // Process the data to ensure product_images have consistent structure
+                const processedData = { ...data.data };
+                if (
+                    processedData.product_images &&
+                    Array.isArray(processedData.product_images)
+                ) {
+                    processedData.product_images =
+                        processedData.product_images.map((img: any) => ({
+                            id: img.id,
+                            kd_brgdg: img.kd_brgdg,
+                            url: img.url || img.gambar, // Ensure 'url' field exists
+                            gambar: img.gambar,
+                            main_display: img.main_display,
+                            created_at: img.created_at,
+                            is_primary: img.main_display, // Map for backward compatibility
+                        }));
+                }
+
+                setMedicationDetail(processedData);
+            } else {
+                throw new Error(data.message || "Invalid response format");
+            }
+        } catch (err) {
+            console.error("Error fetching medication detail:", err);
+            setError(
+                err instanceof Error
+                    ? err.message
+                    : "Failed to fetch medication detail"
+            );
+            setMedicationDetail(null);
+        } finally {
+            setIsLoading(false);
         }
-        throw new Error(
-          data.message || `HTTP error! status: ${response.status}`
-        );
-      }
+    };
 
-      if (data.success && data.data) {
-        setMedicationDetail(data.data);
-      } else {
-        throw new Error(data.message || "Invalid response format");
-      }
-    } catch (err) {
-      console.error("Error fetching medication detail:", err);
-      setError(
-        err instanceof Error ? err.message : "Failed to fetch medication detail"
-      );
-      setMedicationDetail(null);
-    } finally {
-      setIsLoading(false);
-    }
-  };
+    useEffect(() => {
+        fetchMedicationDetail();
+    }, [kode_brg, enabled]);
 
-  useEffect(() => {
-    fetchMedicationDetail();
-  }, [kode_brg, enabled]);
+    const refetch = () => {
+        fetchMedicationDetail();
+    };
 
-  const refetch = () => {
-    fetchMedicationDetail();
-  };
-
-  return {
-    medicationDetail,
-    isLoading,
-    error,
-    refetch,
-  };
+    return {
+        medicationDetail,
+        isLoading,
+        error,
+        refetch,
+    };
 };

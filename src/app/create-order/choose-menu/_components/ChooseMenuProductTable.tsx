@@ -1,3 +1,4 @@
+// components/shared/ChooseMenuProductTable.tsx - FIXED CTRL+SPACE INTEGRATION
 "use client";
 
 import BranchWideStockDialog from "@/components/shared/branch-wide-stock-dialog";
@@ -13,7 +14,7 @@ import EmployeeLoginDialog from "@/components/shared/EmployeeLoginDialog";
 import PaymentSuccessDialog from "@/components/shared/payment-success-dialog";
 import Calculator from "@/components/shared/calculator";
 import FingerprintScanningDialog from "@/components/shared/FingerprintScanningDialog";
-import ProductHistoryDialog from "@/components/shared/product-history-dialog"; // ✅ NEW IMPORT
+import ProductHistoryDialog from "@/components/shared/product-history-dialog";
 
 import { Input } from "@/components/ui/input";
 import { usePOSKeyboardShortcuts } from "@/hooks/useKeyboardShortcuts";
@@ -28,7 +29,7 @@ import ChooseMiscDialog from "./ChooseMiscDialog";
 import CorporateDiscountDialog from "./CorporateDiscountDialog";
 import TransactionHistoryDialog from "./TransactionHistoryDialog";
 import GlobalDiscountDialog from "./GlobalDiscountDialog";
-import MonthlyPromoDialog from "./MonthlyPromoDialog"; // ✅ NEW IMPORT
+import MonthlyPromoDialog from "./MonthlyPromoDialog";
 
 export interface Product extends ProductTableItem {}
 
@@ -160,9 +161,15 @@ export default function ChooseMenuProductTable({
         corporateDiscount: false,
         transactionHistory: false,
         globalDiscount: false,
-        productHistory: false, // ✅ NEW DIALOG STATE
-        monthlyPromo: false, // ✅ NEW: Monthly Promo Dialog State
+        productHistory: false,
+        monthlyPromo: false,
     });
+
+    // 🔥 NEW: State for Customer and Doctor data
+    const [selectedCustomer, setSelectedCustomer] = useState<any>(null);
+    const [selectedDoctor, setSelectedDoctor] = useState<any>(null);
+    // 🔥 NEW: State for transaction type data
+    const [transactionTypeData, setTransactionTypeData] = useState<any>(null);
 
     const [selectedProductId, setSelectedProductId] = useState<number | null>(
         null
@@ -208,6 +215,27 @@ export default function ChooseMenuProductTable({
         }));
     };
 
+    // 🔥 UPDATED: Enhanced Ctrl+Space handler for payment flow
+    const handleShowCustomerDoctorDialog = () => {
+        console.log(
+            "🔥 Ctrl+Space: Opening Customer and Doctor Dialog for Payment Flow"
+        );
+
+        // Check if there are products in the cart
+        if (
+            !products ||
+            products.length === 0 ||
+            !products.some((p) => p.name)
+        ) {
+            console.log("⚠️ No products in cart, cannot proceed with payment");
+            alert("Please add products to cart before proceeding with payment");
+            return;
+        }
+
+        // Open the dialog with triggerPaymentFlow = true
+        toggleDialog("customerDoctor");
+    };
+
     usePOSKeyboardShortcuts(
         {
             showShortcutGuide: () => {
@@ -215,7 +243,6 @@ export default function ChooseMenuProductTable({
                 toggleDialog("shortcutGuide");
             },
             showProductHistory: () => {
-                // ✅ NEW SHORTCUT HANDLER
                 console.log("🔥 Ctrl+Shift+F2: Opening Product History Dialog");
                 if (selectedRowId !== null && selectedProduct) {
                     toggleDialog("productHistory");
@@ -275,13 +302,7 @@ export default function ChooseMenuProductTable({
             },
         },
         {
-            showCustomerDoctorDialog: () => {
-                // ✅ NEW: Ctrl+Space for Customer & Doctor Dialog
-                console.log(
-                    "🔥 Ctrl+Space: Opening Customer and Doctor Dialog"
-                );
-                toggleDialog("customerDoctor");
-            },
+            showCustomerDoctorDialog: handleShowCustomerDoctorDialog, // 🔥 UPDATED
         },
         { enabled: isClient, debug: true }
     );
@@ -361,6 +382,27 @@ export default function ChooseMenuProductTable({
         }
     };
 
+    // 🔥 HELPER: Convert ProductTableItem to ProductItem for PaymentDialog
+    const convertToProductItems = (tableItems: ProductTableItem[]) => {
+        return tableItems
+            .filter((p) => p.name)
+            .map((p) => ({
+                id: p.id,
+                name: p.name,
+                quantity: p.quantity || 0,
+                price: p.price || 0,
+                subtotal: p.subtotal || 0,
+                discount: p.discount || 0,
+                sc: p.sc || 0,
+                misc: p.misc || 0,
+                promo: p.promo || 0, // 🔥 FIXED: Ensure promo is always a number
+                total: p.total || p.subtotal || 0,
+                stockData: p.stockData,
+                up: p.up || "N",
+            }));
+    };
+
+    // 🔥 FIXED: Proper function declaration
     const handleSearchInputChange = (
         e: React.ChangeEvent<HTMLInputElement>
     ) => {
@@ -411,6 +453,36 @@ export default function ChooseMenuProductTable({
         setTimeout(() => {
             toggleDialog("selectProduct");
         }, 50);
+    };
+
+    // 🔥 FIXED: Customer/Doctor dialog handlers for Ctrl+Space flow
+    const handleCustomerDoctorSubmit = (
+        customerData: any,
+        doctorData?: any
+    ) => {
+        console.log("🔥 Customer & Doctor submitted from Ctrl+Space:", {
+            customerData,
+            doctorData,
+        });
+
+        // Store the data
+        setSelectedCustomer(customerData);
+        setSelectedDoctor(doctorData || null);
+
+        // Close the customer/doctor dialog
+        closeDialog("customerDoctor");
+
+        // 🔥 FIXED: Directly open Transaction Type Dialog here
+        console.log("🔥 Opening Transaction Type Dialog from Ctrl+Space flow");
+        toggleDialog("transactionType");
+    };
+
+    const handleCustomerSelect = (customer: any) => {
+        setSelectedCustomer(customer);
+    };
+
+    const handleDoctorSelect = (doctor: any) => {
+        setSelectedDoctor(doctor);
     };
 
     const tableData = React.useMemo(() => {
@@ -803,11 +875,22 @@ export default function ChooseMenuProductTable({
                 productCode={selectedProduct?.stockData?.kode_brg}
             />
 
-            {/* ✅ NEW: Product History Dialog */}
             <ProductHistoryDialog
                 isOpen={dialogStates.productHistory}
                 onClose={() => closeDialog("productHistory")}
                 productName={selectedProduct?.name}
+            />
+
+            {/* 🔥 FIXED: Customer/Doctor Dialog for Ctrl+Space with triggerPaymentFlow */}
+            <CustomerDoctorDialog
+                isOpen={dialogStates.customerDoctor}
+                onClose={() => closeDialog("customerDoctor")}
+                onSelectCustomer={handleCustomerSelect}
+                onSelectDoctor={handleDoctorSelect}
+                onSubmit={handleCustomerDoctorSubmit}
+                mode="both"
+                initialFocus="customer"
+                triggerPaymentFlow={true} // 🔥 Always true for Ctrl+Space flow
             />
 
             <PaymentDialog
@@ -815,13 +898,27 @@ export default function ChooseMenuProductTable({
                 onClose={() => closeDialog("payment")}
                 onPaymentSuccess={() => {
                     closeDialog("payment");
+                    console.log("✅ Payment successful from Ctrl+Space flow");
                     toggleDialog("paymentSuccess");
                 }}
-                totalAmount={50000}
+                totalAmount={
+                    products.reduce((sum, p) => sum + (p.subtotal || 0), 0) ||
+                    50000
+                }
                 orderDetails={{
-                    customer: "Test Customer",
-                    items: [],
+                    customer: selectedCustomer?.name || "Unknown Customer",
+                    items: products
+                        .filter((p) => p.name)
+                        .map((p) => ({
+                            name: p.name,
+                            quantity: p.quantity,
+                            price: p.price,
+                        })),
                 }}
+                customerData={selectedCustomer}
+                doctorData={selectedDoctor}
+                transactionTypeData={transactionTypeData}
+                products={convertToProductItems(products)}
             />
 
             <AddCustomerDialog
@@ -850,7 +947,14 @@ export default function ChooseMenuProductTable({
                         "✅ Transaction type selected:",
                         transactionData
                     );
+                    // Store transaction type data
+                    setTransactionTypeData(transactionData);
                     closeDialog("transactionType");
+                    // 🔥 FIXED: Open Payment Dialog after transaction type selection
+                    console.log(
+                        "🔥 Opening Payment Dialog from Transaction Type"
+                    );
+                    toggleDialog("payment");
                 }}
             />
 
@@ -870,28 +974,6 @@ export default function ChooseMenuProductTable({
                     console.log("✅ Print bills requested");
                     closeDialog("paymentSuccess");
                 }}
-            />
-
-            <CustomerDoctorDialog
-                isOpen={dialogStates.customerDoctor}
-                onClose={() => closeDialog("customerDoctor")}
-                onSelectCustomer={(customer) => {
-                    console.log("✅ Customer selected:", customer);
-                    closeDialog("customerDoctor");
-                }}
-                onSelectDoctor={(doctor) => {
-                    console.log("✅ Doctor selected:", doctor);
-                    closeDialog("customerDoctor");
-                }}
-                onSubmit={(customerData, doctorData) => {
-                    console.log("✅ Customer & Doctor submitted:", {
-                        customerData,
-                        doctorData,
-                    });
-                    closeDialog("customerDoctor");
-                }}
-                mode="both"
-                initialFocus="customer"
             />
 
             <FingerprintScanningDialog
@@ -996,7 +1078,6 @@ export default function ChooseMenuProductTable({
                 }}
             />
 
-            {/* ✅ NEW: Monthly Promo Dialog */}
             <MonthlyPromoDialog
                 isOpen={dialogStates.monthlyPromo}
                 onClose={() => closeDialog("monthlyPromo")}
