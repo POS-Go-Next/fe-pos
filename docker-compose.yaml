@@ -7,4 +7,4 @@ services:
         ports:
             - "3000:3000"
         environment:
-            - API_BASE_URL=https://api-pos.masivaguna.com
+            - API_BASE_URL=https://api-pos.masivaguna.com/api

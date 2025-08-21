@@ -5,7 +5,7 @@ import { cookies } from "next/headers";
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
 
-const API_BASE_URL = "https://api-pos.masivaguna.com";
+const API_BASE_URL = "https://api-pos.masivaguna.com/api";
 
 export async function POST(request: NextRequest) {
     try {
