@@ -5,7 +5,7 @@ import { cookies } from "next/headers";
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
 
-const API_BASE_URL = "http://localhost:8081/api";
+const API_BASE_URL = "https://api-pos.masivaguna.com/api";
 
 interface InvoiceApiResponse {
     message: string;
