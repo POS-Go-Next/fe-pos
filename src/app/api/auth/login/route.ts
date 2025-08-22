@@ -12,6 +12,13 @@ export async function POST(request: NextRequest) {
         const body = await request.json();
         const validatedData = loginSchema.parse(body);
 
+        // Log untuk debug di browser console
+        console.log("🚀 LOGIN API - Received request:", {
+            username: validatedData.username,
+            mac_address: body.mac_address,
+            timestamp: new Date().toISOString(),
+        });
+
         const response = await fetch(`${API_BASE_URL}/login`, {
             method: "POST",
             headers: {
@@ -20,12 +27,18 @@ export async function POST(request: NextRequest) {
             },
             body: JSON.stringify({
                 ...validatedData,
+                mac_address: body.mac_address, // Forward MAC address yang dinamis
                 need_generate_token: true,
             }),
         });
 
         const responseData = await response.json();
-        console.log("API Response:", responseData);
+        console.log("📥 LOGIN API - External response:", {
+            status: response.status,
+            success: response.ok,
+            message: responseData.message,
+            mac_sent: body.mac_address,
+        });
 
         if (!response.ok) {
             return NextResponse.json(
@@ -81,7 +94,7 @@ export async function POST(request: NextRequest) {
             },
         });
     } catch (error) {
-        console.error("Login error:", error);
+        console.error("❌ LOGIN API - Error:", error);
 
         if (error instanceof ZodError) {
             return NextResponse.json(

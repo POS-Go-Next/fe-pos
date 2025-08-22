@@ -41,7 +41,8 @@ export async function POST(request: NextRequest) {
             );
         }
 
-        console.log("Fingerprint login request:", {
+        // Log untuk debug di browser console
+        console.log("🔍 FINGERPRINT API - Received request:", {
             mac_address: body.mac_address,
             need_generate_token: body.need_generate_token,
             timestamp: new Date().toISOString(),
@@ -54,13 +55,18 @@ export async function POST(request: NextRequest) {
                 Accept: "application/json",
             },
             body: JSON.stringify({
-                mac_address: body.mac_address,
+                mac_address: body.mac_address, // Forward MAC address yang dinamis
                 need_generate_token: body.need_generate_token ?? true,
             }),
         });
 
         const responseData: FingerprintLoginResponse = await response.json();
-        console.log("Fingerprint API Response:", responseData);
+        console.log("📥 FINGERPRINT API - External response:", {
+            status: response.status,
+            success: response.ok,
+            message: responseData.message,
+            mac_sent: body.mac_address,
+        });
 
         if (!response.ok) {
             return NextResponse.json(
@@ -181,7 +187,7 @@ export async function POST(request: NextRequest) {
             { status: 400 }
         );
     } catch (error) {
-        console.error("Fingerprint login error:", error);
+        console.error("❌ FINGERPRINT API - Error:", error);
 
         if (error instanceof SyntaxError) {
             return NextResponse.json(
