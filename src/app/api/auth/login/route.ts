@@ -12,7 +12,6 @@ export async function POST(request: NextRequest) {
         const body = await request.json();
         const validatedData = loginSchema.parse(body);
 
-        // Log untuk debug di browser console
         console.log("🚀 LOGIN API - Received request:", {
             username: validatedData.username,
             mac_address: body.mac_address,
@@ -27,7 +26,7 @@ export async function POST(request: NextRequest) {
             },
             body: JSON.stringify({
                 ...validatedData,
-                mac_address: body.mac_address, // Forward MAC address yang dinamis
+                mac_address: body.mac_address,
                 need_generate_token: true,
             }),
         });

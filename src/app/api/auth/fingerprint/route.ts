@@ -41,7 +41,6 @@ export async function POST(request: NextRequest) {
             );
         }
 
-        // Log untuk debug di browser console
         console.log("🔍 FINGERPRINT API - Received request:", {
             mac_address: body.mac_address,
             need_generate_token: body.need_generate_token,
@@ -55,7 +54,7 @@ export async function POST(request: NextRequest) {
                 Accept: "application/json",
             },
             body: JSON.stringify({
-                mac_address: body.mac_address, // Forward MAC address yang dinamis
+                mac_address: body.mac_address,
                 need_generate_token: body.need_generate_token ?? true,
             }),
         });
@@ -79,7 +78,6 @@ export async function POST(request: NextRequest) {
             );
         }
 
-        // FIXED: Check for success message properly
         if (
             responseData.message === "Fingerprint login successful" &&
             responseData.data
@@ -106,7 +104,6 @@ export async function POST(request: NextRequest) {
                 });
             }
 
-            // FIXED: Return 200 status for successful login
             return NextResponse.json(
                 {
                     success: true,
@@ -127,10 +124,9 @@ export async function POST(request: NextRequest) {
                     },
                 },
                 { status: 200 }
-            ); // EXPLICIT: Set 200 status
+            );
         }
 
-        // FIXED: Handle different success message
         if (responseData.message === "Login successful" && responseData.data) {
             const apiUser = responseData.data.user;
             const userData: AppUser = {
@@ -154,7 +150,6 @@ export async function POST(request: NextRequest) {
                 });
             }
 
-            // FIXED: Return 200 status for successful login
             return NextResponse.json(
                 {
                     success: true,
@@ -175,10 +170,9 @@ export async function POST(request: NextRequest) {
                     },
                 },
                 { status: 200 }
-            ); // EXPLICIT: Set 200 status
+            );
         }
 
-        // If message doesn't match expected success messages
         return NextResponse.json(
             {
                 success: false,
