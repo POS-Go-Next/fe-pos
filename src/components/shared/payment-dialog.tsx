@@ -1,4 +1,4 @@
-// components/shared/payment-dialog.tsx - COMPLETE FIXED VERSION
+// components/shared/payment-dialog.tsx - UPDATED WITH need_print_invoice
 "use client";
 
 import { useState } from "react";
@@ -310,6 +310,10 @@ export default function PaymentDialog({
                 corporate_code: null,
                 transaction_type: transactionType,
                 transaction_action: "1",
+
+                // 🔥 NEW: Add need_print_invoice field
+                need_print_invoice: true,
+
                 items: buildTransactionItems(transactionType),
                 cash: payment.cash,
                 change_cash: payment.changeCash,
@@ -346,68 +350,17 @@ export default function PaymentDialog({
                 grand_total: totalAmount,
             };
 
-            console.log("🔍 Transaction Payload Validation:", {
+            console.log("🔥 Transaction Payload with need_print_invoice:", {
                 macAddress: transactionPayload.mac_address,
                 invoiceNumber: transactionPayload.invoice_number,
                 customerId: transactionPayload.customer_id,
-                customerIdType: typeof transactionPayload.customer_id,
-                doctorId: transactionPayload.doctor_id,
-                doctorIdType: typeof transactionPayload.doctor_id,
-                transactionType: transactionPayload.transaction_type,
-                transactionTypeType: typeof transactionPayload.transaction_type,
-                itemsCount: transactionPayload.items.length,
-                compunded: transactionPayload.compunded,
-                compundedType: typeof transactionPayload.compunded,
+                needPrintInvoice: transactionPayload.need_print_invoice, // 🔥 Log the new field
                 grandTotal: transactionPayload.grand_total,
-                grandTotalType: typeof transactionPayload.grand_total,
-                subTotal: transactionPayload.sub_total,
-                paymentTotal: payment.totalPaid,
+                itemsCount: transactionPayload.items.length,
             });
 
-            if (
-                !transactionPayload.mac_address ||
-                typeof transactionPayload.mac_address !== "string"
-            ) {
-                throw new Error("MAC address is required and must be a string");
-            }
-            if (
-                !transactionPayload.invoice_number ||
-                typeof transactionPayload.invoice_number !== "string"
-            ) {
-                throw new Error(
-                    "Invoice number is required and must be a string"
-                );
-            }
-            if (
-                !transactionPayload.customer_id ||
-                typeof transactionPayload.customer_id !== "number"
-            ) {
-                throw new Error("Customer ID is required and must be a number");
-            }
-            if (
-                !transactionPayload.transaction_type ||
-                typeof transactionPayload.transaction_type !== "string"
-            ) {
-                throw new Error(
-                    "Transaction type is required and must be a string"
-                );
-            }
-            if (
-                !transactionPayload.items ||
-                !Array.isArray(transactionPayload.items) ||
-                transactionPayload.items.length === 0
-            ) {
-                throw new Error("Transaction items are required");
-            }
-            if (typeof transactionPayload.grand_total !== "number") {
-                throw new Error("Grand total must be a number");
-            }
-            if (typeof transactionPayload.compunded !== "boolean") {
-                throw new Error("Compunded must be a boolean");
-            }
-
             console.log(
-                "🚀 Sending transaction payload:",
+                "🚀 Sending transaction payload with need_print_invoice:",
                 JSON.stringify(transactionPayload, null, 2)
             );
 
@@ -450,7 +403,7 @@ export default function PaymentDialog({
             console.log("✅ Transaction successful:", result);
             showSuccessAlert(
                 "Payment Successful!",
-                `Transaction ${invoiceNumber} has been processed successfully.`,
+                `Transaction ${invoiceNumber} has been processed successfully. Invoice will be printed automatically.`,
                 2000
             );
 
