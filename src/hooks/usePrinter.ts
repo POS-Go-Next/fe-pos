@@ -1,9 +1,9 @@
 // hooks/usePrinter.ts
 "use client";
 
-import { useState, useEffect } from "react";
 import { isSessionExpired } from "@/lib/sessionHandler";
-import type { PrinterData, PrinterPaginationData } from "@/types/printer";
+import type { PrinterData } from "@/types/printer";
+import { useEffect, useState } from "react";
 
 interface UsePrinterParams {
     offset?: number;

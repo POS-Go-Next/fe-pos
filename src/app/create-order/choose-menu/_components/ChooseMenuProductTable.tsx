@@ -1,4 +1,4 @@
-// components/shared/ChooseMenuProductTable.tsx - FIXED CTRL+SPACE INTEGRATION
+// components/shared/ChooseMenuProductTable.tsx - UPDATED WITH DYNAMIC SC
 "use client";
 
 import BranchWideStockDialog from "@/components/shared/branch-wide-stock-dialog";
@@ -19,6 +19,7 @@ import ProductHistoryDialog from "@/components/shared/product-history-dialog";
 import { Input } from "@/components/ui/input";
 import { usePOSKeyboardShortcuts } from "@/hooks/useKeyboardShortcuts";
 import { useLogout } from "@/hooks/useLogout";
+import { useParameter } from "@/hooks/useParameter"; // 🔥 NEW: Import useParameter hook
 import type { ProductTableItem } from "@/types/stock";
 import { Plus, Trash } from "lucide-react";
 import React, { useState, useEffect, useRef } from "react";
@@ -141,6 +142,9 @@ export default function ChooseMenuProductTable({
 }: ChooseMenuProductTableProps) {
     const [isClient, setIsClient] = useState(false);
 
+    // 🔥 NEW: Get parameter data for dynamic SC values
+    const { parameterData } = useParameter();
+
     const [dialogStates, setDialogStates] = useState({
         selectProduct: false,
         branchStock: false,
@@ -234,6 +238,20 @@ export default function ChooseMenuProductTable({
 
         // Open the dialog with triggerPaymentFlow = true
         toggleDialog("customerDoctor");
+    };
+
+    // 🔥 NEW: Function to get SC value based on type
+    const getSCValueByType = (type: string): number => {
+        if (!parameterData) return 0;
+
+        switch (type) {
+            case "R/":
+                return parameterData.service || 0;
+            case "RC":
+                return parameterData.service_dokter || 0;
+            default:
+                return 0;
+        }
     };
 
     usePOSKeyboardShortcuts(
@@ -359,11 +377,46 @@ export default function ChooseMenuProductTable({
         }
     };
 
+    // 🔥 UPDATED: Handle type change with dynamic SC calculation
     const handleTypeChange = (productId: number, newType: string) => {
         if (productId === 999) return;
         if (onTypeChange) {
             onTypeChange(productId, newType);
         }
+
+        // 🔥 NEW: Update SC value based on type
+        const newSCValue = getSCValueByType(newType);
+        console.log(`🔥 Type changed to ${newType}, SC value: ${newSCValue}`);
+
+        // Find and update the product's SC value
+        const updatedProducts = products.map((product) => {
+            if (product.id === productId) {
+                const updatedProduct = {
+                    ...product,
+                    type: newType,
+                    sc: newSCValue,
+                };
+
+                // Recalculate total
+                updatedProduct.total =
+                    (updatedProduct.subtotal || 0) +
+                    (updatedProduct.sc || 0) +
+                    (updatedProduct.misc || 0) -
+                    (updatedProduct.subtotal || 0) *
+                        ((updatedProduct.discount || 0) / 100) -
+                    (updatedProduct.promo || 0);
+
+                return updatedProduct;
+            }
+            return product;
+        });
+
+        // This would need to be handled by parent component
+        // For now, we just log the change
+        console.log(
+            "🔥 Updated product with new SC:",
+            updatedProducts.find((p) => p.id === productId)
+        );
     };
 
     const handleQuantityChangeWithFocus = (id: number, value: number) => {
@@ -594,6 +647,11 @@ export default function ChooseMenuProductTable({
                                     const hasProductData = !!product.name;
                                     const isSearchRow = product.id === 999;
 
+                                    // 🔥 NEW: Calculate dynamic SC value for display
+                                    const displaySCValue = hasProductData
+                                        ? getSCValueByType(product.type || "")
+                                        : 0;
+
                                     return (
                                         <tr
                                             key={product.id}
@@ -780,7 +838,10 @@ export default function ChooseMenuProductTable({
 
                                             <td className="p-3 text-sm">
                                                 <div className="whitespace-nowrap">
-                                                    {formatCurrency(product.sc)}
+                                                    {/* 🔥 NEW: Display dynamic SC value based on type */}
+                                                    {formatCurrency(
+                                                        displaySCValue
+                                                    )}
                                                 </div>
                                             </td>
 
@@ -814,16 +875,21 @@ export default function ChooseMenuProductTable({
 
                                             <td className="p-3 text-sm font-bold">
                                                 <div className="whitespace-nowrap">
+                                                    {/* 🔥 UPDATED: Calculate total with dynamic SC */}
                                                     {formatCurrency(
                                                         hasProductData &&
-                                                            product.subtotal &&
-                                                            product.discount
-                                                            ? product.subtotal -
-                                                                  product.subtotal *
-                                                                      (product.discount /
-                                                                          100)
-                                                            : product.total ||
-                                                                  product.subtotal
+                                                            product.subtotal
+                                                            ? product.subtotal +
+                                                                  displaySCValue +
+                                                                  (product.misc ||
+                                                                      0) -
+                                                                  (product.subtotal *
+                                                                      (product.discount ||
+                                                                          0)) /
+                                                                      100 -
+                                                                  (product.promo ||
+                                                                      0)
+                                                            : 0
                                                     )}
                                                 </div>
                                             </td>

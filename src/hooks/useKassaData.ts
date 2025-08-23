@@ -1,9 +1,9 @@
 // hooks/useKassaData.ts
 "use client";
 
-import { useState, useEffect } from "react";
 import { isSessionExpired } from "@/lib/sessionHandler";
-import type { KassaResponse, KassaExternalApiResponse } from "@/types/kassa";
+import type { KassaResponse } from "@/types/kassa";
+import { useEffect, useState } from "react";
 
 interface UseKassaDataParams {
     macAddress: string | null;

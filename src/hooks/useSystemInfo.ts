@@ -1,12 +1,8 @@
 // hooks/useSystemInfo.ts
 "use client";
 
-import { useState, useEffect } from "react";
-import type {
-    SystemInfoData,
-    SystemInfoResponse,
-    SystemInfoError,
-} from "@/types/systemInfo";
+import type { SystemInfoData, SystemInfoResponse } from "@/types/systemInfo";
+import { useEffect, useState } from "react";
 
 interface UseSystemInfoReturn {
     systemInfo: SystemInfoData | null;

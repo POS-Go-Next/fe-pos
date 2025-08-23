@@ -1,4 +1,4 @@
-// app/create-order/choose-menu/page.tsx - UPDATED WITH PAYMENT INTEGRATION
+// app/create-order/choose-menu/page.tsx - UPDATED WITH DYNAMIC SC INTEGRATION
 "use client";
 
 import OrderSummary from "@/components/shared/order-summary";
@@ -7,6 +7,7 @@ import TransactionInfo from "@/components/shared/transaction-info";
 import { Input } from "@/components/ui/input";
 import { useLogout } from "@/hooks/useLogout";
 import { usePOSKeyboardShortcuts } from "@/hooks/useKeyboardShortcuts";
+import { useParameter } from "@/hooks/useParameter"; // 🔥 NEW: Import useParameter hook
 import type { StockData } from "@/types/stock";
 import { ProductTableItem } from "@/types/stock";
 import { ArrowLeft, Search } from "lucide-react";
@@ -55,6 +56,8 @@ export default function ChooseMenuPage() {
     const barcodeSearchInputRef = useRef<HTMLInputElement>(null);
 
     const { logout, isLoading: isLogoutLoading } = useLogout();
+    // 🔥 NEW: Get parameter data for dynamic SC values
+    const { parameterData } = useParameter();
 
     useEffect(() => {
         setIsClient(true);
@@ -63,6 +66,20 @@ export default function ChooseMenuPage() {
 
     const [products, setProducts] = useState<ProductTableItem[]>([]);
     const [nextId, setNextId] = useState(1);
+
+    // 🔥 NEW: Function to get SC value based on type
+    const getSCValueByType = (type: string): number => {
+        if (!parameterData) return 0;
+
+        switch (type) {
+            case "R/":
+                return parameterData.service || 0;
+            case "RC":
+                return parameterData.service_dokter || 0;
+            default:
+                return 0;
+        }
+    };
 
     useEffect(() => {
         if (shouldFocusSearch && isClient) {
@@ -199,8 +216,9 @@ export default function ChooseMenuPage() {
             (sum, product) => sum + (product.misc || 0),
             0
         );
+        // 🔥 UPDATED: Calculate service charge dynamically based on product type
         const serviceCharge = filledProducts.reduce(
-            (sum, product) => sum + (product.sc || 0),
+            (sum, product) => sum + getSCValueByType(product.type || ""),
             0
         );
         const discount = filledProducts.reduce(
@@ -220,7 +238,7 @@ export default function ChooseMenuPage() {
             discount,
             promo,
         };
-    }, [products, isClient]);
+    }, [products, isClient, parameterData]);
 
     const paymentProducts = useMemo(() => {
         return products
@@ -232,14 +250,15 @@ export default function ChooseMenuPage() {
                 price: product.price || 0,
                 subtotal: product.subtotal || 0,
                 discount: product.discount || 0,
-                sc: product.sc || 0,
+                // 🔥 UPDATED: Set SC dynamically based on type
+                sc: getSCValueByType(product.type || ""),
                 misc: product.misc || 0,
                 promo: product.promo || 0,
                 total: product.total || 0,
                 stockData: product.stockData,
                 up: product.up,
             }));
-    }, [products]);
+    }, [products, parameterData]);
 
     const handleQuantityChange = (id: number, value: number) => {
         if (!isClient) return;
@@ -249,15 +268,19 @@ export default function ChooseMenuPage() {
                 if (product.id === id) {
                     const newQuantity = value < 0 ? 0 : value;
                     const newSubtotal = (product.price || 0) * newQuantity;
+                    // 🔥 UPDATED: Calculate SC dynamically
+                    const dynamicSC = getSCValueByType(product.type || "");
+
                     return {
                         ...product,
                         quantity: newQuantity,
                         subtotal: newSubtotal,
+                        sc: dynamicSC, // 🔥 NEW: Set dynamic SC
                         total:
                             newSubtotal +
-                            (product.sc || 0) +
+                            dynamicSC + // 🔥 UPDATED: Use dynamic SC
                             (product.misc || 0) -
-                            (product.discount || 0) -
+                            newSubtotal * ((product.discount || 0) / 100) -
                             (product.promo || 0),
                     };
                 }
@@ -283,11 +306,37 @@ export default function ChooseMenuPage() {
         }
     };
 
+    // 🔥 UPDATED: Handle type change with dynamic SC calculation
     const handleTypeChange = (id: number, newType: string) => {
         setProducts((prevProducts) =>
-            prevProducts.map((product) =>
-                product.id === id ? { ...product, type: newType } : product
-            )
+            prevProducts.map((product) => {
+                if (product.id === id) {
+                    // 🔥 NEW: Calculate SC based on new type
+                    const newSCValue = getSCValueByType(newType);
+
+                    const updatedProduct = {
+                        ...product,
+                        type: newType,
+                        sc: newSCValue, // 🔥 NEW: Set dynamic SC
+                    };
+
+                    // 🔥 UPDATED: Recalculate total with new SC
+                    updatedProduct.total =
+                        (updatedProduct.subtotal || 0) +
+                        newSCValue +
+                        (updatedProduct.misc || 0) -
+                        (updatedProduct.subtotal || 0) *
+                            ((updatedProduct.discount || 0) / 100) -
+                        (updatedProduct.promo || 0);
+
+                    console.log(
+                        `🔥 Type changed to ${newType}, SC: ${newSCValue}, Total: ${updatedProduct.total}`
+                    );
+
+                    return updatedProduct;
+                }
+                return product;
+            })
         );
     };
 
@@ -302,9 +351,11 @@ export default function ChooseMenuPage() {
                 if (product.id === productId) {
                     const discountAmount =
                         (product.subtotal || 0) * (discountPercentage / 100);
+                    // 🔥 UPDATED: Include dynamic SC in total calculation
+                    const dynamicSC = getSCValueByType(product.type || "");
                     const newTotal =
                         (product.subtotal || 0) +
-                        (product.sc || 0) +
+                        dynamicSC +
                         (product.misc || 0) -
                         discountAmount -
                         (product.promo || 0);
@@ -312,6 +363,7 @@ export default function ChooseMenuPage() {
                     return {
                         ...product,
                         discount: discountPercentage,
+                        sc: dynamicSC, // 🔥 NEW: Ensure SC is updated
                         total: Math.max(0, newTotal),
                     };
                 }
@@ -339,7 +391,7 @@ export default function ChooseMenuPage() {
             quantity: 1,
             subtotal: stockData.hj_ecer || 0,
             discount: 0,
-            sc: 0,
+            sc: 0, // 🔥 UPDATED: Start with 0, will be set when type is selected
             misc: 0,
             promo: 0,
             promoPercent: 0,
@@ -354,41 +406,13 @@ export default function ChooseMenuPage() {
         selectedStockData: StockData,
         productId: number
     ) => {
-        const existingProductIndex = products.findIndex(
-            (product) =>
-                product.stockData?.kode_brg === selectedStockData.kode_brg
-        );
-
-        if (existingProductIndex !== -1) {
-            setProducts((prevProducts) =>
-                prevProducts.map((product, index) => {
-                    if (index === existingProductIndex) {
-                        const newQuantity = product.quantity + 1;
-                        const newSubtotal = (product.price || 0) * newQuantity;
-                        return {
-                            ...product,
-                            quantity: newQuantity,
-                            subtotal: newSubtotal,
-                            total:
-                                newSubtotal +
-                                (product.sc || 0) +
-                                (product.misc || 0) -
-                                (product.discount || 0) -
-                                (product.promo || 0),
-                        };
-                    }
-                    return product;
-                })
-            );
-            setShouldFocusSearch(true);
-        } else {
-            const newProduct = convertStockToProduct(selectedStockData);
-            setProducts((prevProducts) => [...prevProducts, newProduct]);
-            setLastAddedProductId(nextId);
-            setNextId((prevId) => prevId + 1);
-            setShouldFocusQuantity(true);
-            console.log("🎯 New product added, will focus on quantity input");
-        }
+        // 🔥 UPDATED: Always create a new row, never increment existing quantity
+        const newProduct = convertStockToProduct(selectedStockData);
+        setProducts((prevProducts) => [...prevProducts, newProduct]);
+        setLastAddedProductId(nextId);
+        setNextId((prevId) => prevId + 1);
+        setShouldFocusQuantity(true);
+        console.log("🎯 New product row added, will focus on quantity input");
     };
 
     const handlePendingBill = () => {
@@ -495,7 +519,7 @@ export default function ChooseMenuPage() {
                 isOpen={isTransactionHistoryOpen}
                 onClose={() => {
                     console.log(
-                        "🔍 Closing Transaction History Dialog from page level"
+                        "🔒 Closing Transaction History Dialog from page level"
                     );
                     setIsTransactionHistoryOpen(false);
                 }}

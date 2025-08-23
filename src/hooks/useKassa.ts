@@ -1,4 +1,4 @@
-// hooks/useKassa.ts - FIXED VERSION
+// hooks/useKassa.ts
 "use client";
 
 import { useState } from "react";

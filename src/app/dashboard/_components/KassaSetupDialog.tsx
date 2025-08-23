@@ -1,4 +1,4 @@
-// components/dashboard/KassaSetupDialog.tsx - COMPLETE FIXED VERSION
+// components/dashboard/KassaSetupDialog.tsx
 "use client";
 
 import EmployeeLoginDialog from "@/components/shared/EmployeeLoginDialog";
@@ -47,7 +47,6 @@ const KassaSetupDialog: FC<KassaSetupDialogProps> = ({
     const [isCheckingToken, setIsCheckingToken] = useState(true);
     const [isDataLoaded, setIsDataLoaded] = useState(false);
 
-    // System Info Hook
     const {
         systemInfo,
         macAddress,
@@ -57,7 +56,6 @@ const KassaSetupDialog: FC<KassaSetupDialogProps> = ({
         refetch: refetchSystemInfo,
     } = useSystemInfo();
 
-    // Kassa Data Hook
     const {
         kassaData,
         isLoading: isKassaLoading,
@@ -69,7 +67,6 @@ const KassaSetupDialog: FC<KassaSetupDialogProps> = ({
         enabled: hasValidToken && !!macAddress,
     });
 
-    // Printer Hook
     const {
         printers,
         isLoading: isPrinterLoading,
@@ -82,14 +79,13 @@ const KassaSetupDialog: FC<KassaSetupDialogProps> = ({
         enabled: hasValidToken,
     });
 
-    // Kassa Update Hook
     const { updateKassa, isLoading: isSubmitting } = useKassa();
 
     const [formData, setFormData] = useState<KassaSetupData>({
-        default_jual: "0", // Both
-        status_aktif: true, // Active
-        antrian: true, // Active
-        finger: "Y", // Active
+        default_jual: "0",
+        status_aktif: true,
+        antrian: true,
+        finger: "Y",
         ip_address: "",
         mac_address: "",
         printer_id: null,
@@ -105,10 +101,9 @@ const KassaSetupDialog: FC<KassaSetupDialogProps> = ({
         }
     }, [isOpen]);
 
-    // Load kassa data into form when available
     useEffect(() => {
         if (kassaData && ipAddress && macAddress && !isDataLoaded) {
-            console.log("📝 Loading kassa data into form:", kassaData);
+            console.log("🏪 Loading kassa data into form:", kassaData);
 
             setFormData({
                 default_jual: kassaData.default_jual as "0" | "1" | "2",
@@ -132,8 +127,7 @@ const KassaSetupDialog: FC<KassaSetupDialogProps> = ({
             hasValidToken &&
             !isKassaLoading
         ) {
-            // No existing kassa data, use system info
-            console.log("📝 Using system info for new kassa setup");
+            console.log("🏪 Using system info for new kassa setup");
 
             setFormData((prev) => ({
                 ...prev,
@@ -152,7 +146,6 @@ const KassaSetupDialog: FC<KassaSetupDialogProps> = ({
         isDataLoaded,
     ]);
 
-    // Handle session expired from printer fetch
     useEffect(() => {
         if (printerSessionExpired) {
             setHasValidToken(false);
@@ -160,7 +153,6 @@ const KassaSetupDialog: FC<KassaSetupDialogProps> = ({
         }
     }, [printerSessionExpired]);
 
-    // Handle session expired from kassa data fetch
     useEffect(() => {
         if (kassaSessionExpired) {
             setHasValidToken(false);
@@ -169,19 +161,19 @@ const KassaSetupDialog: FC<KassaSetupDialogProps> = ({
     }, [kassaSessionExpired]);
 
     const checkTokenStatus = async () => {
-        console.log("🔍 CHECKING TOKEN STATUS...");
+        console.log("🔒 CHECKING TOKEN STATUS...");
         setIsCheckingToken(true);
         setIsDataLoaded(false);
 
         try {
-            const response = await fetch("/api/user?limit=1&offset=0", {
+            const response = await fetch(`/api/kassa/${macAddress}`, {
                 method: "GET",
                 headers: {
                     "Content-Type": "application/json",
                 },
             });
 
-            console.log("🔍 API Test Response status:", response.status);
+            console.log("🔒 API Test Response status:", response.status);
 
             if (response.ok) {
                 console.log("✅ API CALL SUCCESS: User is authenticated");
@@ -256,7 +248,7 @@ const KassaSetupDialog: FC<KassaSetupDialogProps> = ({
                 clearInterval(timerInterval);
             },
         }).then((result) => {
-            console.log("🔄 Session expired popup result:", result);
+            console.log("🔥 Session expired popup result:", result);
 
             if (
                 result.isConfirmed ||
@@ -311,7 +303,6 @@ const KassaSetupDialog: FC<KassaSetupDialogProps> = ({
         );
     }
 
-    // Show system error if system info failed to load
     if (systemError) {
         return (
             <div className="fixed inset-0 flex items-center justify-center z-50">
@@ -361,7 +352,7 @@ const KassaSetupDialog: FC<KassaSetupDialogProps> = ({
     const handleSubmit = async () => {
         try {
             console.log("🚀 Submitting kassa setup:", formData);
-            console.log("📍 MAC Address used:", macAddress);
+            console.log("🏪 MAC Address used:", macAddress);
             console.log("🖨️ Selected Printer ID:", selectedPrinterId);
 
             if (!hasValidToken) {
@@ -382,14 +373,14 @@ const KassaSetupDialog: FC<KassaSetupDialogProps> = ({
                 default_jual: formData.default_jual,
                 status_aktif: formData.status_aktif,
                 antrian: formData.antrian,
-                finger: formData.finger, // Should be "Y" or "N"
+                finger: formData.finger,
                 ip_address: formData.ip_address,
                 mac_address: formData.mac_address,
                 printer_id: selectedPrinterId,
             };
 
             console.log("📤 Final submit data:", submitData);
-            console.log("🔍 Data types:", {
+            console.log("🏪 Data types:", {
                 default_jual: typeof submitData.default_jual,
                 status_aktif: typeof submitData.status_aktif,
                 antrian: typeof submitData.antrian,
@@ -438,10 +429,10 @@ const KassaSetupDialog: FC<KassaSetupDialogProps> = ({
 
     const handleCancel = () => {
         setFormData({
-            default_jual: "0", // Both
-            status_aktif: true, // Active
-            antrian: true, // Active
-            finger: "Y", // Active
+            default_jual: "0",
+            status_aktif: true,
+            antrian: true,
+            finger: "Y",
             ip_address: ipAddress || "",
             mac_address: macAddress || "",
             printer_id: null,
@@ -474,20 +465,6 @@ const KassaSetupDialog: FC<KassaSetupDialogProps> = ({
                         <X className="h-4 w-4 text-gray-600" />
                     </button>
                 </div>
-
-                {/* Loading overlay */}
-                {/* {isLoading && (
-                    <div className="absolute inset-0 bg-white/80 flex items-center justify-center rounded-2xl z-10">
-                        <div className="flex items-center gap-3">
-                            <Loader2 className="h-6 w-6 animate-spin text-blue-600" />
-                            <span className="text-gray-600">
-                                {isKassaLoading
-                                    ? "Loading kassa data..."
-                                    : "Updating..."}
-                            </span>
-                        </div>
-                    </div>
-                )} */}
 
                 <div className="space-y-3">
                     <div className="grid grid-cols-2 gap-3">
