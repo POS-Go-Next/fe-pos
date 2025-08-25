@@ -1,12 +1,17 @@
 // components/shared/product-history-dialog.tsx
 "use client";
 
-import { useState, useEffect, useRef } from "react";
-import { Search, X, Calendar, Download, ChevronDown } from "lucide-react";
-import { Button } from "@/components/ui/button";
+import React, { useState, useEffect, useRef } from "react";
+import { Search, X, ChevronDown } from "lucide-react";
 import { Input } from "@/components/ui/input";
+import { DateRangePicker } from "@/components/ui/date-range-picker";
 import Pagination from "./pagination";
 import { useTransaction } from "@/hooks/useTransaction";
+
+interface DateRange {
+    from?: Date;
+    to?: Date;
+}
 
 interface ProductHistoryData {
     receipt_id: string;
@@ -32,10 +37,13 @@ export default function ProductHistoryDialog({
     productName = "ALAMII BISCUIT OAT & MILK 60G",
 }: ProductHistoryDialogProps) {
     const [searchInput, setSearchInput] = useState("");
+    const [searchTerm, setSearchTerm] = useState("");
     const [currentPage, setCurrentPage] = useState(1);
     const [pageSize, setPageSize] = useState(10);
     const [isPageSizeOpen, setIsPageSizeOpen] = useState(false);
-    const [selectedDate, setSelectedDate] = useState("06/07/2024");
+    const [appliedDateRange, setAppliedDateRange] = useState<
+        DateRange | undefined
+    >(undefined);
 
     const searchInputRef = useRef<HTMLInputElement>(null);
     const tableContainerRef = useRef<HTMLDivElement>(null);
@@ -43,6 +51,11 @@ export default function ProductHistoryDialog({
     const pageSizeOptions = [5, 10, 25, 50, 100];
 
     const offset = (currentPage - 1) * pageSize;
+
+    const formatDateForAPI = (date: Date): string => {
+        return date.toISOString().split("T")[0];
+    };
+
     const {
         transactionList,
         isLoading,
@@ -53,10 +66,16 @@ export default function ProductHistoryDialog({
     } = useTransaction({
         offset,
         limit: pageSize,
+        from_date: appliedDateRange?.from
+            ? formatDateForAPI(appliedDateRange.from)
+            : "",
+        to_date: appliedDateRange?.to
+            ? formatDateForAPI(appliedDateRange.to)
+            : "",
     });
 
     const historyData: ProductHistoryData[] = transactionList.map(
-        (transaction, index) => ({
+        (transaction) => ({
             receipt_id: transaction.invoice_number,
             date: new Date(transaction.transaction_date).toLocaleDateString(
                 "en-GB",
@@ -85,16 +104,84 @@ export default function ProductHistoryDialog({
 
     useEffect(() => {
         if (isOpen) {
+            console.log("📋 Product History Dialog opened");
             setCurrentPage(1);
+            setPageSize(10);
             setSearchInput("");
+            setSearchTerm("");
+            setAppliedDateRange(undefined);
             setTimeout(() => {
                 searchInputRef.current?.focus();
             }, 100);
         }
     }, [isOpen]);
 
+    useEffect(() => {
+        const trimmedSearch = searchInput.trim();
+
+        if (trimmedSearch.length >= 3) {
+            const timeoutId = setTimeout(() => {
+                setSearchTerm(trimmedSearch);
+                setCurrentPage(1);
+            }, 300);
+
+            return () => clearTimeout(timeoutId);
+        } else if (trimmedSearch.length === 0) {
+            setSearchTerm("");
+            setCurrentPage(1);
+        }
+    }, [searchInput]);
+
+    const filteredHistoryData = React.useMemo(() => {
+        if (!searchTerm) return historyData;
+
+        return historyData.filter((record) => {
+            const customerName = record.customer_name?.toLowerCase() || "";
+            const receiptId = record.receipt_id?.toLowerCase() || "";
+            const searchLower = searchTerm.toLowerCase();
+
+            return (
+                customerName.includes(searchLower) ||
+                receiptId.includes(searchLower)
+            );
+        });
+    }, [historyData, searchTerm]);
+
+    const filteredTotalDocs = filteredHistoryData.length;
+    const filteredTotalPages = Math.ceil(filteredTotalDocs / pageSize);
+    const paginatedFilteredData = filteredHistoryData.slice(
+        (currentPage - 1) * pageSize,
+        currentPage * pageSize
+    );
+
+    const displayData = searchTerm ? paginatedFilteredData : historyData;
+    const displayTotalPages = searchTerm ? filteredTotalPages : totalPages;
+    const displayTotalDocs = searchTerm ? filteredTotalDocs : totalDocs;
+
+    const handleDateRangeChange = (range: DateRange | undefined) => {
+        setAppliedDateRange(range);
+        setCurrentPage(1);
+        console.log("✅ Date range applied:", range);
+    };
+
     const handlePageChange = (page: number) => {
-        if (page < 1 || page > totalPages) return;
+        const maxPages = searchTerm ? filteredTotalPages : totalPages;
+        if (page < 1 || page > maxPages) return;
+
+        if (!searchTerm) {
+            if (
+                page > totalPages ||
+                (page - 1) * pageSize >= (totalDocs || 0)
+            ) {
+                console.warn("Page out of bounds:", {
+                    page,
+                    totalPages,
+                    totalDocs,
+                });
+                return;
+            }
+        }
+
         setCurrentPage(page);
     };
 
@@ -106,16 +193,15 @@ export default function ProductHistoryDialog({
 
     const handleSearchReset = () => {
         setSearchInput("");
+        setSearchTerm("");
         setCurrentPage(1);
-    };
-
-    const handleExport = () => {
-        console.log("🔄 Exporting product history data...");
     };
 
     const handleClose = () => {
         setSearchInput("");
+        setSearchTerm("");
         setCurrentPage(1);
+        setAppliedDateRange(undefined);
         onClose();
     };
 
@@ -136,58 +222,44 @@ export default function ProductHistoryDialog({
                     </button>
                 </div>
 
-                <div className="flex items-center justify-between gap-4 p-6 border-b border-gray-200">
-                    <div className="relative flex-1 max-w-md">
-                        <Input
-                            ref={searchInputRef}
-                            type="text"
-                            placeholder="Search Customer Name or Receipt ID"
-                            className="pl-10 bg-gray-50 border-gray-200 h-10"
-                            value={searchInput}
-                            onChange={(e) => setSearchInput(e.target.value)}
-                        />
-                        <Search
-                            className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400"
-                            size={18}
-                        />
-                        {searchInput && (
-                            <button
-                                onClick={handleSearchReset}
-                                className="absolute right-3 top-1/2 transform -translate-y-1/2 text-gray-400 hover:text-gray-600"
-                            >
-                                <X size={16} />
-                            </button>
-                        )}
-                    </div>
-
-                    <div className="flex items-center gap-3">
-                        <div className="flex items-center gap-2 bg-gray-50 rounded-lg px-3 py-2">
-                            <Calendar className="h-4 w-4 text-gray-500" />
-                            <span className="text-sm text-gray-700">
-                                {selectedDate}
-                            </span>
+                <div className="p-6 border-b border-gray-200">
+                    <div className="flex items-center gap-4">
+                        <div className="relative flex-1 max-w-md">
+                            <Input
+                                ref={searchInputRef}
+                                type="text"
+                                placeholder="Search Customer Name or Receipt ID (min 3 characters)"
+                                className="pl-10 bg-gray-50 border-gray-200 h-10"
+                                value={searchInput}
+                                onChange={(e) => setSearchInput(e.target.value)}
+                            />
+                            <Search
+                                className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400"
+                                size={18}
+                            />
+                            {searchInput && (
+                                <button
+                                    onClick={handleSearchReset}
+                                    className="absolute right-3 top-1/2 transform -translate-y-1/2 text-gray-400 hover:text-gray-600"
+                                >
+                                    <X size={16} />
+                                </button>
+                            )}
                         </div>
 
-                        <Button
-                            variant="outline"
-                            onClick={handleExport}
-                            className="flex items-center gap-2 h-10"
-                        >
-                            <Download className="h-4 w-4" />
-                            Export
-                        </Button>
+                        <DateRangePicker
+                            value={appliedDateRange}
+                            onChange={handleDateRangeChange}
+                            placeholder="Select date range"
+                        />
                     </div>
                 </div>
 
                 <div className="flex-1 overflow-hidden p-6">
                     {error && (
-                        <div className="bg-yellow-50 border border-yellow-200 rounded-lg p-4 mb-4">
-                            <div className="text-yellow-700 text-sm">
-                                <strong>Note:</strong> {error}
-                                <br />
-                                <em>
-                                    Please check your connection and try again.
-                                </em>
+                        <div className="bg-red-50 border border-red-200 rounded-lg p-4 mb-6">
+                            <div className="text-red-700 text-sm">
+                                Error loading product history: {error}
                             </div>
                         </div>
                     )}
@@ -218,9 +290,6 @@ export default function ProductHistoryDialog({
                                         <th className="text-left h-[48px] px-4 text-sm font-medium text-gray-600 bg-gray-50 min-w-[60px]">
                                             Kassa
                                         </th>
-                                        <th className="text-left h-[48px] px-4 text-sm font-medium text-gray-600 bg-gray-50 min-w-[60px]">
-                                            Kassa
-                                        </th>
                                         <th className="text-left h-[48px] px-4 text-sm font-medium text-gray-600 bg-gray-50 min-w-[150px]">
                                             Customer Name
                                         </th>
@@ -237,20 +306,20 @@ export default function ProductHistoryDialog({
                                     {isLoading ? (
                                         <tr>
                                             <td
-                                                colSpan={10}
+                                                colSpan={9}
                                                 className="text-center py-20"
                                             >
                                                 <div className="flex items-center justify-center">
                                                     <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-500"></div>
                                                     <span className="ml-2 text-gray-600">
-                                                        Loading transaction
+                                                        Loading product
                                                         history...
                                                     </span>
                                                 </div>
                                             </td>
                                         </tr>
-                                    ) : historyData.length > 0 ? (
-                                        historyData.map((record, index) => (
+                                    ) : displayData.length > 0 ? (
+                                        displayData.map((record, index) => (
                                             <tr
                                                 key={record.receipt_id}
                                                 className={`border-b border-gray-100 hover:bg-blue-50 cursor-pointer transition-colors ${
@@ -277,9 +346,6 @@ export default function ProductHistoryDialog({
                                                 <td className="h-[48px] px-4 text-sm text-gray-600">
                                                     {record.kassa}
                                                 </td>
-                                                <td className="h-[48px] px-4 text-sm text-gray-600">
-                                                    {record.kassa}
-                                                </td>
                                                 <td className="h-[48px] px-4 text-sm text-gray-900">
                                                     {record.customer_name}
                                                 </td>
@@ -294,12 +360,19 @@ export default function ProductHistoryDialog({
                                     ) : (
                                         <tr>
                                             <td
-                                                colSpan={10}
+                                                colSpan={9}
                                                 className="p-8 text-center text-gray-500"
                                             >
-                                                {searchInput
-                                                    ? `No records found for "${searchInput}".`
-                                                    : "No transaction history found."}
+                                                {searchTerm &&
+                                                searchInput.trim().length >= 3
+                                                    ? "No records found for your search."
+                                                    : searchTerm &&
+                                                      searchInput.trim()
+                                                          .length > 0 &&
+                                                      searchInput.trim()
+                                                          .length < 3
+                                                    ? "Please enter at least 3 characters to search."
+                                                    : "No product history found."}
                                             </td>
                                         </tr>
                                     )}
@@ -308,7 +381,7 @@ export default function ProductHistoryDialog({
                         </div>
                     </div>
 
-                    {historyData.length > 0 && (
+                    {displayData.length > 0 && (
                         <div className="mt-4 flex justify-between items-center">
                             <div className="flex items-center gap-4">
                                 <div className="flex items-center gap-2">
@@ -353,14 +426,14 @@ export default function ProductHistoryDialog({
                                         )}
                                     </div>
                                     <span className="text-sm text-gray-600">
-                                        from {totalDocs}
+                                        from {displayTotalDocs || 0}
                                     </span>
                                 </div>
                             </div>
-                            {totalPages > 1 && (
+                            {displayTotalPages && displayTotalPages > 1 && (
                                 <Pagination
                                     currentPage={currentPage}
-                                    totalPages={totalPages}
+                                    totalPages={displayTotalPages}
                                     onPageChange={handlePageChange}
                                     size="sm"
                                 />
