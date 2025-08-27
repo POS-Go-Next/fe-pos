@@ -1,4 +1,4 @@
-// components/shared/customer-doctor-dialog.tsx - FIXED FLOW INTEGRATION
+// components/shared/customer-doctor-dialog.tsx - FIXED BUGS
 "use client";
 
 import { Button } from "@/components/ui/button";
@@ -50,7 +50,6 @@ interface CustomerDoctorDialogProps {
     initialDoctor?: DoctorFormData;
     mode?: DialogMode;
     initialFocus?: "customer" | "doctor";
-    // 🔥 NEW: Add support for direct payment flow
     triggerPaymentFlow?: boolean;
 }
 
@@ -64,7 +63,7 @@ export default function CustomerDoctorDialog({
     initialDoctor,
     mode = "both",
     initialFocus = "customer",
-    triggerPaymentFlow = false, // 🔥 NEW: Flag to trigger payment flow
+    triggerPaymentFlow = false,
 }: CustomerDoctorDialogProps) {
     const [currentFocus, setCurrentFocus] = useState<"customer" | "doctor">(
         initialFocus
@@ -76,6 +75,7 @@ export default function CustomerDoctorDialog({
     >({});
     const [isCreatingCustomer, setIsCreatingCustomer] = useState(false);
 
+    // 🔥 FIXED: Set default status to "true"
     const [customerForm, setCustomerForm] = useState<CustomerData>({
         id: 0,
         name: "",
@@ -83,7 +83,7 @@ export default function CustomerDoctorDialog({
         age: "",
         phone: "62",
         address: "",
-        status: "true",
+        status: "true", // ✅ Default to "true"
     });
 
     const [doctorForm, setDoctorForm] = useState<DoctorFormData>({
@@ -183,10 +183,21 @@ export default function CustomerDoctorDialog({
         }
     };
 
+    // 🔥 FIXED: Auto-fill gender when customer is selected
     const handleCustomerSelect = (customer: CustomerApiData) => {
         setSelectedCustomerId(customer.kd_cust);
-        const transformedCustomer = transformCustomerApiToForm(customer);
-        setCustomerForm(transformedCustomer);
+
+        // Transform customer data and auto-fill form including gender
+        setCustomerForm({
+            id: customer.kd_cust,
+            name: customer.nm_cust,
+            gender: customer.gender, // ✅ Auto-fill gender from API
+            age: customer.usia_cust.toString(),
+            phone: customer.telp_cust,
+            address: customer.al_cust,
+            status: customer.status ? "true" : "false",
+        });
+
         setIsCustomerDropdownOpen(false);
         setCustomerSearch("");
         setValidationErrors({});
@@ -331,13 +342,12 @@ export default function CustomerDoctorDialog({
         }
     };
 
-    // 🔥 FIXED: Handle submit with proper flow integration
     const handleSubmit = async () => {
         console.log("🚀 Submit button clicked!");
         console.log("Current form data:", customerForm);
         console.log("View mode:", viewMode);
         console.log("Selected customer ID:", selectedCustomerId);
-        console.log("Trigger payment flow:", triggerPaymentFlow); // 🔥 NEW
+        console.log("Trigger payment flow:", triggerPaymentFlow);
 
         if (!validateCustomerForm()) {
             console.log("❌ Form validation failed");
@@ -348,7 +358,7 @@ export default function CustomerDoctorDialog({
 
         if (viewMode === "customer-only" && customerForm.name) {
             console.log(
-                "🏪 Creating new customer via API (customer-only mode)..."
+                "🪪 Creating new customer via API (customer-only mode)..."
             );
             const createdCustomer = await createCustomerViaAPI();
             if (createdCustomer) {
@@ -358,7 +368,6 @@ export default function CustomerDoctorDialog({
                 );
                 onSelectCustomer(createdCustomer);
 
-                // 🔥 FIXED: Don't close dialog if triggerPaymentFlow is true
                 if (!triggerPaymentFlow) {
                     onClose();
                 }
@@ -369,17 +378,16 @@ export default function CustomerDoctorDialog({
             console.log("👨‍⚕️ Submitting doctor data");
             onSelectDoctor(doctorForm);
 
-            // 🔥 FIXED: Don't close dialog if triggerPaymentFlow is true
             if (!triggerPaymentFlow) {
                 onClose();
             }
         } else if (viewMode === "both" && customerForm.name) {
-            console.log("👥 Submitting both customer and doctor data");
+            console.log("💥 Submitting both customer and doctor data");
             let finalCustomerData = customerForm;
 
             // Check if this is a new customer (not selected from existing list)
             if (!selectedCustomerId) {
-                console.log("🏪 Creating new customer via API (both mode)...");
+                console.log("🪪 Creating new customer via API (both mode)...");
                 const createdCustomer = await createCustomerViaAPI();
                 if (!createdCustomer) {
                     console.log(
@@ -393,16 +401,16 @@ export default function CustomerDoctorDialog({
                 );
                 finalCustomerData = createdCustomer;
             } else {
-                console.log("📄 Using existing customer from selection");
+                console.log("🔄 Using existing customer from selection");
             }
 
             const doctorData = doctorForm.fullname ? doctorForm : undefined;
 
-            // 🔥 FIXED: Call onSubmit with both customer and doctor data
+            // Call onSubmit with both customer and doctor data
             // This will trigger the payment flow in the parent component
             onSubmit(finalCustomerData, doctorData);
 
-            // 🔥 FIXED: Only close if not triggering payment flow
+            // Only close if not triggering payment flow
             if (!triggerPaymentFlow) {
                 onClose();
             }
@@ -411,6 +419,7 @@ export default function CustomerDoctorDialog({
 
     const handleClose = () => {
         onClose();
+        // 🔥 FIXED: Reset form with default status "true"
         setCustomerForm({
             id: 0,
             name: "",
@@ -418,7 +427,7 @@ export default function CustomerDoctorDialog({
             age: "",
             phone: "62",
             address: "",
-            status: "true",
+            status: "true", // ✅ Reset to default "true"
         });
         setDoctorForm({
             id: 0,
@@ -515,11 +524,6 @@ export default function CustomerDoctorDialog({
                         <h2 className="text-2xl font-semibold text-gray-900">
                             {getDialogTitle()}
                         </h2>
-                        {/* {triggerPaymentFlow && (
-                            <span className="text-sm bg-blue-100 text-blue-600 px-2 py-1 rounded">
-                                Payment Flow
-                            </span>
-                        )} */}
                     </div>
                     <button
                         onClick={handleClose}
@@ -531,7 +535,7 @@ export default function CustomerDoctorDialog({
                 </div>
 
                 <div className="flex-1 overflow-auto space-y-6">
-                    {/* Customer Info Section - Same as before */}
+                    {/* Customer Info Section */}
                     <div
                         className={`transition-all duration-500 ease-in-out overflow-hidden ${
                             viewMode === "doctor-only"
@@ -877,7 +881,7 @@ export default function CustomerDoctorDialog({
                         </div>
                     </div>
 
-                    {/* Doctor Info Section - Same as before */}
+                    {/* Doctor Info Section */}
                     <div
                         className={`transition-all duration-500 ease-in-out overflow-hidden ${
                             viewMode === "customer-only"
