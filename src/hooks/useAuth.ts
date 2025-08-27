@@ -36,9 +36,9 @@ interface UseAuthReturn {
     error: string | null;
 }
 
-const getSystemMacAddress = async (): Promise<string | null> => {
+const getSystemDeviceId = async (): Promise<string | null> => {
     try {
-        console.log("🔍 Fetching system info for MAC address...");
+        console.log("🔍 Fetching system info for device ID...");
 
         const response = await fetch("http://localhost:8321/api/system/info");
         const data = await response.json();
@@ -46,45 +46,13 @@ const getSystemMacAddress = async (): Promise<string | null> => {
         console.log("📡 System info response:", {
             success: data.success,
             hasData: !!data.data,
-            ipAddressesCount: data.data?.ipAddresses?.length || 0,
+            hasDeviceConfig: !!data.data?.deviceConfig,
         });
 
-        if (data.success && data.data) {
-            let macAddress = null;
-
-            if (data.data.ipAddresses && Array.isArray(data.data.ipAddresses)) {
-                const activeInterface = data.data.ipAddresses.find(
-                    (iface: any) =>
-                        !iface.isLoopback &&
-                        iface.macAddress &&
-                        iface.isUp &&
-                        iface.macAddress !== "00:00:00:00:00:00" &&
-                        !iface.name?.toLowerCase().includes("virtual") &&
-                        !iface.name?.toLowerCase().includes("docker")
-                );
-
-                if (activeInterface) {
-                    macAddress = activeInterface.macAddress;
-                    console.log("✅ Found active interface MAC:", macAddress);
-                }
-            }
-
-            if (
-                !macAddress &&
-                data.data.macAddresses &&
-                Array.isArray(data.data.macAddresses)
-            ) {
-                const validMac = data.data.macAddresses.find(
-                    (mac: string) => mac && mac !== "00:00:00:00:00:00"
-                );
-
-                if (validMac) {
-                    macAddress = validMac;
-                    console.log("✅ Found MAC from array:", macAddress);
-                }
-            }
-
-            return macAddress;
+        if (data.success && data.data && data.data.deviceConfig) {
+            const deviceId = data.data.deviceConfig.deviceId;
+            console.log("✅ Found device ID:", deviceId);
+            return deviceId;
         }
 
         console.warn(
@@ -93,7 +61,7 @@ const getSystemMacAddress = async (): Promise<string | null> => {
         );
         return null;
     } catch (error) {
-        console.error("❌ Error getting MAC address:", error);
+        console.error("❌ Error getting device ID:", error);
 
         if (error instanceof Error && error.message.includes("fetch")) {
             console.warn(
@@ -116,32 +84,32 @@ export const useAuth = (): UseAuthReturn => {
         try {
             const validatedData = loginSchema.parse(credentials);
 
-            console.log("🔍 Attempting to get MAC address...");
-            const macAddress = await getSystemMacAddress();
+            console.log("🔍 Attempting to get device ID...");
+            const deviceId = await getSystemDeviceId();
 
-            if (!macAddress) {
+            if (!deviceId) {
                 console.warn(
-                    "⚠️ Could not retrieve MAC address from system service"
+                    "⚠️ Could not retrieve device ID from system service"
                 );
                 console.warn("⚠️ This might happen if:");
                 console.warn(
                     "   - System service is not running on localhost:8321"
                 );
-                console.warn("   - No valid network interfaces found");
+                console.warn("   - Device configuration not found");
                 console.warn("   - Network permission issues");
             }
 
             const loginPayload = {
                 username: validatedData.username,
                 password: validatedData.password,
-                mac_address: macAddress || "00:00:00:00:00:00",
+                device_id: deviceId || "KASSA-0000-0000-0000",
                 need_generate_token: true,
             };
 
             console.log("🚀 Sending login payload:", {
                 username: loginPayload.username,
-                mac_address: loginPayload.mac_address,
-                mac_address_source: macAddress ? "system_service" : "fallback",
+                device_id: loginPayload.device_id,
+                device_id_source: deviceId ? "system_service" : "fallback",
                 need_generate_token: loginPayload.need_generate_token,
             });
 

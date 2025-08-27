@@ -6,7 +6,7 @@ import { cookies } from "next/headers";
 const API_BASE_URL = "http://localhost:8081/api";
 
 interface FingerprintLoginRequest {
-    mac_address: string;
+    device_id: string;
     need_generate_token?: boolean;
 }
 
@@ -31,18 +31,18 @@ export async function POST(request: NextRequest) {
     try {
         const body: FingerprintLoginRequest = await request.json();
 
-        if (!body.mac_address) {
+        if (!body.device_id) {
             return NextResponse.json(
                 {
                     success: false,
-                    message: "MAC address is required",
+                    message: "Device ID is required",
                 },
                 { status: 400 }
             );
         }
 
         console.log("🔍 FINGERPRINT API - Received request:", {
-            mac_address: body.mac_address,
+            device_id: body.device_id,
             need_generate_token: body.need_generate_token,
             timestamp: new Date().toISOString(),
         });
@@ -54,7 +54,7 @@ export async function POST(request: NextRequest) {
                 Accept: "application/json",
             },
             body: JSON.stringify({
-                mac_address: body.mac_address,
+                device_id: body.device_id,
                 need_generate_token: body.need_generate_token ?? true,
             }),
         });
@@ -64,7 +64,7 @@ export async function POST(request: NextRequest) {
             status: response.status,
             success: response.ok,
             message: responseData.message,
-            mac_sent: body.mac_address,
+            device_id_sent: body.device_id,
         });
 
         if (!response.ok) {

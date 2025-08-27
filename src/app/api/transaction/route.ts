@@ -38,11 +38,11 @@ export async function POST(request: NextRequest) {
         );
 
         // Validate required fields
-        if (!body.mac_address) {
+        if (!body.device_id) {
             return NextResponse.json(
                 {
                     success: false,
-                    message: "MAC address is required",
+                    message: "Device ID is required",
                 },
                 { status: 400 }
             );

@@ -4,8 +4,7 @@ export interface KassaSetupData {
     status_aktif: boolean;
     finger: "Y" | "N";
     default_jual: string;
-    ip_address: string;
-    mac_address: string;
+    device_id: string;
 }
 
 export interface PrinterData {
@@ -28,7 +27,7 @@ export interface KassaResponse {
     status: string;
     finger: string;
     default_jual: string;
-    mac_address: string;
+    device_id: string;
     is_deleted?: number;
     deleted_at?: string;
     ip_address: string;
@@ -55,6 +54,7 @@ export interface KassaFormState {
     default_jual: "0" | "1" | "2";
     ip_address: string;
     mac_address: string;
+    device_id: string;
     selected_printer?: string;
     printer_id?: number;
 }

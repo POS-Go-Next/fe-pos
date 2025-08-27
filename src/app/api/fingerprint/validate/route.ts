@@ -26,14 +26,14 @@ export async function POST(request: NextRequest) {
         const body = await request.json();
 
         // Validate required fields
-        const { user_id, mac_address, number_of_fingerprint } = body;
+        const { user_id, device_id, number_of_fingerprint } = body;
 
-        if (!user_id || !mac_address || !number_of_fingerprint) {
+        if (!user_id || !device_id || !number_of_fingerprint) {
             return NextResponse.json(
                 {
                     success: false,
                     message:
-                        "Missing required fields: user_id, mac_address, number_of_fingerprint",
+                        "Missing required fields: user_id, device_id, number_of_fingerprint",
                 },
                 { status: 400 }
             );
@@ -52,7 +52,7 @@ export async function POST(request: NextRequest) {
 
         console.log("Fingerprint validation request:", {
             user_id,
-            mac_address,
+            device_id,
             number_of_fingerprint,
             timestamp: new Date().toISOString(),
         });
@@ -69,7 +69,7 @@ export async function POST(request: NextRequest) {
             },
             body: JSON.stringify({
                 user_id,
-                mac_address,
+                device_id,
                 number_of_fingerprint,
             }),
         });

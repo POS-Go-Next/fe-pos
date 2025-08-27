@@ -33,8 +33,7 @@ interface KassaSetupData {
     status_aktif: boolean;
     antrian: boolean;
     finger: "Y" | "N";
-    ip_address: string;
-    mac_address: string;
+    device_id: string;
     printer_id: number | null;
 }
 
@@ -51,9 +50,7 @@ const KassaSetupDialog: FC<KassaSetupDialogProps> = ({
     const { logout } = useAuth(); // Add logout function from useAuth
 
     const {
-        systemInfo,
-        macAddress,
-        ipAddress,
+        deviceId,
         isLoading: isSystemLoading,
         error: systemError,
         refetch: refetchSystemInfo,
@@ -66,8 +63,8 @@ const KassaSetupDialog: FC<KassaSetupDialogProps> = ({
         refetch: refetchKassaData,
         isSessionExpired: kassaSessionExpired,
     } = useKassaData({
-        macAddress,
-        enabled: hasValidToken && !!macAddress,
+        deviceId,
+        enabled: hasValidToken && !!deviceId,
     });
 
     const {
@@ -89,8 +86,7 @@ const KassaSetupDialog: FC<KassaSetupDialogProps> = ({
         status_aktif: true,
         antrian: true,
         finger: "Y",
-        ip_address: "",
-        mac_address: "",
+        device_id: "",
         printer_id: null,
     });
 
@@ -105,7 +101,7 @@ const KassaSetupDialog: FC<KassaSetupDialogProps> = ({
     }, [isOpen]);
 
     useEffect(() => {
-        if (kassaData && ipAddress && macAddress && !isDataLoaded) {
+        if (kassaData && deviceId && !isDataLoaded) {
             console.log("🪟 Loading kassa data into form:", kassaData);
 
             setFormData({
@@ -113,8 +109,7 @@ const KassaSetupDialog: FC<KassaSetupDialogProps> = ({
                 status_aktif: kassaData.status_aktif,
                 antrian: kassaData.antrian,
                 finger: kassaData.finger as "Y" | "N",
-                ip_address: kassaData.ip_address || ipAddress,
-                mac_address: kassaData.mac_address || macAddress,
+                device_id: kassaData.device_id || deviceId,
                 printer_id: kassaData.printer_id || null,
             });
 
@@ -125,8 +120,7 @@ const KassaSetupDialog: FC<KassaSetupDialogProps> = ({
             setIsDataLoaded(true);
         } else if (
             !kassaData &&
-            ipAddress &&
-            macAddress &&
+            deviceId &&
             hasValidToken &&
             !isKassaLoading
         ) {
@@ -134,16 +128,14 @@ const KassaSetupDialog: FC<KassaSetupDialogProps> = ({
 
             setFormData((prev) => ({
                 ...prev,
-                ip_address: ipAddress,
-                mac_address: macAddress,
+                device_id: deviceId,
             }));
 
             setIsDataLoaded(true);
         }
     }, [
         kassaData,
-        ipAddress,
-        macAddress,
+        deviceId,
         hasValidToken,
         isKassaLoading,
         isDataLoaded,
@@ -169,7 +161,7 @@ const KassaSetupDialog: FC<KassaSetupDialogProps> = ({
         setIsDataLoaded(false);
 
         try {
-            const response = await fetch(`/api/kassa/${macAddress}`, {
+            const response = await fetch(`/api/kassa/${deviceId}`, {
                 method: "GET",
                 headers: {
                     "Content-Type": "application/json",
@@ -366,7 +358,7 @@ const KassaSetupDialog: FC<KassaSetupDialogProps> = ({
     const handleSubmit = async () => {
         try {
             console.log("🚀 Submitting kassa setup:", formData);
-            console.log("🪟 MAC Address used:", macAddress);
+            console.log("🪟 Device ID used:", deviceId);
             console.log("🖨️ Selected Printer ID:", selectedPrinterId);
 
             if (!hasValidToken) {
@@ -374,22 +366,21 @@ const KassaSetupDialog: FC<KassaSetupDialogProps> = ({
                 return;
             }
 
-            if (!macAddress) {
+            if (!deviceId) {
                 await showErrorAlert(
                     "Error",
-                    "MAC address not available. Please check your network connection.",
+                    "Device ID not available. Please check your system configuration.",
                     "OK"
                 );
                 return;
             }
 
-            const submitData = {
+            const submitData: KassaSetupData = {
                 default_jual: formData.default_jual,
                 status_aktif: formData.status_aktif,
                 antrian: formData.antrian,
                 finger: formData.finger,
-                ip_address: formData.ip_address,
-                mac_address: formData.mac_address,
+                device_id: formData.device_id,
                 printer_id: selectedPrinterId,
             };
 
@@ -399,12 +390,11 @@ const KassaSetupDialog: FC<KassaSetupDialogProps> = ({
                 status_aktif: typeof submitData.status_aktif,
                 antrian: typeof submitData.antrian,
                 finger: typeof submitData.finger,
-                ip_address: typeof submitData.ip_address,
-                mac_address: typeof submitData.mac_address,
+                device_id: typeof submitData.device_id,
                 printer_id: typeof submitData.printer_id,
             });
 
-            const result = await updateKassa(macAddress, submitData);
+            const result = await updateKassa(deviceId, submitData);
 
             if (result.isSessionExpired) {
                 setHasValidToken(false);
@@ -447,8 +437,7 @@ const KassaSetupDialog: FC<KassaSetupDialogProps> = ({
             status_aktif: true,
             antrian: true,
             finger: "Y",
-            ip_address: ipAddress || "",
-            mac_address: macAddress || "",
+            device_id: deviceId || "",
             printer_id: null,
         });
         setSelectedPrinterId(null);
@@ -673,85 +662,43 @@ const KassaSetupDialog: FC<KassaSetupDialogProps> = ({
                         </div>
                     </div>
 
-                    <div className="grid grid-cols-2 gap-3">
-                        <div className="space-y-4 bg-white rounded-2xl p-4">
-                            <div className="flex items-center justify-between">
-                                <h3 className="text-base font-medium text-gray-900">
-                                    IP Address
-                                </h3>
-                                <Image
-                                    src={"icons/icon-5.svg"}
-                                    alt="icon"
-                                    width={40}
-                                    height={40}
-                                />
-                            </div>
-                            <div className="flex gap-2">
-                                <Input
-                                    value={formData.ip_address}
-                                    onChange={(e) =>
-                                        handleToggle(
-                                            "ip_address",
-                                            e.target.value
-                                        )
-                                    }
-                                    className="flex-1 bg-gray-50"
-                                    placeholder="192.168.1.20"
-                                    disabled={isLoading}
-                                />
-                                <Button
-                                    type="button"
-                                    className="bg-blue-600 hover:bg-blue-700 px-6"
-                                    disabled={isLoading}
-                                    onClick={refetchSystemInfo}
-                                >
-                                    {isSystemLoading ? (
-                                        <Loader2 className="h-4 w-4 animate-spin" />
-                                    ) : (
-                                        "Refresh"
-                                    )}
-                                </Button>
-                            </div>
+                    <div className="space-y-4 bg-white rounded-2xl p-4">
+                        <div className="flex items-center justify-between">
+                            <h3 className="text-base font-medium text-gray-900">
+                                Device ID
+                            </h3>
+                            <Image
+                                src={"icons/icon-6.svg"}
+                                alt="icon"
+                                width={40}
+                                height={40}
+                            />
                         </div>
-
-                        <div className="space-y-4 bg-white rounded-2xl p-4">
-                            <div className="flex items-center justify-between">
-                                <h3 className="text-base font-medium text-gray-900">
-                                    MAC Address
-                                </h3>
-                                <Image
-                                    src={"icons/icon-6.svg"}
-                                    alt="icon"
-                                    width={40}
-                                    height={40}
-                                />
-                            </div>
-                            <div className="flex gap-2">
-                                <Input
-                                    value={formData.mac_address}
-                                    onChange={(e) =>
-                                        handleToggle(
-                                            "mac_address",
-                                            e.target.value
-                                        )
-                                    }
-                                    className="flex-1 bg-gray-50"
-                                    placeholder="84-1B-77-FD-31-35"
-                                    disabled={isLoading}
-                                />
-                                <Button
-                                    type="button"
-                                    className="bg-blue-600 hover:bg-blue-700 px-6"
-                                    disabled={isLoading}
-                                    onClick={refetchSystemInfo}
-                                >
-                                    {isSystemLoading ? (
-                                        <Loader2 className="h-4 w-4 animate-spin" />
-                                    ) : (
-                                        "Refresh"
-                                    )}
-                                </Button>
-                            </div>
+                        <div className="flex gap-2">
+                            <Input
+                                value={formData.device_id}
+                                onChange={(e) =>
+                                    handleToggle(
+                                        "device_id",
+                                        e.target.value
+                                    )
+                                }
+                                className="flex-1 bg-gray-50"
+                                placeholder="KASSA-1234-5678-9ABC"
+                                disabled={isLoading}
+                            />
+                            <Button
+                                type="button"
+                                className="bg-blue-600 hover:bg-blue-700 px-6"
+                                disabled={isLoading}
+                                onClick={refetchSystemInfo}
+                            >
+                                {isSystemLoading ? (
+                                    <Loader2 className="h-4 w-4 animate-spin" />
+                                ) : (
+                                    "Refresh"
+                                )}
+                            </Button>
                         </div>
                     </div>
 

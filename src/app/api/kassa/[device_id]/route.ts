@@ -1,4 +1,4 @@
-// app/api/kassa/[mac_address]/route.ts
+// app/api/kassa/[device_id]/route.ts
 import { NextRequest, NextResponse } from "next/server";
 import { cookies } from "next/headers";
 
@@ -20,8 +20,7 @@ interface KassaResponse {
     status: string;
     finger: string;
     default_jual: string;
-    ip_address: string;
-    mac_address: string;
+    device_id: string;
     printer_id?: number;
     printer?: {
         id: number;
@@ -37,7 +36,7 @@ interface KassaExternalApiResponse {
 
 export async function GET(
     request: NextRequest,
-    { params }: { params: { mac_address: string } }
+    { params }: { params: { device_id: string } }
 ) {
     try {
         const cookieStore = cookies();
@@ -55,24 +54,24 @@ export async function GET(
             );
         }
 
-        const macAddress = params.mac_address;
+        const deviceId = params.device_id;
 
-        if (!macAddress) {
+        if (!deviceId) {
             return NextResponse.json(
                 {
                     success: false,
-                    message: "MAC address is required",
+                    message: "Device ID is required",
                 },
                 { status: 400 }
             );
         }
 
-        console.log("Fetching kassa data for MAC:", {
-            macAddress,
+        console.log("Fetching kassa data for device ID:", {
+            deviceId,
             timestamp: new Date().toISOString(),
         });
 
-        const response = await fetch(`${API_BASE_URL}/kassa/${macAddress}`, {
+        const response = await fetch(`${API_BASE_URL}/kassa/${deviceId}`, {
             method: "GET",
             headers: {
                 "Content-Type": "application/json",
@@ -101,7 +100,7 @@ export async function GET(
                 return NextResponse.json(
                     {
                         success: false,
-                        message: "Kassa not found for this MAC address",
+                        message: "Kassa not found for this device ID",
                     },
                     { status: 404 }
                 );

@@ -1,7 +1,7 @@
 // hooks/useTransactionInfo.ts
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, useCallback } from "react";
 
 interface KassaData {
     id_kassa: number;
@@ -16,8 +16,7 @@ interface KassaData {
     status: string;
     finger: string;
     default_jual: string;
-    ip_address: string;
-    mac_address: string;
+    device_id: string;
     printer_id?: number;
     printer?: {
         id: number;
@@ -41,9 +40,22 @@ interface SystemInfoData {
     osInfo: {
         platform: string;
         architecture: string;
+        goVersion: string;
         numCPU: number;
     };
     workingDir: string;
+    deviceConfig: {
+        deviceId: string;
+        deviceName: string;
+        grpcServerHost: string;
+        grpcServerPort: number;
+        grpcTlsEnabled: boolean;
+        grpcCertPath: string;
+        version: string;
+        logRetentionDays: number;
+        createdAt: string;
+        updatedAt: string;
+    };
     timestamp: string;
 }
 
@@ -92,9 +104,9 @@ export const useTransactionInfo = (): UseTransactionInfoReturn => {
     const [isLoading, setIsLoading] = useState(true);
     const [error, setError] = useState<string | null>(null);
 
-    const getSystemMacAddress = async (): Promise<string | null> => {
+    const getSystemDeviceId = async (): Promise<string | null> => {
         try {
-            console.log("🔄 Fetching MAC address from system service...");
+            console.log("🔄 Fetching device ID from system service...");
 
             const response = await fetch(
                 "http://localhost:8321/api/system/info",
@@ -106,39 +118,19 @@ export const useTransactionInfo = (): UseTransactionInfoReturn => {
 
             if (response.ok) {
                 const data: SystemInfoResponse = await response.json();
-                if (data.success && data.data.ipAddresses) {
-                    // Find first non-loopback interface with MAC address
-                    const activeInterface = data.data.ipAddresses.find(
-                        (iface) =>
-                            !iface.isLoopback && iface.macAddress && iface.isUp
+                if (data.success && data.data.deviceConfig) {
+                    console.log(
+                        "✅ Found device ID:",
+                        data.data.deviceConfig.deviceId
                     );
-
-                    if (activeInterface) {
-                        console.log(
-                            "✅ Found MAC address:",
-                            activeInterface.macAddress
-                        );
-                        return activeInterface.macAddress;
-                    }
-
-                    // Fallback: use first available MAC address
-                    if (
-                        data.data.macAddresses &&
-                        data.data.macAddresses.length > 0
-                    ) {
-                        console.log(
-                            "✅ Using fallback MAC address:",
-                            data.data.macAddresses[0]
-                        );
-                        return data.data.macAddresses[0];
-                    }
+                    return data.data.deviceConfig.deviceId;
                 }
             }
 
-            console.warn("⚠️ Could not get MAC address from system service");
+            console.warn("⚠️ Could not get device ID from system service");
             return null;
         } catch (error) {
-            console.error("❌ Error fetching system MAC address:", error);
+            console.error("❌ Error fetching system device ID:", error);
             return null;
         }
     };
@@ -156,27 +148,27 @@ export const useTransactionInfo = (): UseTransactionInfoReturn => {
         }
     };
 
-    const fetchTransactionInfo = async () => {
+    const fetchTransactionInfo = useCallback(async () => {
         try {
             setIsLoading(true);
             setError(null);
 
             const username = getUsername();
 
-            // Step 1: Get real MAC address from system service
-            const macAddress = await getSystemMacAddress();
+            // Step 1: Get real device ID from system service
+            const deviceId = await getSystemDeviceId();
 
-            if (!macAddress) {
-                throw new Error("Could not obtain MAC address from system");
+            if (!deviceId) {
+                throw new Error("Could not obtain device ID from system");
             }
 
-            console.log("🔄 Using MAC address:", macAddress);
+            console.log("🔄 Using device ID:", deviceId);
 
-            // Step 2: Fetch all 3 APIs in parallel using the real MAC address
+            // Step 2: Fetch all 3 APIs in parallel using the real device ID
             const [kassaResponse, queueResponse, invoiceResponse] =
                 await Promise.all([
-                    // 1. Get Kassa info by MAC address
-                    fetch(`/api/kassa/${macAddress}`, {
+                    // 1. Get Kassa info by device ID
+                    fetch(`/api/kassa/${deviceId}`, {
                         method: "GET",
                         headers: { "Content-Type": "application/json" },
                     }),
@@ -203,13 +195,13 @@ export const useTransactionInfo = (): UseTransactionInfoReturn => {
                     console.log("✅ Kassa data:", {
                         id_kassa: kassaData.data.id_kassa,
                         no_kassa: kassaData.data.no_kassa,
-                        mac_address: kassaData.data.mac_address,
+                        device_id: kassaData.data.device_id,
                     });
                 }
             } else {
                 console.warn("⚠️ Kassa API failed:", kassaResponse.status);
                 if (kassaResponse.status === 404) {
-                    console.log("🔍 Kassa not found for MAC:", macAddress);
+                    console.log("🔍 Kassa not found for device ID:", deviceId);
                 }
                 noKassa = "1"; // Default counter number
             }
@@ -256,11 +248,11 @@ export const useTransactionInfo = (): UseTransactionInfoReturn => {
         } finally {
             setIsLoading(false);
         }
-    };
+    }, []);
 
     useEffect(() => {
         fetchTransactionInfo();
-    }, []);
+    }, [fetchTransactionInfo]);
 
     const refetch = () => {
         fetchTransactionInfo();

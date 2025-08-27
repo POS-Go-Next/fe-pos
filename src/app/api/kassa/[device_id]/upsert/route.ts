@@ -1,4 +1,4 @@
-// app/api/kassa/[mac_address]/upsert/route.ts
+// app/api/kassa/[device_id]/upsert/route.ts
 import { NextRequest, NextResponse } from "next/server";
 import { cookies } from "next/headers";
 
@@ -12,8 +12,7 @@ interface KassaUpsertData {
     status_aktif: boolean;
     antrian: boolean;
     finger: string;
-    ip_address: string;
-    mac_address: string;
+    device_id: string;
     printer_id: number | null;
 }
 
@@ -31,15 +30,14 @@ interface KassaResponse {
     status: string;
     finger: string;
     default_jual: string;
-    mac_address: string;
+    device_id: string;
     is_deleted: number;
     deleted_at: string;
-    ip_address: string;
 }
 
 export async function POST(
     request: NextRequest,
-    { params }: { params: { mac_address: string } }
+    { params }: { params: { device_id: string } }
 ) {
     try {
         const cookieStore = cookies();
@@ -57,13 +55,13 @@ export async function POST(
             );
         }
 
-        const macAddress = params.mac_address;
+        const deviceId = params.device_id;
 
-        if (!macAddress) {
+        if (!deviceId) {
             return NextResponse.json(
                 {
                     success: false,
-                    message: "MAC address is required",
+                    message: "Device ID is required",
                 },
                 { status: 400 }
             );
@@ -77,8 +75,7 @@ export async function POST(
             status_aktif: typeof body.status_aktif,
             antrian: typeof body.antrian,
             finger: typeof body.finger,
-            ip_address: typeof body.ip_address,
-            mac_address: typeof body.mac_address,
+            device_id: typeof body.device_id,
             printer_id: typeof body.printer_id,
         });
 
@@ -88,8 +85,7 @@ export async function POST(
             status_aktif: Boolean(body.status_aktif),
             antrian: Boolean(body.antrian),
             finger: body.finger,
-            ip_address: body.ip_address,
-            mac_address: body.mac_address,
+            device_id: body.device_id,
             printer_id: body.printer_id ? Number(body.printer_id) : null,
         };
 
@@ -100,8 +96,7 @@ export async function POST(
             typeof processedBody.status_aktif !== "boolean" ||
             typeof processedBody.antrian !== "boolean" ||
             !processedBody.finger ||
-            !processedBody.ip_address ||
-            !processedBody.mac_address ||
+            !processedBody.device_id ||
             (processedBody.printer_id !== null &&
                 typeof processedBody.printer_id !== "number")
         ) {
@@ -120,13 +115,13 @@ export async function POST(
         }
 
         console.log("Kassa upsert request:", {
-            macAddress,
+            deviceId,
             body: processedBody,
             timestamp: new Date().toISOString(),
         });
 
         const response = await fetch(
-            `${API_BASE_URL}/kassa/${macAddress}/upsert`,
+            `${API_BASE_URL}/kassa/${deviceId}/upsert`,
             {
                 method: "POST",
                 headers: {

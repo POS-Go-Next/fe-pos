@@ -9,8 +9,7 @@ interface KassaSetupData {
     status_aktif: boolean;
     antrian: boolean;
     finger: string;
-    ip_address: string;
-    mac_address: string;
+    device_id: string;
     printer_id: number | null;
 }
 
@@ -28,10 +27,9 @@ interface KassaResponse {
     status: string;
     finger: string;
     default_jual: string;
-    mac_address: string;
+    device_id: string;
     is_deleted: number;
     deleted_at: string;
-    ip_address: string;
 }
 
 interface KassaApiResponse {
@@ -43,7 +41,7 @@ interface KassaApiResponse {
 
 interface UseKassaReturn {
     updateKassa: (
-        macAddress: string,
+        deviceId: string,
         data: KassaSetupData,
         customSessionHandler?: () => Promise<void>
     ) => Promise<{
@@ -64,7 +62,7 @@ export const useKassa = (): UseKassaReturn => {
     );
 
     const updateKassa = async (
-        macAddress: string,
+        deviceId: string,
         data: KassaSetupData,
         customSessionHandler?: () => Promise<void>
     ): Promise<{
@@ -76,9 +74,9 @@ export const useKassa = (): UseKassaReturn => {
         setError(null);
 
         try {
-            console.log("🔄 Updating kassa setup:", { macAddress, data });
+            console.log("🔄 Updating kassa setup:", { deviceId, data });
 
-            const response = await fetch(`/api/kassa/${macAddress}/upsert`, {
+            const response = await fetch(`/api/kassa/${deviceId}/upsert`, {
                 method: "POST",
                 headers: {
                     "Content-Type": "application/json",

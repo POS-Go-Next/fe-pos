@@ -42,7 +42,7 @@ export interface UserApiParams {
 
 export interface FingerprintSetupData {
     user_id: number;
-    mac_address: string;
+    device_id: string;
     number_of_fingerprint: 1 | 2;
 }
 

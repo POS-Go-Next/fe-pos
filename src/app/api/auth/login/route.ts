@@ -14,7 +14,7 @@ export async function POST(request: NextRequest) {
 
         console.log("🚀 LOGIN API - Received request:", {
             username: validatedData.username,
-            mac_address: body.mac_address,
+            device_id: body.device_id,
             timestamp: new Date().toISOString(),
         });
 
@@ -26,7 +26,7 @@ export async function POST(request: NextRequest) {
             },
             body: JSON.stringify({
                 ...validatedData,
-                mac_address: body.mac_address,
+                device_id: body.device_id,
                 need_generate_token: true,
             }),
         });
@@ -36,7 +36,7 @@ export async function POST(request: NextRequest) {
             status: response.status,
             success: response.ok,
             message: responseData.message,
-            mac_sent: body.mac_address,
+            device_id_sent: body.device_id,
         });
 
         if (!response.ok) {
