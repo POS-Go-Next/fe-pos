@@ -1,7 +1,7 @@
 // app/create-order/choose-menu/_components/ChooseMiscDialog.tsx
 "use client";
 
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
 import { X, ChevronDown } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -24,8 +24,9 @@ const ChooseMiscDialog: React.FC<ChooseMiscDialogProps> = ({
     const [medicationType, setMedicationType] = useState(
         "Capsule Compound (Racikan Kapsul)"
     );
-    const [quantity, setQuantity] = useState(0);
-    const [amount, setAmount] = useState(0);
+    const [quantity, setQuantity] = useState("");
+    const [amount, setAmount] = useState("");
+    const [baseAmount, setBaseAmount] = useState(400); // Base amount for calculation
     const [isDropdownOpen, setIsDropdownOpen] = useState(false);
 
     const medicationOptions = [
@@ -37,30 +38,88 @@ const ChooseMiscDialog: React.FC<ChooseMiscDialogProps> = ({
         "Ointment Compound (Racikan Salep)",
     ];
 
+    // Function to get base amount based on medication type
+    const getBaseAmount = (type: string): number => {
+        switch (type) {
+            case "Capsule Compound (Racikan Kapsul)":
+                return 400;
+            case "Powder Compound (Racikan Puyer)":
+                return 400;
+            default:
+                return 0;
+        }
+    };
+
+    // Effect to handle medication type change
+    useEffect(() => {
+        const newBaseAmount = getBaseAmount(medicationType);
+        setBaseAmount(newBaseAmount);
+
+        // Calculate new amount based on current quantity
+        if (quantity !== "") {
+            const qty = Number(quantity) || 0;
+            const newAmount = newBaseAmount * qty;
+            setAmount(newAmount > 0 ? newAmount.toString() : "");
+        } else if (newBaseAmount > 0) {
+            // If no quantity but baseAmount exists, show the base amount
+            setAmount("");
+        } else {
+            setAmount("");
+        }
+    }, [medicationType]);
+
+    // Effect to handle quantity change
+    useEffect(() => {
+        if (quantity !== "" && baseAmount > 0) {
+            const qty = Number(quantity) || 0;
+            const newAmount = baseAmount * qty;
+            setAmount(newAmount > 0 ? newAmount.toString() : "");
+        } else if (quantity === "") {
+            setAmount("");
+        }
+    }, [quantity, baseAmount]);
+
     if (!isOpen) return null;
 
     const handleSubmit = () => {
         onSubmit({
             medicationType,
-            quantity,
-            amount,
+            quantity: Number(quantity) || 0,
+            amount: Number(amount) || 0,
         });
 
+        // Reset form
         setMedicationType("Capsule Compound (Racikan Kapsul)");
-        setQuantity(0);
-        setAmount(0);
+        setQuantity("");
+        setAmount("");
+        setBaseAmount(400);
     };
 
     const handleCancel = () => {
         setMedicationType("Capsule Compound (Racikan Kapsul)");
-        setQuantity(0);
-        setAmount(0);
+        setQuantity("");
+        setAmount("");
+        setBaseAmount(400);
         onClose();
     };
 
     const handleMedicationSelect = (option: string) => {
         setMedicationType(option);
         setIsDropdownOpen(false);
+    };
+
+    const handleQuantityChange = (value: string) => {
+        // Only allow empty string or valid positive numbers (no alphabets)
+        if (value === "" || (/^\d*\.?\d*$/.test(value) && Number(value) >= 0)) {
+            setQuantity(value);
+        }
+    };
+
+    const handleAmountChange = (value: string) => {
+        // Only allow empty string or valid positive numbers (no alphabets)
+        if (value === "" || (/^\d*\.?\d*$/.test(value) && Number(value) >= 0)) {
+            setAmount(value);
+        }
     };
 
     return (
@@ -128,7 +187,7 @@ const ChooseMiscDialog: React.FC<ChooseMiscDialogProps> = ({
                                 type="number"
                                 value={quantity}
                                 onChange={(e) =>
-                                    setQuantity(Number(e.target.value))
+                                    handleQuantityChange(e.target.value)
                                 }
                                 className="w-full bg-gray-100 border-gray-300"
                                 min="0"
@@ -147,7 +206,7 @@ const ChooseMiscDialog: React.FC<ChooseMiscDialogProps> = ({
                                     type="number"
                                     value={amount}
                                     onChange={(e) =>
-                                        setAmount(Number(e.target.value))
+                                        handleAmountChange(e.target.value)
                                     }
                                     className="w-full pl-8 bg-gray-100 border-gray-300"
                                     min="0"

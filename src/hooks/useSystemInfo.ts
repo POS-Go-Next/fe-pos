@@ -55,7 +55,6 @@ export const useSystemInfo = (): UseSystemInfoReturn => {
 
             setSystemInfo(result.data);
 
-            // Get first active network interface
             const activeInterface =
                 result.data.ipAddresses.find(
                     (iface) => iface.isUp && !iface.isLoopback

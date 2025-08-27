@@ -1,6 +1,7 @@
 // src\app\dashboard\_components\BiometricLoginDialog.tsx
 import { Button } from "@/components/ui/button";
 import { useFingerprintAuth } from "@/hooks/useFingerprintAuth";
+import { useAuth } from "@/hooks/useAuth"; // Add this import
 import { ArrowLeft, Check, X } from "lucide-react";
 import React, { useEffect, useState } from "react";
 
@@ -53,6 +54,7 @@ const BiometricLoginDialog: React.FC<BiometricLoginDialogProps> = ({
     const [hasTriedScan, setHasTriedScan] = useState(false); // NEW: Track if scan already attempted
 
     const { fingerprintLogin, isLoading } = useFingerprintAuth();
+    const { logout } = useAuth(); // Add logout function from useAuth
 
     // Fetch system info to get MAC address
     const fetchSystemInfo = async () => {
@@ -180,7 +182,14 @@ const BiometricLoginDialog: React.FC<BiometricLoginDialogProps> = ({
         }
     }, [isOpen, biometricState, macAddress, hasTriedScan]);
 
-    const handleClose = () => {
+    // Add logout function that will be called on dialog close
+    const handleLogoutAndClose = async () => {
+        try {
+            await logout();
+            console.log("✅ User logged out successfully");
+        } catch (error) {
+            console.error("❌ Logout error:", error);
+        }
         setBiometricState("idle");
         setProgress(0);
         setErrorMessage("");
@@ -189,7 +198,13 @@ const BiometricLoginDialog: React.FC<BiometricLoginDialogProps> = ({
         onClose();
     };
 
-    const handleBack = () => {
+    const handleBack = async () => {
+        try {
+            await logout();
+            console.log("✅ User logged out successfully on back");
+        } catch (error) {
+            console.error("❌ Logout error:", error);
+        }
         setBiometricState("idle");
         setProgress(0);
         setErrorMessage("");
@@ -383,7 +398,7 @@ const BiometricLoginDialog: React.FC<BiometricLoginDialogProps> = ({
                         Biometric Login
                     </h2>
                     <button
-                        onClick={handleClose}
+                        onClick={handleLogoutAndClose} // Updated to call logout and close
                         className="w-8 h-8 flex items-center justify-center rounded-full border border-gray-300 hover:border-gray-400 transition-colors"
                     >
                         <X className="h-4 w-4 text-gray-600" />
@@ -405,7 +420,7 @@ const BiometricLoginDialog: React.FC<BiometricLoginDialogProps> = ({
                         ) : (
                             <Button
                                 variant="outline"
-                                onClick={handleBack}
+                                onClick={handleBack} // Updated to call logout and close
                                 className="px-8 py-3 border-blue-500 text-blue-500 hover:bg-blue-50 transition-all duration-200"
                                 disabled={
                                     biometricState === "scanning" ||

@@ -19,7 +19,6 @@ interface EmployeeDropdownProps {
     onSearchChange: (term: string) => void;
     onRetry: () => void;
     isAuthenticated: boolean;
-    // Optional props for infinite scroll - backward compatible
     hasMoreData?: boolean;
     isLoadingMore?: boolean;
     onLoadMore?: () => void;
@@ -46,7 +45,6 @@ const EmployeeDropdown: FC<EmployeeDropdownProps> = ({
     const scrollContainerRef = useRef<HTMLDivElement>(null);
     const loadingTriggerRef = useRef<HTMLDivElement>(null);
 
-    // Intersection Observer for infinite scroll
     useEffect(() => {
         if (!isOpen || !hasMoreData || isLoadingMore || !onLoadMore) return;
 
@@ -77,7 +75,6 @@ const EmployeeDropdown: FC<EmployeeDropdownProps> = ({
         };
     }, [isOpen, hasMoreData, isLoadingMore, onLoadMore]);
 
-    // Handle scroll to detect when user reaches bottom manually (fallback)
     const handleScroll = useCallback(
         (e: React.UIEvent<HTMLDivElement>) => {
             if (!hasMoreData || isLoadingMore || !onLoadMore) return;
@@ -143,7 +140,6 @@ const EmployeeDropdown: FC<EmployeeDropdownProps> = ({
                         </button>
                     ))}
 
-                    {/* Loading trigger for infinite scroll */}
                     {hasMoreData && (
                         <div
                             ref={loadingTriggerRef}
@@ -164,7 +160,6 @@ const EmployeeDropdown: FC<EmployeeDropdownProps> = ({
                         </div>
                     )}
 
-                    {/* Data counter - only show when infinite scroll is enabled */}
                     {totalCount && totalCount > 0 && (
                         <div className="px-4 py-2 bg-gray-50 text-xs text-gray-500 text-center border-t">
                             Showing {employees.length} of {totalCount} employees
@@ -211,7 +206,6 @@ const EmployeeDropdown: FC<EmployeeDropdownProps> = ({
 
                 {isOpen && !isLoading && !error && isAuthenticated && (
                     <div className="absolute top-full left-0 w-full bg-white border border-gray-200 rounded-md shadow-lg z-20 max-h-80 overflow-hidden mt-1">
-                        {/* Search input */}
                         <div className="p-3 border-b sticky top-0 bg-white z-10">
                             <Input
                                 type="text"
@@ -223,7 +217,6 @@ const EmployeeDropdown: FC<EmployeeDropdownProps> = ({
                             />
                         </div>
 
-                        {/* Scrollable content */}
                         <div
                             ref={scrollContainerRef}
                             className="max-h-64 overflow-y-auto"

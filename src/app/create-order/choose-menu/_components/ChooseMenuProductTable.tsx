@@ -1,4 +1,4 @@
-// components/shared/ChooseMenuProductTable.tsx - UPDATED WITH DYNAMIC SC
+// components/shared/ChooseMenuProductTable.tsx - UPDATED CHOOSE MISC SHORTCUT LOGIC
 "use client";
 
 import BranchWideStockDialog from "@/components/shared/branch-wide-stock-dialog";
@@ -125,6 +125,7 @@ interface ChooseMenuProductTableProps {
     onProductSelect?: (product: any, productId: number) => void;
     onTypeChange?: (id: number, type: string) => void;
     onDiscountChange?: (id: number, discount: number) => void;
+    onMiscChange?: (id: number, miscAmount: number) => void; // 🔥 NEW: Handler for misc changes
     className?: string;
 }
 
@@ -138,6 +139,7 @@ export default function ChooseMenuProductTable({
     onProductSelect,
     onTypeChange,
     onDiscountChange,
+    onMiscChange, // 🔥 NEW: Destructure onMiscChange prop
     className = "",
 }: ChooseMenuProductTableProps) {
     const [isClient, setIsClient] = useState(false);
@@ -314,9 +316,16 @@ export default function ChooseMenuProductTable({
             showNewItemSuggestion: () => {
                 console.log("🔥 Ctrl+Shift+F11: Opening New Item Suggestion");
             },
+            // 🔥 UPDATED: addMisc now requires product selection like showProductHistory
             addMisc: () => {
                 console.log("🔥 Ctrl+Shift+F12: Opening Add Misc Dialog");
-                toggleDialog("chooseMisc");
+                if (selectedRowId !== null && selectedProduct) {
+                    toggleDialog("chooseMisc");
+                } else {
+                    console.log(
+                        "⚠️ No product selected for misc - no action taken"
+                    );
+                }
             },
         },
         {
@@ -494,7 +503,7 @@ export default function ChooseMenuProductTable({
             }
             setSearchValue("");
             setPreSearchQuery("");
-            console.log("🔄 Search cleared via ESC key");
+            console.log("🗑️ Search cleared via ESC key");
         }
     };
 
@@ -838,7 +847,6 @@ export default function ChooseMenuProductTable({
 
                                             <td className="p-3 text-sm">
                                                 <div className="whitespace-nowrap">
-                                                    {/* 🔥 NEW: Display dynamic SC value based on type */}
                                                     {formatCurrency(
                                                         displaySCValue
                                                     )}
@@ -875,7 +883,6 @@ export default function ChooseMenuProductTable({
 
                                             <td className="p-3 text-sm font-bold">
                                                 <div className="whitespace-nowrap">
-                                                    {/* 🔥 UPDATED: Calculate total with dynamic SC */}
                                                     {formatCurrency(
                                                         hasProductData &&
                                                             product.subtotal
@@ -947,7 +954,6 @@ export default function ChooseMenuProductTable({
                 productName={selectedProduct?.name}
             />
 
-            {/* 🔥 FIXED: Customer/Doctor Dialog for Ctrl+Space with triggerPaymentFlow */}
             <CustomerDoctorDialog
                 isOpen={dialogStates.customerDoctor}
                 onClose={() => closeDialog("customerDoctor")}
@@ -956,7 +962,7 @@ export default function ChooseMenuProductTable({
                 onSubmit={handleCustomerDoctorSubmit}
                 mode="both"
                 initialFocus="customer"
-                triggerPaymentFlow={true} // 🔥 Always true for Ctrl+Space flow
+                triggerPaymentFlow={true}
             />
 
             <PaymentDialog
@@ -1013,10 +1019,8 @@ export default function ChooseMenuProductTable({
                         "✅ Transaction type selected:",
                         transactionData
                     );
-                    // Store transaction type data
                     setTransactionTypeData(transactionData);
                     closeDialog("transactionType");
-                    // 🔥 FIXED: Open Payment Dialog after transaction type selection
                     console.log(
                         "🔥 Opening Payment Dialog from Transaction Type"
                     );
@@ -1111,6 +1115,70 @@ export default function ChooseMenuProductTable({
                 onClose={() => closeDialog("chooseMisc")}
                 onSubmit={(miscData) => {
                     console.log("✅ Misc applied:", miscData);
+
+                    // Apply misc amount to selected product
+                    if (selectedRowId !== null && selectedProduct) {
+                        // Call parent callback if available
+                        if (onMiscChange) {
+                            onMiscChange(selectedRowId, miscData.amount);
+                        } else {
+                            // Fallback: Show warning that parent callback is not implemented
+                            console.warn(
+                                "⚠️ onMiscChange callback not provided by parent component"
+                            );
+                            console.log(
+                                "💡 Parent component needs to implement onMiscChange handler to update products state"
+                            );
+                            console.log("💡 Example implementation in parent:");
+                            console.log(`
+const handleMiscChange = (productId, miscAmount) => {
+    setProducts(prev => prev.map(product => 
+        product.id === productId 
+            ? { ...product, misc: (product.misc || 0) + miscAmount }
+            : product
+    ));
+};
+
+<ChooseMenuProductTable 
+    onMiscChange={handleMiscChange}
+    // ... other props
+/>
+                            `);
+                        }
+
+                        // Update local selected product state for immediate UI feedback
+                        const updatedProduct = {
+                            ...selectedProduct,
+                            misc: (selectedProduct.misc || 0) + miscData.amount,
+                        };
+
+                        // Recalculate total with new misc value
+                        const displaySCValue = getSCValueByType(
+                            selectedProduct.type || ""
+                        );
+                        updatedProduct.total =
+                            (updatedProduct.subtotal || 0) +
+                            displaySCValue +
+                            (updatedProduct.misc || 0) -
+                            (updatedProduct.subtotal || 0) *
+                                ((updatedProduct.discount || 0) / 100) -
+                            (updatedProduct.promo || 0);
+
+                        setSelectedProduct(updatedProduct);
+
+                        console.log("🔥 Misc applied to product:", {
+                            productId: selectedRowId,
+                            productName: selectedProduct?.name,
+                            previousMisc: selectedProduct.misc || 0,
+                            addedMisc: miscData.amount,
+                            newMisc:
+                                (selectedProduct.misc || 0) + miscData.amount,
+                            medicationType: miscData.medicationType,
+                            quantity: miscData.quantity,
+                            newTotal: updatedProduct.total,
+                        });
+                    }
+
                     closeDialog("chooseMisc");
                 }}
             />

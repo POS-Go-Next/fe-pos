@@ -70,6 +70,29 @@ export const handleSessionExpired = () => {
     }
 };
 
+// Add new function to handle logout via API
+export const handleLogout = async (): Promise<void> => {
+    try {
+        // Call logout API endpoint
+        const response = await fetch("/api/auth/logout", {
+            method: "POST",
+            headers: {
+                "Content-Type": "application/json",
+            },
+            credentials: "include",
+        });
+
+        if (!response.ok) {
+            console.warn("Logout API failed, proceeding with local cleanup");
+        }
+    } catch (error) {
+        console.warn("Logout API error, proceeding with local cleanup:", error);
+    } finally {
+        // Always clean up local storage and redirect regardless of API response
+        handleSessionExpired();
+    }
+};
+
 export const handleApiError = async (
     response: Response,
     data: any,

@@ -1,18 +1,12 @@
-// hooks/useEmployeesInfinite.ts
+// hooks/useEmployeesInfinite.ts - COMPLETE FIX
 "use client";
 
-import { useState, useCallback, useEffect, useMemo } from "react";
+import { useState, useCallback, useEffect, useRef } from "react";
 import { UserData } from "@/types/user";
 
 interface UseEmployeesInfiniteProps {
     limit?: number;
     enabled?: boolean;
-}
-
-interface EmployeesResponse {
-    data: UserData[];
-    total: number;
-    hasMore: boolean;
 }
 
 interface UseEmployeesInfiniteReturn {
@@ -31,7 +25,7 @@ interface UseEmployeesInfiniteReturn {
 }
 
 export const useEmployeesInfinite = ({
-    limit = 20,
+    limit = 10,
     enabled = true,
 }: UseEmployeesInfiniteProps = {}): UseEmployeesInfiniteReturn => {
     const [employees, setEmployees] = useState<UserData[]>([]);
@@ -40,28 +34,46 @@ export const useEmployeesInfinite = ({
     const [error, setError] = useState<string | null>(null);
     const [hasMoreData, setHasMoreData] = useState(true);
     const [totalCount, setTotalCount] = useState(0);
-    const [currentOffset, setCurrentOffset] = useState(0);
-    const [searchTerm, setSearchTerm] = useState("");
+    const [currentPage, setCurrentPage] = useState(1);
+    const [searchTerm, setSearchTermState] = useState("");
     const [isSessionExpired, setIsSessionExpired] = useState(false);
+    const isFetchingRef = useRef(false);
+    const lastEnabledRef = useRef(enabled);
+    const lastSearchTermRef = useRef("");
+    const hasInitialFetchRef = useRef(false);
 
-    // Filter employees based on search term
-    const filteredEmployees = useMemo(() => {
-        if (!searchTerm.trim()) return employees;
-
-        const term = searchTerm.toLowerCase();
-        return employees.filter(
-            (employee) =>
-                employee.fullname?.toLowerCase().includes(term) ||
-                employee.username?.toLowerCase().includes(term) ||
-                employee.email?.toLowerCase().includes(term)
-        );
-    }, [employees, searchTerm]);
+    const filteredEmployees = searchTerm.trim()
+        ? employees.filter(
+              (employee) =>
+                  employee.fullname
+                      ?.toLowerCase()
+                      .includes(searchTerm.toLowerCase()) ||
+                  employee.username
+                      ?.toLowerCase()
+                      .includes(searchTerm.toLowerCase()) ||
+                  employee.email
+                      ?.toLowerCase()
+                      .includes(searchTerm.toLowerCase())
+          )
+        : employees;
 
     const fetchEmployees = useCallback(
-        async (offset: number = 0, isLoadingMore: boolean = false) => {
-            if (!enabled) return;
+        async (
+            page: number = 1,
+            isLoadingMore: boolean = false,
+            searchQuery: string = ""
+        ) => {
+            if (!enabled || isFetchingRef.current) {
+                console.log("Fetch blocked:", {
+                    enabled,
+                    isFetching: isFetchingRef.current,
+                });
+                return;
+            }
 
             try {
+                isFetchingRef.current = true;
+
                 if (isLoadingMore) {
                     setIsLoadingMore(true);
                 } else {
@@ -70,8 +82,10 @@ export const useEmployeesInfinite = ({
                     setIsSessionExpired(false);
                 }
 
+                const offset = (page - 1) * limit;
+
                 console.log(
-                    `🔍 Fetching employees: offset=${offset}, limit=${limit}`
+                    `Fetching employees: page=${page}, offset=${offset}, limit=${limit}, search="${searchQuery}"`
                 );
 
                 const queryParams = new URLSearchParams({
@@ -79,12 +93,19 @@ export const useEmployeesInfinite = ({
                     limit: limit.toString(),
                 });
 
+                if (searchQuery.trim()) {
+                    queryParams.append("search", searchQuery.trim());
+                }
+
                 const response = await fetch(
                     `/api/user?${queryParams.toString()}`,
                     {
                         method: "GET",
                         headers: {
                             "Content-Type": "application/json",
+                            Authorization: `Bearer ${localStorage.getItem(
+                                "auth-token"
+                            )}`,
                         },
                         credentials: "include",
                     }
@@ -102,22 +123,26 @@ export const useEmployeesInfinite = ({
 
                 const result = await response.json();
 
-                if (!result.success) {
+                if (
+                    result.message !== "User data retrieved successfully" ||
+                    !result.data
+                ) {
                     throw new Error(
-                        result.message || "Failed to fetch employees"
+                        result.message || "Invalid response format"
                     );
                 }
 
-                const newEmployees = result.data?.docs || [];
-                const total = result.data?.totalDocs || 0;
-                const hasMore = offset + newEmployees.length < total;
+                const newEmployees = result.data.docs || [];
+                const total = result.data.totalDocs || 0;
+                const totalPages = result.data.totalPages || 0;
+                const currentApiPage = result.data.page || 1;
+                const hasMore = currentApiPage < totalPages;
 
                 console.log(
-                    `✅ Fetched ${newEmployees.length} employees, total: ${total}, hasMore: ${hasMore}`
+                    `Fetched ${newEmployees.length} employees, total: ${total}, hasMore: ${hasMore}`
                 );
 
                 if (isLoadingMore) {
-                    // Append new employees to existing list
                     setEmployees((prev) => {
                         const existingIds = new Set(
                             prev.map((emp: UserData) => emp.id)
@@ -127,16 +152,16 @@ export const useEmployeesInfinite = ({
                         );
                         return [...prev, ...uniqueNewEmployees];
                     });
+                    setCurrentPage(page);
                 } else {
-                    // Replace employees list (first load or refresh)
                     setEmployees(newEmployees);
+                    setCurrentPage(1);
                 }
 
                 setTotalCount(total);
                 setHasMoreData(hasMore);
-                setCurrentOffset(offset + newEmployees.length);
             } catch (error) {
-                console.error("❌ Error fetching employees:", error);
+                console.error("Error fetching employees:", error);
                 const errorMessage =
                     error instanceof Error
                         ? error.message
@@ -149,46 +174,85 @@ export const useEmployeesInfinite = ({
             } finally {
                 setIsLoading(false);
                 setIsLoadingMore(false);
+                isFetchingRef.current = false;
             }
         },
         [enabled, limit]
     );
 
     const loadMore = useCallback(() => {
-        if (!hasMoreData || isLoadingMore || isLoading) {
-            console.log("🚫 Cannot load more:", {
-                hasMoreData,
-                isLoadingMore,
-                isLoading,
-            });
+        if (
+            !hasMoreData ||
+            isLoadingMore ||
+            isLoading ||
+            isFetchingRef.current
+        ) {
             return;
         }
 
-        console.log("📥 Loading more employees from offset:", currentOffset);
-        fetchEmployees(currentOffset, true);
-    }, [hasMoreData, isLoadingMore, isLoading, currentOffset, fetchEmployees]);
+        const nextPage = currentPage + 1;
+        console.log("Loading more employees for page:", nextPage);
+        fetchEmployees(nextPage, true, lastSearchTermRef.current);
+    }, [hasMoreData, isLoadingMore, isLoading, currentPage, fetchEmployees]);
 
     const refetch = useCallback(() => {
-        console.log("🔄 Refetching employees from beginning");
-        setCurrentOffset(0);
+        if (isFetchingRef.current) {
+            console.log("Refetch blocked - already fetching");
+            return;
+        }
+
+        console.log("Manual refetch triggered");
+        setCurrentPage(1);
         setEmployees([]);
         setHasMoreData(true);
-        fetchEmployees(0, false);
+        setTotalCount(0);
+        hasInitialFetchRef.current = true;
+        fetchEmployees(1, false, lastSearchTermRef.current);
     }, [fetchEmployees]);
 
-    // Initial fetch
-    useEffect(() => {
-        if (enabled) {
-            fetchEmployees(0, false);
-        }
-    }, [enabled, fetchEmployees]);
+    const setSearchTerm = useCallback(
+        (term: string) => {
+            console.log("Setting search term:", term);
+            setSearchTermState(term);
+            lastSearchTermRef.current = term;
 
-    // Reset search when employees change
+            if (term !== lastSearchTermRef.current) {
+                setCurrentPage(1);
+                setEmployees([]);
+                setHasMoreData(true);
+
+                if (enabled && hasInitialFetchRef.current) {
+                    fetchEmployees(1, false, term);
+                }
+            }
+        },
+        [enabled, fetchEmployees]
+    );
+
     useEffect(() => {
-        if (searchTerm && employees.length === 0) {
-            setSearchTerm("");
+        console.log("Enabled state check:", {
+            enabled,
+            lastEnabled: lastEnabledRef.current,
+            hasInitialFetch: hasInitialFetchRef.current,
+            employeesCount: employees.length,
+        });
+
+        if (enabled && !lastEnabledRef.current && !hasInitialFetchRef.current) {
+            console.log("Enabled for first time - triggering initial fetch");
+            hasInitialFetchRef.current = true;
+            fetchEmployees(1, false, "");
+        } else if (!enabled && lastEnabledRef.current) {
+            console.log("Disabled - resetting state");
+            setEmployees([]);
+            setError(null);
+            setCurrentPage(1);
+            setTotalCount(0);
+            setHasMoreData(true);
+            hasInitialFetchRef.current = false;
         }
-    }, [employees.length, searchTerm]);
+
+        lastEnabledRef.current = enabled;
+    }, [enabled]);
 
     return {
         employees,

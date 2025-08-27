@@ -1,4 +1,4 @@
-// app/dashboard/_components/ParameterSettingsDialog.tsx - REFACTORED VERSION
+// app/dashboard/_components/ParameterSettingsDialog.tsx - FIXED VERSION
 "use client";
 
 import { FC, useState, useEffect, useRef } from "react";
@@ -7,11 +7,13 @@ import { Button } from "@/components/ui/button";
 import { useCabang } from "@/hooks/useCabang";
 import { useArea } from "@/hooks/useArea";
 import { useParameter } from "@/hooks/useParameter";
+import { useAuth } from "@/hooks/useAuth";
 import { showSuccessAlert, showErrorAlert } from "@/lib/swal";
 import EmployeeLoginDialog from "@/components/shared/EmployeeLoginDialog";
 import ParameterFormSection from "./ParameterFormSection";
 import ParameterReceiptSection from "./ParameterReceiptSection";
 import ParameterReceiptPreview from "./ParameterReceiptPreview";
+import Swal from "sweetalert2";
 
 interface ParameterSettingsDialogProps {
     isOpen: boolean;
@@ -58,15 +60,11 @@ const ParameterSettingsDialog: FC<ParameterSettingsDialogProps> = ({
     onClose,
     onSubmit,
 }) => {
-    const [isDialogReady, setIsDialogReady] = useState(false);
-    const [isInitialized, setIsInitialized] = useState(false);
-    const [hasValidToken, setHasValidToken] = useState(true);
-    const [isLoginDialogOpen, setIsLoginDialogOpen] = useState(false);
+    const [shouldShowInterface, setShouldShowInterface] = useState(false);
     const [isSubmitting, setIsSubmitting] = useState(false);
-    const [showReceiptPreview, setShowReceiptPreview] = useState(false); // NEW: Receipt preview state
+    const [showReceiptPreview, setShowReceiptPreview] = useState(false);
 
-    const dialogTimeoutRef = useRef<NodeJS.Timeout>();
-    const authCheckRef = useRef<boolean>(false);
+    const { logout } = useAuth();
 
     const {
         parameterData,
@@ -138,60 +136,122 @@ const ParameterSettingsDialog: FC<ParameterSettingsDialogProps> = ({
         footer4: "",
     });
 
-    // Dialog initialization logic
+    const checkLocalStorageToken = (): boolean => {
+        if (typeof window === "undefined") return false;
+
+        try {
+            const authToken = localStorage.getItem("auth-token");
+            const userData = localStorage.getItem("user-data");
+
+            console.log("🔍 ParameterDialog - Checking localStorage token:", {
+                hasAuthToken: !!authToken,
+                hasUserData: !!userData,
+                authTokenLength: authToken?.length || 0,
+            });
+
+            return !!(authToken && userData);
+        } catch (error) {
+            console.error("Error checking localStorage token:", error);
+            return false;
+        }
+    };
+
+    // Use same session expired popup as Kassa Setup
+    const showSessionExpiredPopup = () => {
+        console.log("⚠️ Showing session expired popup");
+
+        let timerInterval: NodeJS.Timeout;
+
+        Swal.fire({
+            icon: "warning",
+            title: "Session Expired",
+            html: `
+        <div class="text-sm text-gray-600 mb-4">
+          Your session has expired. Please login again.
+        </div>
+        <div class="text-xs text-gray-500">
+          This popup will close automatically in <strong id="timer">3</strong> seconds
+        </div>
+      `,
+            timer: 3000,
+            timerProgressBar: true,
+            showConfirmButton: true,
+            confirmButtonText: "Login Now",
+            confirmButtonColor: "#025CCA",
+            allowOutsideClick: false,
+            allowEscapeKey: false,
+            customClass: {
+                popup: "rounded-xl shadow-2xl",
+                confirmButton: "rounded-lg px-6 py-2 font-medium",
+                title: "text-lg font-bold text-red-600",
+                htmlContainer: "text-sm",
+            },
+            background: "#ffffff",
+            color: "#1f2937",
+            didOpen: () => {
+                const timer = Swal.getPopup()?.querySelector("#timer");
+                let remainingTime = 3;
+
+                timerInterval = setInterval(() => {
+                    remainingTime--;
+                    if (timer) {
+                        timer.textContent = remainingTime.toString();
+                    }
+
+                    if (remainingTime <= 0) {
+                        clearInterval(timerInterval);
+                    }
+                }, 1000);
+            },
+            willClose: () => {
+                clearInterval(timerInterval);
+            },
+        }).then((result) => {
+            console.log("🔥 Session expired popup result:", result);
+
+            if (
+                result.isConfirmed ||
+                result.dismiss === Swal.DismissReason.timer
+            ) {
+                console.log("➡️ Opening login dialog");
+                setShouldShowInterface(false);
+            }
+        });
+    };
+
+    // Reset everything when dialog opens
     useEffect(() => {
         if (isOpen) {
-            console.log("📂 Parameter dialog opening...");
+            console.log("🔍 ParameterDialog opened, resetting state...");
 
-            if (dialogTimeoutRef.current) {
-                clearTimeout(dialogTimeoutRef.current);
-            }
-
-            setIsDialogReady(false);
-            setIsInitialized(false);
-            authCheckRef.current = false;
-            setShowReceiptPreview(false); // Reset preview state
-
-            dialogTimeoutRef.current = setTimeout(() => {
-                console.log("✅ Dialog ready for data loading");
-                setIsDialogReady(true);
-            }, 200);
-        } else {
-            setIsDialogReady(false);
-            setIsInitialized(false);
-            authCheckRef.current = false;
+            // Reset all states first
+            setShouldShowInterface(false);
             setShowReceiptPreview(false);
 
-            if (dialogTimeoutRef.current) {
-                clearTimeout(dialogTimeoutRef.current);
-            }
-        }
+            // Check for valid token first
+            const hasValidToken = checkLocalStorageToken();
 
-        return () => {
-            if (dialogTimeoutRef.current) {
-                clearTimeout(dialogTimeoutRef.current);
+            if (hasValidToken) {
+                console.log(
+                    "✅ ParameterDialog - Valid token found in localStorage"
+                );
+                setShouldShowInterface(true);
+            } else {
+                console.log(
+                    "❌ ParameterDialog - No valid token, showing session expired"
+                );
+                showSessionExpiredPopup();
             }
-        };
+        } else {
+            setShouldShowInterface(false);
+            setShowReceiptPreview(false);
+        }
     }, [isOpen]);
-
-    // Auth check logic
-    useEffect(() => {
-        if (isDialogReady && !authCheckRef.current) {
-            authCheckRef.current = true;
-            console.log("🔍 Performing one-time auth check...");
-
-            setTimeout(() => {
-                checkAuthenticationStatus();
-            }, 100);
-        }
-    }, [isDialogReady]);
 
     // Data initialization logic
     useEffect(() => {
         if (
-            isDialogReady &&
-            hasValidToken &&
-            !isInitialized &&
+            shouldShowInterface &&
             parameterData &&
             !isLoadingParameter &&
             cabangList.length > 0 &&
@@ -199,57 +259,30 @@ const ParameterSettingsDialog: FC<ParameterSettingsDialogProps> = ({
         ) {
             console.log("🔄 Initializing form data...");
             loadParameterDataToForm();
-            setIsInitialized(true);
         }
     }, [
-        isDialogReady,
-        hasValidToken,
-        isInitialized,
+        shouldShowInterface,
         parameterData,
         isLoadingParameter,
         cabangList.length,
         areaList.length,
     ]);
 
-    const checkAuthenticationStatus = async () => {
+    // Handle login success - simplified without authManager
+    const handleLoginSuccessWithInterface = (userData: any) => {
+        console.log("✅ Login successful, showing interface");
+
+        // Save to localStorage
         try {
-            console.log("🔍 Checking authentication...");
-
-            const response = await fetch("/api/parameter/me", {
-                method: "GET",
-                headers: {
-                    "Content-Type": "application/json",
-                },
-                credentials: "include",
-            });
-
-            if (response.ok) {
-                console.log("✅ Authentication valid");
-                setHasValidToken(true);
-            } else if (response.status === 401) {
-                console.log("❌ Authentication required");
-                setHasValidToken(false);
-                showLoginDialog();
-            } else {
-                console.log("⚠️ Auth check failed, assuming valid");
-                setHasValidToken(true);
-            }
+            localStorage.setItem("user-data", JSON.stringify(userData));
+            localStorage.setItem("auth-token", "employee-token-" + Date.now());
         } catch (error) {
-            console.log("❌ Auth check error, assuming valid:", error);
-            setHasValidToken(true);
+            console.error("Error saving user data:", error);
         }
-    };
 
-    const showLoginDialog = () => {
-        console.log("🔐 Showing login dialog");
-        setIsLoginDialogOpen(true);
-    };
+        setShouldShowInterface(true);
 
-    const handleLoginSuccess = (userData: any) => {
-        console.log("✅ Login successful:", userData);
-        setHasValidToken(true);
-        setIsLoginDialogOpen(false);
-
+        // Refetch data after successful login
         setTimeout(() => {
             refetchParameter();
             refetchCabang();
@@ -257,9 +290,20 @@ const ParameterSettingsDialog: FC<ParameterSettingsDialogProps> = ({
         }, 500);
     };
 
-    const handleLoginClose = () => {
-        console.log("❌ Login dialog closed");
-        setIsLoginDialogOpen(false);
+    // Handle login close - close main dialog completely
+    const handleLoginCloseWithoutAuth = () => {
+        console.log("❌ Login dialog closed without login");
+        setShouldShowInterface(false);
+        onClose(); // Close the main parameter dialog
+    };
+
+    const handleLogoutAndClose = async () => {
+        try {
+            await logout();
+            console.log("✅ User logged out successfully");
+        } catch (error) {
+            console.error("❌ Logout error:", error);
+        }
         onClose();
     };
 
@@ -281,7 +325,7 @@ const ParameterSettingsDialog: FC<ParameterSettingsDialogProps> = ({
             (area) => area.id_area === parameterData.kd_area
         );
 
-        console.log("📝 Loading parameter data:", {
+        console.log("🔍 Loading parameter data:", {
             kd_cab: parameterData.kd_cab,
             kd_area: parameterData.kd_area,
         });
@@ -354,7 +398,6 @@ const ParameterSettingsDialog: FC<ParameterSettingsDialogProps> = ({
         }));
     };
 
-    // NEW: Handle receipt preview toggle
     const handleViewReceipt = () => {
         setShowReceiptPreview(true);
     };
@@ -484,7 +527,7 @@ const ParameterSettingsDialog: FC<ParameterSettingsDialogProps> = ({
                 setTimeout(() => {
                     refetchParameter();
                     onSubmit(formData);
-                    onClose();
+                    handleLogoutAndClose();
                 }, 1000);
             } else {
                 throw new Error("Update failed");
@@ -503,17 +546,18 @@ const ParameterSettingsDialog: FC<ParameterSettingsDialogProps> = ({
 
     if (!isOpen) return null;
 
-    if (!hasValidToken) {
+    // Show login dialog when not authenticated
+    if (!shouldShowInterface) {
         return (
             <EmployeeLoginDialog
-                isOpen={isLoginDialogOpen}
-                onClose={handleLoginClose}
-                onLogin={handleLoginSuccess}
+                isOpen={true}
+                onClose={handleLoginCloseWithoutAuth}
+                onLogin={handleLoginSuccessWithInterface}
             />
         );
     }
 
-    if (!isDialogReady || !isInitialized) {
+    if (isLoadingParameter || isLoadingCabang || isLoadingArea) {
         return (
             <div className="fixed inset-0 flex items-center justify-center z-50">
                 <div className="absolute inset-0 bg-black/50"></div>
@@ -531,7 +575,7 @@ const ParameterSettingsDialog: FC<ParameterSettingsDialogProps> = ({
         <div className="fixed inset-0 flex items-center justify-center z-50">
             <div
                 className="absolute inset-0 bg-black/50"
-                onClick={onClose}
+                onClick={handleLogoutAndClose}
             ></div>
 
             <div className="bg-[#f5f5f5] rounded-2xl w-full max-w-5xl max-h-[98vh] relative z-10 flex flex-col shadow-2xl p-5">
@@ -540,7 +584,7 @@ const ParameterSettingsDialog: FC<ParameterSettingsDialogProps> = ({
                         Parameter Setting
                     </h2>
                     <button
-                        onClick={onClose}
+                        onClick={handleLogoutAndClose}
                         disabled={isSubmitting}
                         className="w-8 h-8 flex items-center justify-center rounded-md border border-black hover:scale-105 transition-all"
                     >
@@ -568,7 +612,7 @@ const ParameterSettingsDialog: FC<ParameterSettingsDialogProps> = ({
                                     formData={formData}
                                     isSubmitting={isSubmitting}
                                     onInputChange={handleInputChange}
-                                    onViewReceipt={handleHideReceipt} // Button becomes "Hide Receipt"
+                                    onViewReceipt={handleHideReceipt}
                                     showPreview={true}
                                 />
                             ) : (
@@ -617,7 +661,7 @@ const ParameterSettingsDialog: FC<ParameterSettingsDialogProps> = ({
                 <div className="flex justify-end gap-4 pt-6">
                     <Button
                         variant="outline"
-                        onClick={onClose}
+                        onClick={handleLogoutAndClose}
                         className="px-8 h-[44px]"
                         disabled={isSubmitting}
                     >

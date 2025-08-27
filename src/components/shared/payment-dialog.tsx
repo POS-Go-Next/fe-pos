@@ -1,7 +1,7 @@
-// components/shared/payment-dialog.tsx - UPDATED WITH need_print_invoice
+// components/shared/payment-dialog.tsx - UPDATED WITH FULL AMOUNT BUTTONS
 "use client";
 
-import { useState } from "react";
+import { useState, useMemo } from "react";
 import { X } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -96,7 +96,37 @@ export default function PaymentDialog({
     const [creditCardType, setCreditCardType] = useState("");
     const [isProcessing, setIsProcessing] = useState(false);
 
+    // 🔥 FIXED: Calculate correct total amount from products data
+    const correctTotalAmount = useMemo(() => {
+        const subtotal = products.reduce(
+            (sum, p) => sum + (p.subtotal || 0),
+            0
+        );
+        const misc = products.reduce((sum, p) => sum + (p.misc || 0), 0);
+        const sc = products.reduce((sum, p) => sum + (p.sc || 0), 0);
+        const discount = products.reduce(
+            (sum, p) => sum + (p.subtotal || 0) * ((p.discount || 0) / 100),
+            0
+        );
+        const promo = products.reduce((sum, p) => sum + (p.promo || 0), 0);
+
+        return subtotal + misc + sc - discount - promo;
+    }, [products]);
+
     if (!isOpen) return null;
+
+    // 🔥 NEW: Handler functions for full amount buttons
+    const handleCashFullAmount = () => {
+        setCashAmount(correctTotalAmount.toString());
+    };
+
+    const handleDebitFullAmount = () => {
+        setDebitAmount(correctTotalAmount.toString());
+    };
+
+    const handleCreditFullAmount = () => {
+        setCreditAmount(correctTotalAmount.toString());
+    };
 
     const getSystemInfo = async () => {
         try {
@@ -156,8 +186,8 @@ export default function PaymentDialog({
         let changeDC = 0;
         let changeCC = 0;
 
-        if (totalPaid > totalAmount) {
-            const totalChange = totalPaid - totalAmount;
+        if (totalPaid > correctTotalAmount) {
+            const totalChange = totalPaid - correctTotalAmount;
 
             if (credit >= totalChange) {
                 changeCC = totalChange;
@@ -237,7 +267,7 @@ export default function PaymentDialog({
 
             const payment = calculatePayment();
 
-            if (payment.totalPaid < totalAmount) {
+            if (payment.totalPaid < correctTotalAmount) {
                 Swal.close();
                 showErrorAlert(
                     "Insufficient Payment",
@@ -347,7 +377,7 @@ export default function PaymentDialog({
                 discount: totalDiscount,
                 promo: totalPromo,
                 round_up: 0,
-                grand_total: totalAmount,
+                grand_total: correctTotalAmount,
             };
 
             console.log("🔥 Transaction Payload with need_print_invoice:", {
@@ -449,6 +479,7 @@ export default function PaymentDialog({
     const renderPaymentMethodContent = () => {
         return (
             <div className="space-y-6">
+                {/* 🔥 UPDATED: Cash Section with Full Amount Button */}
                 <div className="border border-gray-300 rounded-2xl p-4">
                     <div className="flex items-center gap-3 mb-4">
                         <div className="w-10 h-10 bg-green-50 rounded-xl flex items-center justify-center">
@@ -463,6 +494,14 @@ export default function PaymentDialog({
                         <span className="font-medium text-gray-900 text-lg">
                             Cash
                         </span>
+                        {/* 🔥 NEW: Full Amount Button for Cash */}
+                        <button
+                            onClick={handleCashFullAmount}
+                            disabled={isProcessing}
+                            className="ml-auto text-sm text-blue-600 hover:text-blue-700 hover:underline disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+                        >
+                            Full Amount
+                        </button>
                     </div>
                     <div>
                         <label className="block text-base font-medium text-gray-700 mb-3">
@@ -484,6 +523,7 @@ export default function PaymentDialog({
                     </div>
                 </div>
 
+                {/* 🔥 UPDATED: Debit Card Section with Full Amount Button */}
                 <div className="border border-gray-300 rounded-2xl p-4">
                     <div className="flex items-center gap-3 mb-4">
                         <div className="w-10 h-10 bg-blue-50 rounded-xl flex items-center justify-center">
@@ -503,6 +543,14 @@ export default function PaymentDialog({
                         <span className="font-medium text-gray-900 text-lg">
                             Debit Card
                         </span>
+                        {/* 🔥 NEW: Full Amount Button for Debit */}
+                        <button
+                            onClick={handleDebitFullAmount}
+                            disabled={isProcessing}
+                            className="ml-auto text-sm text-blue-600 hover:text-blue-700 hover:underline disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+                        >
+                            Full Amount
+                        </button>
                     </div>
                     <div className="space-y-4">
                         <div className="grid grid-cols-2 gap-4">
@@ -605,6 +653,7 @@ export default function PaymentDialog({
                     </div>
                 </div>
 
+                {/* 🔥 UPDATED: Credit Card Section with Full Amount Button */}
                 <div className="border border-gray-300 rounded-2xl p-4">
                     <div className="flex items-center gap-3 mb-4">
                         <div className="w-10 h-10 bg-blue-50 rounded-xl flex items-center justify-center">
@@ -624,6 +673,14 @@ export default function PaymentDialog({
                         <span className="font-medium text-gray-900 text-lg">
                             Credit Card
                         </span>
+                        {/* 🔥 NEW: Full Amount Button for Credit */}
+                        <button
+                            onClick={handleCreditFullAmount}
+                            disabled={isProcessing}
+                            className="ml-auto text-sm text-blue-600 hover:text-blue-700 hover:underline disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+                        >
+                            Full Amount
+                        </button>
                     </div>
                     <div className="space-y-4">
                         <div className="grid grid-cols-2 gap-4">
@@ -771,8 +828,26 @@ export default function PaymentDialog({
                                         )}
                                     </div>
                                     <div className="text-right text-sm text-gray-600">
-                                        <p>August 17, 2025</p>
-                                        <p>09:52 AM</p>
+                                        <p>
+                                            {new Date().toLocaleDateString(
+                                                "en-US",
+                                                {
+                                                    year: "numeric",
+                                                    month: "long",
+                                                    day: "numeric",
+                                                }
+                                            )}
+                                        </p>
+                                        <p>
+                                            {new Date().toLocaleTimeString(
+                                                "en-US",
+                                                {
+                                                    hour: "2-digit",
+                                                    minute: "2-digit",
+                                                    hour12: true,
+                                                }
+                                            )}
+                                        </p>
                                     </div>
                                 </div>
                             </div>
@@ -903,7 +978,7 @@ export default function PaymentDialog({
                                             </span>
                                             <span className="text-lg font-bold text-gray-900">
                                                 Rp{" "}
-                                                {totalAmount.toLocaleString(
+                                                {correctTotalAmount.toLocaleString(
                                                     "id-ID"
                                                 )}
                                             </span>

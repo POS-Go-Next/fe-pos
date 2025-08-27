@@ -1,4 +1,4 @@
-// hooks/useEmployeeSelection.ts - NEW FILE
+// hooks/useEmployeeSelection.ts - FINAL SIMPLIFIED VERSION
 "use client";
 
 import { useState, useEffect, useCallback, useRef } from "react";
@@ -20,10 +20,6 @@ export const useEmployeeSelection = (isAuthenticated: boolean) => {
         searchTerm: "",
     });
 
-    // 🔥 FIX: Use ref to track if we've already fetched for this auth state
-    const hasAuthenticatedRef = useRef(false);
-    const lastAuthStateRef = useRef(isAuthenticated);
-
     const {
         filteredEmployees: employees,
         isLoading,
@@ -40,36 +36,14 @@ export const useEmployeeSelection = (isAuthenticated: boolean) => {
         enabled: isAuthenticated,
     });
 
-    // Sync search term between local state and useEmployeesInfinite
     useEffect(() => {
-        setSearchTerm(employeeState.searchTerm);
-    }, [employeeState.searchTerm, setSearchTerm]);
-
-    // 🔥 FIX: Only refetch when authentication state changes from false to true
-    useEffect(() => {
-        if (isAuthenticated && !hasAuthenticatedRef.current) {
-            console.log(
-                "🔄 Authentication confirmed for first time, refetching employees..."
-            );
-            hasAuthenticatedRef.current = true;
-            lastAuthStateRef.current = true;
-
-            // Add small delay to prevent immediate refetch
-            const timeoutId = setTimeout(() => {
-                refetch();
-            }, 100);
-
-            return () => clearTimeout(timeoutId);
-        } else if (!isAuthenticated) {
-            // Reset when logged out
-            hasAuthenticatedRef.current = false;
-            lastAuthStateRef.current = false;
+        if (employeeState.searchTerm !== currentSearchTerm) {
+            setSearchTerm(employeeState.searchTerm);
         }
-
-        lastAuthStateRef.current = isAuthenticated;
-    }, [isAuthenticated, refetch]);
+    }, [employeeState.searchTerm, currentSearchTerm, setSearchTerm]);
 
     const selectEmployee = useCallback((employee: UserData) => {
+        console.log("Employee selected:", employee.fullname);
         setEmployeeState((prev) => ({
             ...prev,
             selectedEmployeeId: employee.id,
@@ -93,20 +67,18 @@ export const useEmployeeSelection = (isAuthenticated: boolean) => {
     }, []);
 
     const resetEmployee = useCallback(() => {
+        console.log("Resetting employee selection");
         setEmployeeState({
             selectedEmployeeId: null,
             selectedEmployeeName: "",
             showDropdown: false,
             searchTerm: "",
         });
-        // 🔥 FIX: Reset auth tracking when resetting employee
-        hasAuthenticatedRef.current = false;
     }, []);
 
-    // 🔥 FIX: Controlled refetch that prevents loops
     const controlledRefetch = useCallback(() => {
         if (isAuthenticated && !isLoading) {
-            console.log("🔄 Manual refetch triggered");
+            console.log("Manual refetch triggered");
             refetch();
         }
     }, [isAuthenticated, isLoading, refetch]);

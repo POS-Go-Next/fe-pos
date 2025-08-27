@@ -1,4 +1,4 @@
-// app/dashboard/page.tsx - UPDATED WITH BIOMETRIC INTEGRATION
+// app/dashboard/page.tsx
 "use client";
 
 import EmployeeLoginDialog from "@/components/shared/EmployeeLoginDialog";

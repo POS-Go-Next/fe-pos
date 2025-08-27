@@ -1,7 +1,7 @@
-// components/shared/AuthenticationManager.tsx - DIRECT AUTH CHECK
+// components/shared/AuthenticationManager.tsx - FIXED STATE MANAGEMENT
 "use client";
 
-import { useState, useCallback } from "react";
+import { useState, useCallback, useRef } from "react";
 import { UserData } from "@/types/user";
 import Swal from "sweetalert2";
 
@@ -18,7 +18,11 @@ export const useAuthManager = () => {
         isCheckingAuth: false,
     });
 
+    const isCheckingRef = useRef(false);
+
     const showSessionExpiredDialog = useCallback(() => {
+        if (isCheckingRef.current) return;
+
         Swal.fire({
             icon: "warning",
             title: "Session Expired",
@@ -45,7 +49,11 @@ export const useAuthManager = () => {
                 }, 1000);
             },
         }).then(() => {
-            setAuthState((prev) => ({ ...prev, isLoginDialogOpen: true }));
+            setAuthState((prev) => ({
+                ...prev,
+                isLoginDialogOpen: true,
+                isCheckingAuth: false,
+            }));
         });
     }, []);
 
@@ -66,19 +74,29 @@ export const useAuthManager = () => {
     }, []);
 
     const checkAuthentication = useCallback(async () => {
-        console.log("🔍 Quick authentication check...");
+        if (isCheckingRef.current) {
+            console.log("🔄 Auth check already in progress, skipping...");
+            return;
+        }
+
+        isCheckingRef.current = true;
+        console.log("🔍 Starting authentication check...");
+
+        setAuthState((prev) => ({
+            ...prev,
+            isCheckingAuth: true,
+        }));
 
         const hasLocalAuth = quickTokenCheck();
 
         if (!hasLocalAuth) {
-            console.log(
-                "❌ No local auth found, showing session expired immediately"
-            );
+            console.log("❌ No local auth found, showing session expired");
             setAuthState({
                 hasValidToken: false,
                 isLoginDialogOpen: false,
                 isCheckingAuth: false,
             });
+            isCheckingRef.current = false;
             showSessionExpiredDialog();
             return;
         }
@@ -120,6 +138,8 @@ export const useAuthManager = () => {
                 isCheckingAuth: false,
             });
             showSessionExpiredDialog();
+        } finally {
+            isCheckingRef.current = false;
         }
     }, [quickTokenCheck, showSessionExpiredDialog]);
 
@@ -130,18 +150,27 @@ export const useAuthManager = () => {
             isLoginDialogOpen: false,
             isCheckingAuth: false,
         });
+        isCheckingRef.current = false;
     }, []);
 
     const handleLoginClose = useCallback(() => {
-        setAuthState((prev) => ({ ...prev, isLoginDialogOpen: false }));
+        console.log("❌ Login dialog closed");
+        setAuthState((prev) => ({
+            ...prev,
+            isLoginDialogOpen: false,
+            isCheckingAuth: false,
+        }));
+        isCheckingRef.current = false;
     }, []);
 
     const resetAuth = useCallback(() => {
+        console.log("🔄 Resetting auth state");
         setAuthState({
             hasValidToken: false,
             isLoginDialogOpen: false,
             isCheckingAuth: false,
         });
+        isCheckingRef.current = false;
     }, []);
 
     return {

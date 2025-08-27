@@ -15,6 +15,7 @@ import { useKassa } from "@/hooks/useKassa";
 import { useSystemInfo } from "@/hooks/useSystemInfo";
 import { useKassaData } from "@/hooks/useKassaData";
 import { usePrinter } from "@/hooks/usePrinter";
+import { useAuth } from "@/hooks/useAuth"; // Add this import
 import { showErrorAlert, showSuccessAlert } from "@/lib/swal";
 import { X, Loader2, AlertCircle } from "lucide-react";
 import Image from "next/image";
@@ -46,6 +47,8 @@ const KassaSetupDialog: FC<KassaSetupDialogProps> = ({
     const [isLoginDialogOpen, setIsLoginDialogOpen] = useState(false);
     const [isCheckingToken, setIsCheckingToken] = useState(true);
     const [isDataLoaded, setIsDataLoaded] = useState(false);
+
+    const { logout } = useAuth(); // Add logout function from useAuth
 
     const {
         systemInfo,
@@ -103,7 +106,7 @@ const KassaSetupDialog: FC<KassaSetupDialogProps> = ({
 
     useEffect(() => {
         if (kassaData && ipAddress && macAddress && !isDataLoaded) {
-            console.log("🏪 Loading kassa data into form:", kassaData);
+            console.log("🪟 Loading kassa data into form:", kassaData);
 
             setFormData({
                 default_jual: kassaData.default_jual as "0" | "1" | "2",
@@ -127,7 +130,7 @@ const KassaSetupDialog: FC<KassaSetupDialogProps> = ({
             hasValidToken &&
             !isKassaLoading
         ) {
-            console.log("🏪 Using system info for new kassa setup");
+            console.log("🪟 Using system info for new kassa setup");
 
             setFormData((prev) => ({
                 ...prev,
@@ -161,7 +164,7 @@ const KassaSetupDialog: FC<KassaSetupDialogProps> = ({
     }, [kassaSessionExpired]);
 
     const checkTokenStatus = async () => {
-        console.log("🔒 CHECKING TOKEN STATUS...");
+        console.log("🔑 CHECKING TOKEN STATUS...");
         setIsCheckingToken(true);
         setIsDataLoaded(false);
 
@@ -173,7 +176,7 @@ const KassaSetupDialog: FC<KassaSetupDialogProps> = ({
                 },
             });
 
-            console.log("🔒 API Test Response status:", response.status);
+            console.log("🔑 API Test Response status:", response.status);
 
             if (response.ok) {
                 console.log("✅ API CALL SUCCESS: User is authenticated");
@@ -273,6 +276,17 @@ const KassaSetupDialog: FC<KassaSetupDialogProps> = ({
         onClose();
     };
 
+    // Add logout function that will be called on dialog close
+    const handleLogoutAndClose = async () => {
+        try {
+            await logout();
+            console.log("✅ User logged out successfully");
+        } catch (error) {
+            console.error("❌ Logout error:", error);
+        }
+        onClose();
+    };
+
     if (!isOpen) return null;
 
     if (isCheckingToken || isSystemLoading) {
@@ -308,7 +322,7 @@ const KassaSetupDialog: FC<KassaSetupDialogProps> = ({
             <div className="fixed inset-0 flex items-center justify-center z-50">
                 <div
                     className="absolute inset-0 bg-black/50"
-                    onClick={onClose}
+                    onClick={handleLogoutAndClose} // Updated to call logout and close
                 ></div>
                 <div className="bg-white rounded-lg p-8 relative z-10 max-w-md mx-4">
                     <div className="flex items-center gap-3 mb-4">
@@ -328,7 +342,7 @@ const KassaSetupDialog: FC<KassaSetupDialogProps> = ({
                         </Button>
                         <Button
                             variant="outline"
-                            onClick={onClose}
+                            onClick={handleLogoutAndClose} // Updated to call logout and close
                             className="flex-1"
                         >
                             Close
@@ -352,7 +366,7 @@ const KassaSetupDialog: FC<KassaSetupDialogProps> = ({
     const handleSubmit = async () => {
         try {
             console.log("🚀 Submitting kassa setup:", formData);
-            console.log("🏪 MAC Address used:", macAddress);
+            console.log("🪟 MAC Address used:", macAddress);
             console.log("🖨️ Selected Printer ID:", selectedPrinterId);
 
             if (!hasValidToken) {
@@ -380,7 +394,7 @@ const KassaSetupDialog: FC<KassaSetupDialogProps> = ({
             };
 
             console.log("📤 Final submit data:", submitData);
-            console.log("🏪 Data types:", {
+            console.log("🪟 Data types:", {
                 default_jual: typeof submitData.default_jual,
                 status_aktif: typeof submitData.status_aktif,
                 antrian: typeof submitData.antrian,
@@ -416,7 +430,7 @@ const KassaSetupDialog: FC<KassaSetupDialogProps> = ({
             );
 
             onSubmit();
-            onClose();
+            handleLogoutAndClose(); // Call logout and close after success
         } catch (error) {
             console.error("❌ Error in kassa setup:", error);
             await showErrorAlert(
@@ -427,7 +441,7 @@ const KassaSetupDialog: FC<KassaSetupDialogProps> = ({
         }
     };
 
-    const handleCancel = () => {
+    const handleCancel = async () => {
         setFormData({
             default_jual: "0",
             status_aktif: true,
@@ -439,7 +453,7 @@ const KassaSetupDialog: FC<KassaSetupDialogProps> = ({
         });
         setSelectedPrinterId(null);
         setIsDataLoaded(false);
-        onClose();
+        handleLogoutAndClose(); // Call logout and close on cancel
     };
 
     const isLoading =
@@ -449,7 +463,7 @@ const KassaSetupDialog: FC<KassaSetupDialogProps> = ({
         <div className="fixed inset-0 flex items-center justify-center z-50">
             <div
                 className="absolute inset-0 bg-black/50"
-                onClick={handleCancel}
+                onClick={handleCancel} // Updated to call logout and close
             ></div>
 
             <div className="bg-[#f5f5f5] rounded-2xl w-full max-w-2xl relative z-10 p-6">
@@ -458,7 +472,7 @@ const KassaSetupDialog: FC<KassaSetupDialogProps> = ({
                         Kassa Setup (1)
                     </h2>
                     <button
-                        onClick={handleCancel}
+                        onClick={handleCancel} // Updated to call logout and close
                         disabled={isSubmitting}
                         className="w-8 h-8 flex items-center justify-center rounded-md border border-black hover:scale-105 transition-all"
                     >

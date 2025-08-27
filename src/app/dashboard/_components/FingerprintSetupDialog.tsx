@@ -1,4 +1,4 @@
-// components/dashboard/FingerprintSetupDialog.tsx - FIXED API TIMING ISSUE
+// components/dashboard/FingerprintSetupDialog.tsx
 "use client";
 
 import { useAuthManager } from "@/components/shared/AuthenticationManager";
@@ -9,6 +9,7 @@ import FingerprintScanningDialog from "@/components/shared/FingerprintScanningDi
 import { Button } from "@/components/ui/button";
 import { useEmployeeSelection } from "@/hooks/useEmployeeSelection";
 import { useSystemInfo } from "@/hooks/useSystemInfo";
+import { useAuth } from "@/hooks/useAuth";
 import { showErrorAlert } from "@/lib/swal";
 import { CheckCircle, X } from "lucide-react";
 import { FC, useCallback, useEffect, useState } from "react";
@@ -128,13 +129,8 @@ const FingerprintSetupDialog: FC<FingerprintSetupDialogProps> = ({
     onClose,
     onRegister,
 }) => {
-    const {
-        authState,
-        checkAuthentication,
-        handleLoginSuccess,
-        handleLoginClose,
-        resetAuth,
-    } = useAuthManager();
+    const [isAuthenticated, setIsAuthenticated] = useState(false);
+    const [shouldShowInterface, setShouldShowInterface] = useState(false);
 
     const {
         currentStep,
@@ -154,7 +150,11 @@ const FingerprintSetupDialog: FC<FingerprintSetupDialogProps> = ({
         updateSearchTerm,
         resetEmployee,
         refetch,
-    } = useEmployeeSelection(authState.hasValidToken);
+        hasMoreData,
+        isLoadingMore,
+        loadMore,
+        totalCount,
+    } = useEmployeeSelection(isAuthenticated);
 
     const { scanState, startScanning, setApiComplete, closeScanDialog } =
         useScanningManager();
@@ -165,6 +165,8 @@ const FingerprintSetupDialog: FC<FingerprintSetupDialogProps> = ({
         error: systemError,
         refetch: refetchSystemInfo,
     } = useSystemInfo();
+
+    const { logout } = useAuth();
 
     const checkLocalStorageToken = (): boolean => {
         if (typeof window === "undefined") return false;
@@ -186,40 +188,99 @@ const FingerprintSetupDialog: FC<FingerprintSetupDialogProps> = ({
         }
     };
 
+    const showSessionExpiredPopup = () => {
+        console.log("⚠️ Showing session expired popup");
+
+        let timerInterval: NodeJS.Timeout;
+
+        Swal.fire({
+            icon: "warning",
+            title: "Session Expired",
+            html: `
+        <div class="text-sm text-gray-600 mb-4">
+          Your session has expired. Please login again.
+        </div>
+        <div class="text-xs text-gray-500">
+          This popup will close automatically in <strong id="timer">3</strong> seconds
+        </div>
+      `,
+            timer: 3000,
+            timerProgressBar: true,
+            showConfirmButton: true,
+            confirmButtonText: "Login Now",
+            confirmButtonColor: "#025CCA",
+            allowOutsideClick: false,
+            allowEscapeKey: false,
+            customClass: {
+                popup: "rounded-xl shadow-2xl",
+                confirmButton: "rounded-lg px-6 py-2 font-medium",
+                title: "text-lg font-bold text-red-600",
+                htmlContainer: "text-sm",
+            },
+            background: "#ffffff",
+            color: "#1f2937",
+            didOpen: () => {
+                const timer = Swal.getPopup()?.querySelector("#timer");
+                let remainingTime = 3;
+
+                timerInterval = setInterval(() => {
+                    remainingTime--;
+                    if (timer) {
+                        timer.textContent = remainingTime.toString();
+                    }
+
+                    if (remainingTime <= 0) {
+                        clearInterval(timerInterval);
+                    }
+                }, 1000);
+            },
+            willClose: () => {
+                clearInterval(timerInterval);
+            },
+        }).then((result) => {
+            console.log("🔥 Session expired popup result:", result);
+
+            if (
+                result.isConfirmed ||
+                result.dismiss === Swal.DismissReason.timer
+            ) {
+                console.log("➡️ Opening login dialog");
+                setShouldShowInterface(false);
+            }
+        });
+    };
+
     useEffect(() => {
         if (isOpen) {
             console.log("🔍 FingerprintDialog opened, checking auth...");
+
+            setShouldShowInterface(false);
+            setIsAuthenticated(false);
+            resetFlow();
+            resetEmployee();
 
             const hasValidToken = checkLocalStorageToken();
 
             if (hasValidToken) {
                 console.log(
-                    "✅ FingerprintDialog - Valid token found in localStorage"
+                    "✅ Valid token found, setting authenticated state"
                 );
-                handleLoginSuccess({
-                    id: 1,
-                    fullname: "User",
-                    username: "user",
-                    email: "user@example.com",
-                    phone: "123456789",
-                    role_id: 1,
-                    position_id: 1,
-                    fingerprint1: "",
-                    fingerprint2: "",
-                });
+                setIsAuthenticated(true);
+                setShouldShowInterface(true);
             } else {
-                console.log(
-                    "❌ FingerprintDialog - No valid token, need login"
-                );
-                checkAuthentication();
+                console.log("❌ No valid token, showing session expired");
+                showSessionExpiredPopup();
             }
+        } else {
+            setShouldShowInterface(false);
+            setIsAuthenticated(false);
         }
-    }, [isOpen, checkAuthentication, handleLoginSuccess]);
+    }, [isOpen, resetFlow, resetEmployee]);
 
     useEffect(() => {
         if (
             isOpen &&
-            authState.hasValidToken &&
+            isAuthenticated &&
             !macAddress &&
             !isSystemLoading &&
             !systemError
@@ -229,7 +290,7 @@ const FingerprintSetupDialog: FC<FingerprintSetupDialogProps> = ({
         }
     }, [
         isOpen,
-        authState.hasValidToken,
+        isAuthenticated,
         macAddress,
         isSystemLoading,
         systemError,
@@ -285,7 +346,8 @@ const FingerprintSetupDialog: FC<FingerprintSetupDialogProps> = ({
 
             if (!response.ok) {
                 if (response.status === 401) {
-                    resetAuth();
+                    setIsAuthenticated(false);
+                    setShouldShowInterface(false);
                     setApiComplete(false);
                     closeScanDialog();
                     return;
@@ -423,29 +485,60 @@ const FingerprintSetupDialog: FC<FingerprintSetupDialogProps> = ({
         }).then(() => {
             handleReset();
             onRegister();
-            onClose();
+            handleLogoutAndClose();
         });
     };
 
     const handleReset = useCallback(() => {
         resetFlow();
         resetEmployee();
+        setShouldShowInterface(false);
+        setIsAuthenticated(false);
     }, [resetFlow, resetEmployee]);
+
+    const handleLogoutAndClose = useCallback(async () => {
+        try {
+            await logout();
+            console.log("✅ User logged out successfully");
+        } catch (error) {
+            console.error("❌ Logout error:", error);
+        }
+        onClose();
+    }, [logout, onClose]);
+
+    const handleLoginCloseWithoutAuth = useCallback(() => {
+        console.log("❌ Login dialog closed without login");
+        setShouldShowInterface(false);
+        onClose();
+    }, [onClose]);
+
+    const handleLoginSuccessWithInterface = useCallback((userData: any) => {
+        console.log("✅ Login successful, setting auth state");
+
+        try {
+            localStorage.setItem("user-data", JSON.stringify(userData));
+            localStorage.setItem("auth-token", "employee-token-" + Date.now());
+        } catch (error) {
+            console.error("Error saving user data:", error);
+        }
+
+        setIsAuthenticated(true);
+        setShouldShowInterface(true);
+    }, []);
 
     const handleClose = useCallback(() => {
         handleReset();
-        resetAuth();
-        onClose();
-    }, [handleReset, resetAuth, onClose]);
+        handleLogoutAndClose();
+    }, [handleReset, handleLogoutAndClose]);
 
     if (!isOpen) return null;
 
-    if (!authState.hasValidToken) {
+    if (!shouldShowInterface) {
         return (
             <EmployeeLoginDialog
-                isOpen={authState.isLoginDialogOpen}
-                onClose={handleLoginClose}
-                onLogin={handleLoginSuccess}
+                isOpen={true}
+                onClose={handleLoginCloseWithoutAuth}
+                onLogin={handleLoginSuccessWithInterface}
             />
         );
     }
@@ -520,7 +613,11 @@ const FingerprintSetupDialog: FC<FingerprintSetupDialogProps> = ({
                             onSelect={selectEmployee}
                             onSearchChange={updateSearchTerm}
                             onRetry={refetch}
-                            isAuthenticated={authState.hasValidToken}
+                            isAuthenticated={isAuthenticated}
+                            hasMoreData={hasMoreData}
+                            isLoadingMore={isLoadingMore}
+                            onLoadMore={loadMore}
+                            totalCount={totalCount}
                         />
 
                         <div className="grid grid-cols-2 gap-6">

@@ -1,4 +1,4 @@
-// app/create-order/choose-menu/page.tsx - UPDATED WITH DYNAMIC SC INTEGRATION
+// app/create-order/choose-menu/page.tsx - UPDATED WITH handleMiscChange IMPLEMENTATION
 "use client";
 
 import OrderSummary from "@/components/shared/order-summary";
@@ -7,7 +7,7 @@ import TransactionInfo from "@/components/shared/transaction-info";
 import { Input } from "@/components/ui/input";
 import { useLogout } from "@/hooks/useLogout";
 import { usePOSKeyboardShortcuts } from "@/hooks/useKeyboardShortcuts";
-import { useParameter } from "@/hooks/useParameter"; // 🔥 NEW: Import useParameter hook
+import { useParameter } from "@/hooks/useParameter";
 import type { StockData } from "@/types/stock";
 import { ProductTableItem } from "@/types/stock";
 import { ArrowLeft, Search } from "lucide-react";
@@ -56,7 +56,6 @@ export default function ChooseMenuPage() {
     const barcodeSearchInputRef = useRef<HTMLInputElement>(null);
 
     const { logout, isLoading: isLogoutLoading } = useLogout();
-    // 🔥 NEW: Get parameter data for dynamic SC values
     const { parameterData } = useParameter();
 
     useEffect(() => {
@@ -67,7 +66,6 @@ export default function ChooseMenuPage() {
     const [products, setProducts] = useState<ProductTableItem[]>([]);
     const [nextId, setNextId] = useState(1);
 
-    // 🔥 NEW: Function to get SC value based on type
     const getSCValueByType = (type: string): number => {
         if (!parameterData) return 0;
 
@@ -79,6 +77,44 @@ export default function ChooseMenuPage() {
             default:
                 return 0;
         }
+    };
+
+    // 🔥 NEW: Handler for misc changes
+    const handleMiscChange = (productId: number, miscAmount: number) => {
+        if (!isClient) return;
+
+        setProducts((prevProducts) =>
+            prevProducts.map((product) => {
+                if (product.id === productId) {
+                    const updatedProduct = {
+                        ...product,
+                        misc: (product.misc || 0) + miscAmount,
+                    };
+
+                    // Recalculate total with new misc value
+                    const dynamicSC = getSCValueByType(product.type || "");
+                    updatedProduct.total =
+                        (updatedProduct.subtotal || 0) +
+                        dynamicSC +
+                        updatedProduct.misc -
+                        (updatedProduct.subtotal || 0) *
+                            ((updatedProduct.discount || 0) / 100) -
+                        (updatedProduct.promo || 0);
+
+                    console.log("🔥 Misc updated for product:", {
+                        productId,
+                        productName: product.name,
+                        previousMisc: product.misc || 0,
+                        addedMisc: miscAmount,
+                        newMisc: updatedProduct.misc,
+                        newTotal: updatedProduct.total,
+                    });
+
+                    return updatedProduct;
+                }
+                return product;
+            })
+        );
     };
 
     useEffect(() => {
@@ -113,7 +149,7 @@ export default function ChooseMenuPage() {
                     );
                 } else {
                     console.log(
-                        "❌ Could not find quantity input for product:",
+                        "⌚ Could not find quantity input for product:",
                         lastAddedProductId
                     );
                     const allQuantityInputs = document.querySelectorAll(
@@ -216,7 +252,6 @@ export default function ChooseMenuPage() {
             (sum, product) => sum + (product.misc || 0),
             0
         );
-        // 🔥 UPDATED: Calculate service charge dynamically based on product type
         const serviceCharge = filledProducts.reduce(
             (sum, product) => sum + getSCValueByType(product.type || ""),
             0
@@ -250,7 +285,6 @@ export default function ChooseMenuPage() {
                 price: product.price || 0,
                 subtotal: product.subtotal || 0,
                 discount: product.discount || 0,
-                // 🔥 UPDATED: Set SC dynamically based on type
                 sc: getSCValueByType(product.type || ""),
                 misc: product.misc || 0,
                 promo: product.promo || 0,
@@ -268,17 +302,16 @@ export default function ChooseMenuPage() {
                 if (product.id === id) {
                     const newQuantity = value < 0 ? 0 : value;
                     const newSubtotal = (product.price || 0) * newQuantity;
-                    // 🔥 UPDATED: Calculate SC dynamically
                     const dynamicSC = getSCValueByType(product.type || "");
 
                     return {
                         ...product,
                         quantity: newQuantity,
                         subtotal: newSubtotal,
-                        sc: dynamicSC, // 🔥 NEW: Set dynamic SC
+                        sc: dynamicSC,
                         total:
                             newSubtotal +
-                            dynamicSC + // 🔥 UPDATED: Use dynamic SC
+                            dynamicSC +
                             (product.misc || 0) -
                             newSubtotal * ((product.discount || 0) / 100) -
                             (product.promo || 0),
@@ -306,21 +339,18 @@ export default function ChooseMenuPage() {
         }
     };
 
-    // 🔥 UPDATED: Handle type change with dynamic SC calculation
     const handleTypeChange = (id: number, newType: string) => {
         setProducts((prevProducts) =>
             prevProducts.map((product) => {
                 if (product.id === id) {
-                    // 🔥 NEW: Calculate SC based on new type
                     const newSCValue = getSCValueByType(newType);
 
                     const updatedProduct = {
                         ...product,
                         type: newType,
-                        sc: newSCValue, // 🔥 NEW: Set dynamic SC
+                        sc: newSCValue,
                     };
 
-                    // 🔥 UPDATED: Recalculate total with new SC
                     updatedProduct.total =
                         (updatedProduct.subtotal || 0) +
                         newSCValue +
@@ -351,7 +381,6 @@ export default function ChooseMenuPage() {
                 if (product.id === productId) {
                     const discountAmount =
                         (product.subtotal || 0) * (discountPercentage / 100);
-                    // 🔥 UPDATED: Include dynamic SC in total calculation
                     const dynamicSC = getSCValueByType(product.type || "");
                     const newTotal =
                         (product.subtotal || 0) +
@@ -363,7 +392,7 @@ export default function ChooseMenuPage() {
                     return {
                         ...product,
                         discount: discountPercentage,
-                        sc: dynamicSC, // 🔥 NEW: Ensure SC is updated
+                        sc: dynamicSC,
                         total: Math.max(0, newTotal),
                     };
                 }
@@ -391,7 +420,7 @@ export default function ChooseMenuPage() {
             quantity: 1,
             subtotal: stockData.hj_ecer || 0,
             discount: 0,
-            sc: 0, // 🔥 UPDATED: Start with 0, will be set when type is selected
+            sc: 0,
             misc: 0,
             promo: 0,
             promoPercent: 0,
@@ -406,7 +435,6 @@ export default function ChooseMenuPage() {
         selectedStockData: StockData,
         productId: number
     ) => {
-        // 🔥 UPDATED: Always create a new row, never increment existing quantity
         const newProduct = convertStockToProduct(selectedStockData);
         setProducts((prevProducts) => [...prevProducts, newProduct]);
         setLastAddedProductId(nextId);
@@ -484,6 +512,7 @@ export default function ChooseMenuPage() {
                         onProductSelect={handleProductSelect}
                         onTypeChange={handleTypeChange}
                         onDiscountChange={handleDiscountChange}
+                        onMiscChange={handleMiscChange} // 🔥 NEW: Pass handleMiscChange
                         className="mb-6"
                     />
                 </div>

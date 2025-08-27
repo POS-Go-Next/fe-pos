@@ -24,13 +24,18 @@ interface LoginResponse {
     errors?: Record<string, string[]>;
 }
 
+interface LogoutResponse {
+    success: boolean;
+    message: string;
+}
+
 interface UseAuthReturn {
     login: (credentials: LoginData) => Promise<LoginResponse>;
+    logout: () => Promise<LogoutResponse>;
     isLoading: boolean;
     error: string | null;
 }
 
-// Function to get system MAC address from existing API
 const getSystemMacAddress = async (): Promise<string | null> => {
     try {
         console.log("🔍 Fetching system info for MAC address...");
@@ -45,10 +50,8 @@ const getSystemMacAddress = async (): Promise<string | null> => {
         });
 
         if (data.success && data.data) {
-            // Try to get MAC addresses from the response
             let macAddress = null;
 
-            // Method 1: Find active network interface with MAC address
             if (data.data.ipAddresses && Array.isArray(data.data.ipAddresses)) {
                 const activeInterface = data.data.ipAddresses.find(
                     (iface: any) =>
@@ -66,7 +69,6 @@ const getSystemMacAddress = async (): Promise<string | null> => {
                 }
             }
 
-            // Method 2: Fallback to macAddresses array
             if (
                 !macAddress &&
                 data.data.macAddresses &&
@@ -93,7 +95,6 @@ const getSystemMacAddress = async (): Promise<string | null> => {
     } catch (error) {
         console.error("❌ Error getting MAC address:", error);
 
-        // Check if it's a connection error
         if (error instanceof Error && error.message.includes("fetch")) {
             console.warn(
                 "⚠️ System service might not be running on localhost:8321"
@@ -115,7 +116,6 @@ export const useAuth = (): UseAuthReturn => {
         try {
             const validatedData = loginSchema.parse(credentials);
 
-            // Get MAC address with enhanced method
             console.log("🔍 Attempting to get MAC address...");
             const macAddress = await getSystemMacAddress();
 
@@ -131,11 +131,10 @@ export const useAuth = (): UseAuthReturn => {
                 console.warn("   - Network permission issues");
             }
 
-            // Prepare payload with MAC address and token generation flag
             const loginPayload = {
                 username: validatedData.username,
                 password: validatedData.password,
-                mac_address: macAddress || "00:00:00:00:00:00", // Fallback MAC
+                mac_address: macAddress || "00:00:00:00:00:00",
                 need_generate_token: true,
             };
 
@@ -211,8 +210,71 @@ export const useAuth = (): UseAuthReturn => {
         }
     };
 
+    const logout = async (): Promise<LogoutResponse> => {
+        setIsLoading(true);
+        setError(null);
+
+        try {
+            console.log("🔄 Starting logout process...");
+
+            const response = await fetch("/api/auth/logout", {
+                method: "POST",
+                headers: {
+                    "Content-Type": "application/json",
+                },
+                credentials: "include",
+            });
+
+            let apiSuccess = false;
+            let apiMessage = "Logout completed";
+
+            if (response.ok) {
+                const data = await response.json();
+                apiSuccess = data.success;
+                apiMessage = data.message || "Logout successful";
+                console.log("✅ Logout API call successful");
+            } else {
+                console.warn(
+                    "⚠️ Logout API failed, but continuing with cleanup"
+                );
+                apiMessage = "Logout completed (with warnings)";
+            }
+
+            try {
+                localStorage.removeItem("user-data");
+                localStorage.removeItem("auth-token");
+                console.log("✅ Local storage cleaned up");
+            } catch (storageError) {
+                console.error("❌ Failed to clear localStorage:", storageError);
+            }
+
+            return {
+                success: true,
+                message: apiMessage,
+            };
+        } catch (error) {
+            console.warn("⚠️ Logout API error, but cleaning up anyway:", error);
+
+            try {
+                localStorage.removeItem("user-data");
+                localStorage.removeItem("auth-token");
+                console.log("✅ Local storage cleaned up after API error");
+            } catch (storageError) {
+                console.error("❌ Failed to clear localStorage:", storageError);
+            }
+
+            return {
+                success: true,
+                message: "Logout completed (offline)",
+            };
+        } finally {
+            setIsLoading(false);
+        }
+    };
+
     return {
         login,
+        logout,
         isLoading,
         error,
     };

@@ -5,16 +5,30 @@ import { cookies } from "next/headers";
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
 
-const API_BASE_URL = "https://api-pos.masivaguna.com/api";
+const API_BASE_URL = "http://localhost:8081/api";
 
 export async function GET(request: NextRequest) {
     try {
         const cookieStore = cookies();
-        const authToken =
-            cookieStore.get("auth-token")?.value ||
-            request.headers.get("authorization");
 
-        if (!authToken) {
+        let authToken =
+            request.headers.get("authorization") ||
+            cookieStore.get("auth-token")?.value ||
+            cookieStore.get("user-data")?.value;
+
+        if (authToken?.startsWith("Bearer ")) {
+            authToken = authToken.substring(7);
+        }
+
+        console.log("🔐 Auth check:", {
+            hasHeaderAuth: !!request.headers.get("authorization"),
+            hasCookieAuth: !!cookieStore.get("auth-token")?.value,
+            tokenLength: authToken?.length || 0,
+            tokenPrefix: authToken?.substring(0, 10) || "none",
+        });
+
+        if (!authToken || authToken === "null" || authToken === "undefined") {
+            console.log("❌ No valid auth token found");
             return NextResponse.json(
                 {
                     success: false,
@@ -38,6 +52,11 @@ export async function GET(request: NextRequest) {
             queryParams.append("search", search);
         }
 
+        console.log("📤 Making request to external API:", {
+            url: `${API_BASE_URL}/user?${queryParams.toString()}`,
+            hasAuthToken: !!authToken,
+        });
+
         const response = await fetch(
             `${API_BASE_URL}/user?${queryParams.toString()}`,
             {
@@ -45,18 +64,27 @@ export async function GET(request: NextRequest) {
                 headers: {
                     "Content-Type": "application/json",
                     Accept: "application/json",
-                    Authorization: authToken.startsWith("Bearer ")
-                        ? authToken
-                        : `Bearer ${authToken}`,
+                    Authorization: `Bearer ${authToken}`,
                 },
-                next: { revalidate: 300 },
             }
         );
 
         const responseData = await response.json();
-        console.log("User API Response:", responseData);
+        console.log("📥 User API Response:", {
+            status: response.status,
+            ok: response.ok,
+            message: responseData.message,
+            hasData: !!responseData.data,
+            dataLength: responseData.data?.docs?.length || 0,
+        });
 
         if (!response.ok) {
+            console.log(
+                "❌ External API error:",
+                response.status,
+                responseData.message
+            );
+
             if (response.status === 401) {
                 return NextResponse.json(
                     {
@@ -82,6 +110,7 @@ export async function GET(request: NextRequest) {
             responseData.message !== "Get paginated user successful" ||
             !responseData.data
         ) {
+            console.log("❌ Invalid response structure:", responseData.message);
             return NextResponse.json(
                 {
                     success: false,
@@ -93,13 +122,20 @@ export async function GET(request: NextRequest) {
             );
         }
 
+        console.log("✅ User data retrieved successfully:", {
+            totalDocs: responseData.data.totalDocs,
+            docsCount: responseData.data.docs?.length,
+            page: responseData.data.page,
+            totalPages: responseData.data.totalPages,
+        });
+
         return NextResponse.json({
             success: true,
             message: "User data retrieved successfully",
             data: responseData.data,
         });
     } catch (error) {
-        console.error("User API error:", error);
+        console.error("❌ User API error:", error);
 
         if (error instanceof TypeError && error.message.includes("fetch")) {
             return NextResponse.json(

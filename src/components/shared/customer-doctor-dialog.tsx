@@ -515,11 +515,11 @@ export default function CustomerDoctorDialog({
                         <h2 className="text-2xl font-semibold text-gray-900">
                             {getDialogTitle()}
                         </h2>
-                        {triggerPaymentFlow && (
+                        {/* {triggerPaymentFlow && (
                             <span className="text-sm bg-blue-100 text-blue-600 px-2 py-1 rounded">
                                 Payment Flow
                             </span>
-                        )}
+                        )} */}
                     </div>
                     <button
                         onClick={handleClose}
