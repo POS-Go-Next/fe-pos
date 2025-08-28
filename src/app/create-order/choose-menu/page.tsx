@@ -1,4 +1,4 @@
-// app/create-order/choose-menu/page.tsx - UPDATED WITH handleMiscChange IMPLEMENTATION
+// app/create-order/choose-menu/page.tsx - FINAL VERSION FOR PRESENTATION
 "use client";
 
 import OrderSummary from "@/components/shared/order-summary";
@@ -14,6 +14,7 @@ import { ArrowLeft, Search } from "lucide-react";
 import { useEffect, useMemo, useState, useRef } from "react";
 import { ProductTableSection } from "./_components";
 import TransactionHistoryDialog from "./_components/TransactionHistoryDialog";
+import StockWarningDialog from "@/components/shared/stock-warning-dialog";
 
 interface CustomerData {
     id: number;
@@ -52,6 +53,15 @@ export default function ChooseMenuPage() {
     const [isTransactionHistoryOpen, setIsTransactionHistoryOpen] =
         useState(false);
 
+    // Stock Warning Dialog States
+    const [stockWarningDialog, setStockWarningDialog] = useState({
+        isOpen: false,
+        productName: "",
+        warningType: "out-of-stock" as "out-of-stock" | "insufficient-stock",
+        availableStock: 0,
+        requestedQuantity: 0,
+    });
+
     const productSearchInputRef = useRef<HTMLInputElement>(null);
     const barcodeSearchInputRef = useRef<HTMLInputElement>(null);
 
@@ -79,7 +89,60 @@ export default function ChooseMenuPage() {
         }
     };
 
-    // 🔥 NEW: Handler for misc changes
+    // CRITICAL: Stock validation - only block products with q_akhir === 0
+    const validateStock = (
+        product: ProductTableItem,
+        requestedQuantity: number
+    ): boolean => {
+        const stockData = product.stockData;
+        if (!stockData) {
+            return true; // If no stock data, allow (fallback)
+        }
+
+        const availableStock = stockData.q_akhir;
+
+        console.log("🔍 VALIDATING STOCK:", {
+            productName: product.name,
+            availableStock,
+            requestedQuantity,
+        });
+
+        // ONLY block if stock is exactly 0
+        if (availableStock === 0) {
+            console.log("❌ VALIDATION FAILED: Stock is exactly 0");
+            setStockWarningDialog({
+                isOpen: true,
+                productName: product.name,
+                warningType: "out-of-stock",
+                availableStock: 0,
+                requestedQuantity,
+            });
+            return false;
+        }
+
+        // Check if requested quantity exceeds available stock (only for positive numbers)
+        if (
+            availableStock &&
+            availableStock > 0 &&
+            requestedQuantity > availableStock
+        ) {
+            console.log(
+                "❌ VALIDATION FAILED: Requested quantity exceeds stock"
+            );
+            setStockWarningDialog({
+                isOpen: true,
+                productName: product.name,
+                warningType: "insufficient-stock",
+                availableStock,
+                requestedQuantity,
+            });
+            return false;
+        }
+
+        console.log("✅ VALIDATION PASSED: Stock is available");
+        return true;
+    };
+
     const handleMiscChange = (productId: number, miscAmount: number) => {
         if (!isClient) return;
 
@@ -101,15 +164,6 @@ export default function ChooseMenuPage() {
                             ((updatedProduct.discount || 0) / 100) -
                         (updatedProduct.promo || 0);
 
-                    console.log("🔥 Misc updated for product:", {
-                        productId,
-                        productName: product.name,
-                        previousMisc: product.misc || 0,
-                        addedMisc: miscAmount,
-                        newMisc: updatedProduct.misc,
-                        newTotal: updatedProduct.total,
-                    });
-
                     return updatedProduct;
                 }
                 return product;
@@ -125,7 +179,6 @@ export default function ChooseMenuPage() {
                 ) as HTMLInputElement;
                 if (productSearchInput) {
                     productSearchInput.focus();
-                    console.log("🎯 Auto focused to product search input");
                 }
                 setShouldFocusSearch(false);
             }, 100);
@@ -143,15 +196,7 @@ export default function ChooseMenuPage() {
                 if (quantityInput) {
                     quantityInput.focus();
                     quantityInput.select();
-                    console.log(
-                        "🎯 Auto focused to quantity input for product:",
-                        lastAddedProductId
-                    );
                 } else {
-                    console.log(
-                        "⌚ Could not find quantity input for product:",
-                        lastAddedProductId
-                    );
                     const allQuantityInputs = document.querySelectorAll(
                         'input[type="number"][data-product-id]'
                     );
@@ -161,9 +206,6 @@ export default function ChooseMenuPage() {
                     if (lastQuantityInput) {
                         lastQuantityInput.focus();
                         lastQuantityInput.select();
-                        console.log(
-                            "🎯 Fallback: Auto focused to last quantity input"
-                        );
                     }
                 }
                 setShouldFocusQuantity(false);
@@ -180,7 +222,6 @@ export default function ChooseMenuPage() {
     };
 
     const handleOpenTransactionHistory = () => {
-        console.log("🔥 Ctrl+F7 pressed - Opening Transaction History Dialog");
         setIsTransactionHistoryOpen(true);
     };
 
@@ -294,9 +335,19 @@ export default function ChooseMenuPage() {
             }));
     }, [products, parameterData]);
 
+    // CRITICAL: Quantity change with stock validation
     const handleQuantityChange = (id: number, value: number) => {
         if (!isClient) return;
 
+        const productToValidate = products.find((product) => product.id === id);
+        if (!productToValidate) return;
+
+        // Validate stock before updating
+        if (!validateStock(productToValidate, value)) {
+            return; // Don't update quantity if validation fails
+        }
+
+        // If validation passes, update the quantity
         setProducts(
             products.map((product) => {
                 if (product.id === id) {
@@ -325,7 +376,6 @@ export default function ChooseMenuPage() {
     const handleQuantityBlur = () => {
         setTimeout(() => {
             setShouldFocusSearch(true);
-            console.log("🎯 Quantity input blurred, returning focus to search");
         }, 100);
     };
 
@@ -333,9 +383,6 @@ export default function ChooseMenuPage() {
         if (e.key === "Enter") {
             (e.target as HTMLInputElement).blur();
             setShouldFocusSearch(true);
-            console.log(
-                "🎯 Enter pressed on quantity, returning focus to search"
-            );
         }
     };
 
@@ -358,10 +405,6 @@ export default function ChooseMenuPage() {
                         (updatedProduct.subtotal || 0) *
                             ((updatedProduct.discount || 0) / 100) -
                         (updatedProduct.promo || 0);
-
-                    console.log(
-                        `🔥 Type changed to ${newType}, SC: ${newSCValue}, Total: ${updatedProduct.total}`
-                    );
 
                     return updatedProduct;
                 }
@@ -431,20 +474,41 @@ export default function ChooseMenuPage() {
         };
     };
 
+    // CRITICAL: Product selection with stock validation
     const handleProductSelect = (
         selectedStockData: StockData,
         productId: number
     ) => {
+        console.log("🛒 ADDING PRODUCT TO CART:", {
+            productName: selectedStockData.nama_brg,
+            stock: selectedStockData.q_akhir,
+        });
+
+        // ONLY block if stock is exactly 0
+        const availableStock = selectedStockData.q_akhir;
+
+        if (availableStock === 0) {
+            console.log("❌ BLOCKED: Cannot add product with zero stock");
+            setStockWarningDialog({
+                isOpen: true,
+                productName: selectedStockData.nama_brg,
+                warningType: "out-of-stock",
+                availableStock: 0,
+                requestedQuantity: 1,
+            });
+            return; // STOP execution here
+        }
+
+        // Allow adding to cart for all other cases
+        console.log("✅ ALLOWED: Adding product to cart");
         const newProduct = convertStockToProduct(selectedStockData);
         setProducts((prevProducts) => [...prevProducts, newProduct]);
         setLastAddedProductId(nextId);
         setNextId((prevId) => prevId + 1);
         setShouldFocusQuantity(true);
-        console.log("🎯 New product row added, will focus on quantity input");
     };
 
     const handlePendingBill = () => {
-        console.log("💾 Pending bill saved");
         handleClearAllProducts();
     };
 
@@ -452,13 +516,19 @@ export default function ChooseMenuPage() {
         customerData?: CustomerData,
         doctorData?: DoctorData
     ) => {
-        console.log("💳 Payment successful", { customerData, doctorData });
         setIsPaymentSuccessDialogOpen(true);
     };
 
     const handlePaymentSuccessClose = () => {
         setIsPaymentSuccessDialogOpen(false);
         handleClearAllProducts();
+    };
+
+    const handleStockWarningClose = () => {
+        setStockWarningDialog((prev) => ({
+            ...prev,
+            isOpen: false,
+        }));
     };
 
     if (!isClient) {
@@ -512,7 +582,7 @@ export default function ChooseMenuPage() {
                         onProductSelect={handleProductSelect}
                         onTypeChange={handleTypeChange}
                         onDiscountChange={handleDiscountChange}
-                        onMiscChange={handleMiscChange} // 🔥 NEW: Pass handleMiscChange
+                        onMiscChange={handleMiscChange}
                         className="mb-6"
                     />
                 </div>
@@ -547,11 +617,18 @@ export default function ChooseMenuPage() {
             <TransactionHistoryDialog
                 isOpen={isTransactionHistoryOpen}
                 onClose={() => {
-                    console.log(
-                        "🔒 Closing Transaction History Dialog from page level"
-                    );
                     setIsTransactionHistoryOpen(false);
                 }}
+            />
+
+            {/* CRITICAL: Stock Warning Dialog - shows when trying to add/modify products with insufficient stock */}
+            <StockWarningDialog
+                isOpen={stockWarningDialog.isOpen}
+                onClose={handleStockWarningClose}
+                productName={stockWarningDialog.productName}
+                warningType={stockWarningDialog.warningType}
+                availableStock={stockWarningDialog.availableStock}
+                requestedQuantity={stockWarningDialog.requestedQuantity}
             />
         </div>
     );

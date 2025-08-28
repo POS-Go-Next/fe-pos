@@ -1,14 +1,15 @@
-// components/shared/select-product-dialog.tsx - UPDATED WITH HISTORY ACTION
+// components/shared/select-product-dialog.tsx - UPDATED TO PASS PRODUCT CODE TO HISTORY
 "use client";
 
-import { useState, useEffect, useRef } from "react";
-import { Search, Plus, X, Clock, ChevronDown } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import Pagination from "./pagination";
-import ProductHistoryDialog from "./product-history-dialog";
 import { useStock } from "@/hooks/useStock";
 import type { StockData } from "@/types/stock";
+import { ChevronDown, Clock, Search, X } from "lucide-react";
+import { useEffect, useRef, useState } from "react";
+import Pagination from "./pagination";
+import ProductHistoryDialog from "./product-history-dialog";
+import StockWarningDialog from "./stock-warning-dialog";
 
 interface SelectProductDialogProps {
     isOpen: boolean;
@@ -41,6 +42,17 @@ export default function SelectProductDialog({
     const [isHistoryDialogOpen, setIsHistoryDialogOpen] = useState(false);
     const [selectedProductForHistory, setSelectedProductForHistory] =
         useState<string>("");
+    const [selectedProductCodeForHistory, setSelectedProductCodeForHistory] =
+        useState<string>(""); // NEW: Track product code for history
+
+    // Stock Warning Dialog States
+    const [stockWarningDialog, setStockWarningDialog] = useState({
+        isOpen: false,
+        productName: "",
+        warningType: "out-of-stock" as "out-of-stock" | "insufficient-stock",
+        availableStock: 0,
+        requestedQuantity: 0,
+    });
 
     const searchInputRef = useRef<HTMLInputElement>(null);
     const tableRef = useRef<HTMLTableElement>(null);
@@ -52,25 +64,14 @@ export default function SelectProductDialog({
     const pageSizeOptions = [5, 10, 25, 50, 100];
 
     const scrollToSelectedRow = (index: number) => {
-        console.log("📜 Scrolling to row:", index);
-        if (!tableContainerRef.current) {
-            console.log("❌ Table container ref not found");
-            return;
-        }
-
+        if (!tableContainerRef.current) return;
         const rows = tableContainerRef.current.querySelectorAll("tbody tr");
-        console.log("📜 Found rows:", rows.length);
-
         const selectedRow = rows[index];
-
         if (selectedRow) {
-            console.log("📜 Scrolling to row element");
             selectedRow.scrollIntoView({
                 behavior: "smooth",
                 block: "nearest",
             });
-        } else {
-            console.log("❌ Selected row not found at index:", index);
         }
     };
 
@@ -78,35 +79,20 @@ export default function SelectProductDialog({
         if (!isOpen) return;
 
         const handleKeyDown = (e: KeyboardEvent) => {
-            console.log(
-                "🎹 Key pressed:",
-                e.key,
-                "activeElement:",
-                document.activeElement?.tagName
-            );
-
             const isTypingInSearch =
                 document.activeElement === searchInputRef.current &&
                 (e.key.length === 1 ||
                     e.key === "Backspace" ||
                     e.key === "Delete");
 
-            if (isTypingInSearch) {
-                console.log("🎹 Ignoring key - user is typing in search");
-                return;
-            }
+            if (isTypingInSearch) return;
 
             switch (e.key) {
                 case "PageDown":
                 case "ArrowDown":
                     e.preventDefault();
-                    console.log(
-                        "🔽 Moving down, current index:",
-                        selectedIndex
-                    );
                     setSelectedIndex((prevIndex) => {
                         if (prevIndex === -1 && stockList.length > 0) {
-                            console.log("🎯 Starting from first item");
                             scrollToSelectedRow(0);
                             return 0;
                         }
@@ -114,7 +100,6 @@ export default function SelectProductDialog({
                             prevIndex + 1,
                             stockList.length - 1
                         );
-                        console.log("🔽 New index:", newIndex);
                         scrollToSelectedRow(newIndex);
                         return newIndex;
                     });
@@ -123,15 +108,12 @@ export default function SelectProductDialog({
                 case "PageUp":
                 case "ArrowUp":
                     e.preventDefault();
-                    console.log("🔼 Moving up, current index:", selectedIndex);
                     setSelectedIndex((prevIndex) => {
                         if (prevIndex === -1 && stockList.length > 0) {
-                            console.log("🎯 Starting from first item");
                             scrollToSelectedRow(0);
                             return 0;
                         }
                         const newIndex = Math.max(prevIndex - 1, 0);
-                        console.log("🔼 New index:", newIndex);
                         scrollToSelectedRow(newIndex);
                         return newIndex;
                     });
@@ -139,18 +121,10 @@ export default function SelectProductDialog({
 
                 case "Enter":
                     e.preventDefault();
-                    console.log(
-                        "⏎ Enter pressed, selected index:",
-                        selectedIndex
-                    );
                     if (
                         selectedIndex >= 0 &&
                         selectedIndex < stockList.length
                     ) {
-                        console.log(
-                            "⏎ Selecting product:",
-                            stockList[selectedIndex]?.nama_brg
-                        );
                         handleSelectProduct(stockList[selectedIndex]);
                     }
                     break;
@@ -158,7 +132,6 @@ export default function SelectProductDialog({
                 case "Home":
                     e.preventDefault();
                     if (stockList.length > 0) {
-                        console.log("🏠 Moving to first item");
                         setSelectedIndex(0);
                         scrollToSelectedRow(0);
                     }
@@ -168,7 +141,6 @@ export default function SelectProductDialog({
                     e.preventDefault();
                     if (stockList.length > 0) {
                         const lastIndex = stockList.length - 1;
-                        console.log("🔚 Moving to last item:", lastIndex);
                         setSelectedIndex(lastIndex);
                         scrollToSelectedRow(lastIndex);
                     }
@@ -176,46 +148,20 @@ export default function SelectProductDialog({
 
                 case "Escape":
                     e.preventDefault();
-                    console.log("🚪 Escape pressed - closing dialog");
                     handleClose();
                     break;
             }
         };
 
-        console.log(
-            "🎹 Adding keyboard event listener, stockList length:",
-            stockList.length
-        );
         document.addEventListener("keydown", handleKeyDown);
-
-        return () => {
-            console.log("🎹 Removing keyboard event listener");
-            document.removeEventListener("keydown", handleKeyDown);
-        };
+        return () => document.removeEventListener("keydown", handleKeyDown);
     }, [isOpen, stockList, selectedIndex]);
 
     useEffect(() => {
-        console.log("🎯 Selected index changed to:", selectedIndex);
-        if (
-            selectedIndex >= 0 &&
-            stockList.length > 0 &&
-            stockList[selectedIndex]
-        ) {
-            console.log(
-                "🎯 Selected product:",
-                stockList[selectedIndex].nama_brg
-            );
-        }
-    }, [selectedIndex, stockList]);
-
-    useEffect(() => {
-        console.log("📊 Stock list changed, length:", stockList.length);
         if (stockList.length > 0) {
             setSelectedIndex(0);
-            console.log("🎯 Auto-selected first item:", stockList[0]?.nama_brg);
         } else {
             setSelectedIndex(-1);
-            console.log("❌ No data, clearing selection");
         }
     }, [stockList]);
 
@@ -225,10 +171,6 @@ export default function SelectProductDialog({
             setPageSize(10);
 
             if (initialSearchQuery && initialSearchQuery.trim().length >= 3) {
-                console.log(
-                    "🔍 Setting initial search query:",
-                    initialSearchQuery
-                );
                 setSearchInput(initialSearchQuery);
                 setSearchTerm(initialSearchQuery.trim());
                 setIsSearchActive(true);
@@ -246,6 +188,14 @@ export default function SelectProductDialog({
 
             setIsHistoryDialogOpen(false);
             setSelectedProductForHistory("");
+            setSelectedProductCodeForHistory(""); // NEW: Reset product code
+            setStockWarningDialog({
+                isOpen: false,
+                productName: "",
+                warningType: "out-of-stock",
+                availableStock: 0,
+                requestedQuantity: 0,
+            });
 
             setTimeout(() => {
                 searchInputRef.current?.focus();
@@ -286,8 +236,29 @@ export default function SelectProductDialog({
         setApiParams({ offset: 0, limit: pageSize, search: "" });
     };
 
+    // CRITICAL: Stock validation - only block products with q_akhir === 0
     const handleSelectProduct = (product: StockData) => {
-        console.log("🔥 Product selected:", product);
+        console.log("🔥 SELECTING PRODUCT:", {
+            name: product.nama_brg,
+            code: product.kode_brg,
+            stock: product.q_akhir,
+        });
+
+        // ONLY block if stock is exactly 0
+        if (product.q_akhir === 0) {
+            console.log("❌ BLOCKED: Stock is 0, showing warning");
+            setStockWarningDialog({
+                isOpen: true,
+                productName: product.nama_brg,
+                warningType: "out-of-stock",
+                availableStock: 0,
+                requestedQuantity: 1,
+            });
+            return; // Stop execution - don't add to cart
+        }
+
+        // Allow selection for all other cases
+        console.log("✅ ALLOWED: Adding to cart");
         onSelectProduct(product);
         handleClose();
     };
@@ -303,7 +274,6 @@ export default function SelectProductDialog({
 
     const handlePageChange = (page: number) => {
         if (page < 1 || page > (totalPages || 1)) return;
-
         setCurrentPage(page);
         const offset = (page - 1) * pageSize;
         setApiParams({
@@ -330,34 +300,33 @@ export default function SelectProductDialog({
         }
     };
 
+    // UPDATED: History click handler to pass both name and code
     const handleHistoryClick = () => {
-        console.log("🕒 History button clicked");
-
         if (selectedIndex >= 0 && stockList[selectedIndex]) {
             const selectedProduct = stockList[selectedIndex];
             setSelectedProductForHistory(selectedProduct.nama_brg);
-            console.log(
-                "🕒 Opening history for selected product:",
-                selectedProduct.nama_brg
-            );
+            setSelectedProductCodeForHistory(selectedProduct.kode_brg); // NEW: Set product code
         } else if (searchTerm.trim()) {
             setSelectedProductForHistory(searchTerm.trim());
-            console.log(
-                "🕒 Opening history for search term:",
-                searchTerm.trim()
-            );
+            setSelectedProductCodeForHistory(""); // No specific product code for search term
         } else {
             setSelectedProductForHistory("Product History");
-            console.log("🕒 Opening history with default name");
+            setSelectedProductCodeForHistory(""); // No specific product code
         }
-
         setIsHistoryDialogOpen(true);
     };
 
     const handleHistoryDialogClose = () => {
-        console.log("🕒 Closing history dialog");
         setIsHistoryDialogOpen(false);
         setSelectedProductForHistory("");
+        setSelectedProductCodeForHistory(""); // NEW: Reset product code
+    };
+
+    const handleStockWarningClose = () => {
+        setStockWarningDialog((prev) => ({
+            ...prev,
+            isOpen: false,
+        }));
     };
 
     const handleClose = () => {
@@ -369,7 +338,14 @@ export default function SelectProductDialog({
         setApiParams({ offset: 0, limit: 10, search: "" });
         setIsHistoryDialogOpen(false);
         setSelectedProductForHistory("");
-
+        setSelectedProductCodeForHistory(""); // NEW: Reset product code
+        setStockWarningDialog({
+            isOpen: false,
+            productName: "",
+            warningType: "out-of-stock",
+            availableStock: 0,
+            requestedQuantity: 0,
+        });
         onClose();
     };
 
@@ -430,34 +406,6 @@ export default function SelectProductDialog({
                                     History
                                 </Button>
                             </div>
-
-                            <div className="mt-2 text-xs text-gray-500">
-                                💡 Use{" "}
-                                <kbd className="px-1 py-0.5 bg-gray-200 rounded text-xs">
-                                    PageUp
-                                </kbd>{" "}
-                                /{" "}
-                                <kbd className="px-1 py-0.5 bg-gray-200 rounded text-xs">
-                                    PageDown
-                                </kbd>{" "}
-                                or{" "}
-                                <kbd className="px-1 py-0.5 bg-gray-200 rounded text-xs">
-                                    ↑
-                                </kbd>{" "}
-                                /{" "}
-                                <kbd className="px-1 py-0.5 bg-gray-200 rounded text-xs">
-                                    ↓
-                                </kbd>{" "}
-                                to navigate,{" "}
-                                <kbd className="px-1 py-0.5 bg-gray-200 rounded text-xs">
-                                    Enter
-                                </kbd>{" "}
-                                to select,{" "}
-                                <kbd className="px-1 py-0.5 bg-gray-200 rounded text-xs">
-                                    Esc
-                                </kbd>{" "}
-                                to close
-                            </div>
                         </div>
 
                         <div className="flex-1 flex flex-col min-h-0 rounded-2xl border border-[#F5F5F5] overflow-hidden">
@@ -502,6 +450,9 @@ export default function SelectProductDialog({
                                             <th className="text-left h-[48px] px-4 text-sm font-medium text-gray-600 whitespace-nowrap min-w-[60px] bg-[#F5F5F5]">
                                                 Qbbs
                                             </th>
+                                            <th className="text-left h-[48px] px-4 text-sm font-medium text-gray-600 whitespace-nowrap min-w-[60px] bg-[#F5F5F5]">
+                                                Stock
+                                            </th>
                                             <th className="text-left h-[48px] px-4 text-sm font-medium text-gray-600 whitespace-nowrap min-w-[120px] bg-[#F5F5F5]">
                                                 Barcode
                                             </th>
@@ -523,7 +474,7 @@ export default function SelectProductDialog({
                                         {isLoading ? (
                                             <tr>
                                                 <td
-                                                    colSpan={15}
+                                                    colSpan={16}
                                                     className="text-center py-20"
                                                 >
                                                     <div className="flex items-center justify-center">
@@ -537,7 +488,7 @@ export default function SelectProductDialog({
                                         ) : error ? (
                                             <tr>
                                                 <td
-                                                    colSpan={15}
+                                                    colSpan={16}
                                                     className="text-center py-20"
                                                 >
                                                     <div className="flex flex-col items-center justify-center">
@@ -562,90 +513,151 @@ export default function SelectProductDialog({
                                                 </td>
                                             </tr>
                                         ) : stockList.length > 0 ? (
-                                            stockList.map((product, index) => (
-                                                <tr
-                                                    key={product.kode_brg}
-                                                    className={`border-b border-gray-100 cursor-pointer transition-all duration-200 ${
-                                                        index === selectedIndex
-                                                            ? "bg-blue-100 border-blue-300 shadow-sm"
-                                                            : "hover:bg-blue-50"
-                                                    }`}
-                                                    onClick={() =>
-                                                        handleRowClick(
-                                                            product,
-                                                            index
-                                                        )
-                                                    }
-                                                    onMouseEnter={() =>
-                                                        handleRowHover(index)
-                                                    }
-                                                >
-                                                    <td className="h-[48px] px-4 text-sm font-medium text-gray-900 whitespace-nowrap overflow-hidden text-ellipsis">
-                                                        {product.kode_brg}
-                                                    </td>
-                                                    <td
-                                                        className="h-[48px] px-4 text-sm font-medium text-gray-900 whitespace-nowrap overflow-hidden text-ellipsis"
-                                                        title={product.nama_brg}
+                                            stockList.map((product, index) => {
+                                                // CRITICAL: Check if product is out of stock (q_akhir === 0)
+                                                const isOutOfStock =
+                                                    product.q_akhir === 0;
+
+                                                const rowClassName = `border-b border-gray-100 cursor-pointer transition-all duration-200 ${
+                                                    isOutOfStock
+                                                        ? "bg-red-50 hover:bg-red-100 opacity-70"
+                                                        : index ===
+                                                          selectedIndex
+                                                        ? "bg-blue-100 border-blue-300 shadow-sm"
+                                                        : "hover:bg-blue-50"
+                                                }`;
+
+                                                return (
+                                                    <tr
+                                                        key={product.kode_brg}
+                                                        className={rowClassName}
+                                                        onClick={() =>
+                                                            handleRowClick(
+                                                                product,
+                                                                index
+                                                            )
+                                                        }
+                                                        onMouseEnter={() =>
+                                                            handleRowHover(
+                                                                index
+                                                            )
+                                                        }
+                                                        title={
+                                                            isOutOfStock
+                                                                ? "Produk ini stoknya habis"
+                                                                : ""
+                                                        }
                                                     >
-                                                        {product.nama_brg}
-                                                    </td>
-                                                    <td className="h-[48px] px-4 text-sm text-gray-600 whitespace-nowrap overflow-hidden text-ellipsis">
-                                                        {product.id_dept}
-                                                    </td>
-                                                    <td className="h-[48px] px-4 text-sm text-gray-600 whitespace-nowrap overflow-hidden text-ellipsis">
-                                                        {product.satuan}
-                                                    </td>
-                                                    <td className="h-[48px] px-4 text-sm text-gray-900 whitespace-nowrap overflow-hidden text-ellipsis">
-                                                        Rp{" "}
-                                                        {product.hj_ecer?.toLocaleString(
-                                                            "id-ID"
-                                                        ) || 0}
-                                                    </td>
-                                                    <td className="h-[48px] px-4 text-sm text-gray-900 whitespace-nowrap overflow-hidden text-ellipsis">
-                                                        Rp{" "}
-                                                        {product.hj_ecer?.toLocaleString(
-                                                            "id-ID"
-                                                        ) || 0}
-                                                    </td>
-                                                    <td className="h-[48px] px-4 text-sm text-gray-900 whitespace-nowrap overflow-hidden text-ellipsis">
-                                                        Rp{" "}
-                                                        {product.hj_ecer?.toLocaleString(
-                                                            "id-ID"
-                                                        ) || 0}
-                                                    </td>
-                                                    <td className="h-[48px] px-4 text-sm text-gray-600 whitespace-nowrap overflow-hidden text-ellipsis">
-                                                        {product.isi}
-                                                    </td>
-                                                    <td className="h-[48px] px-4 text-sm text-gray-600 whitespace-nowrap overflow-hidden text-ellipsis">
-                                                        {product.strip}
-                                                    </td>
-                                                    <td className="h-[48px] px-4 text-sm font-medium text-green-600 whitespace-nowrap overflow-hidden text-ellipsis">
-                                                        {product.q_bbs || 0}
-                                                    </td>
-                                                    <td
-                                                        className="h-[48px] px-4 text-sm text-gray-600 whitespace-nowrap overflow-hidden text-ellipsis"
-                                                        title={product.barcode}
-                                                    >
-                                                        {product.barcode || "-"}
-                                                    </td>
-                                                    <td className="h-[48px] px-4 text-sm text-gray-600 whitespace-nowrap overflow-hidden text-ellipsis">
-                                                        -
-                                                    </td>
-                                                    <td className="h-[48px] px-4 text-sm text-gray-600 whitespace-nowrap overflow-hidden text-ellipsis">
-                                                        -
-                                                    </td>
-                                                    <td className="h-[48px] px-4 text-sm text-gray-600 whitespace-nowrap overflow-hidden text-ellipsis">
-                                                        -
-                                                    </td>
-                                                    <td className="h-[48px] px-4 text-sm text-gray-600 whitespace-nowrap overflow-hidden text-ellipsis">
-                                                        -
-                                                    </td>
-                                                </tr>
-                                            ))
+                                                        <td className="h-[48px] px-4 text-sm font-medium text-gray-900 whitespace-nowrap overflow-hidden text-ellipsis">
+                                                            {product.kode_brg}
+                                                        </td>
+                                                        <td
+                                                            className={`h-[48px] px-4 text-sm font-medium whitespace-nowrap overflow-hidden text-ellipsis ${
+                                                                isOutOfStock
+                                                                    ? "text-red-600"
+                                                                    : "text-gray-900"
+                                                            }`}
+                                                            title={
+                                                                product.nama_brg
+                                                            }
+                                                        >
+                                                            {product.nama_brg}
+                                                            {/* CRITICAL: Show HABIS label for out of stock products */}
+                                                            {isOutOfStock && (
+                                                                <span className="ml-2 text-xs bg-red-100 text-red-600 px-2 py-1 rounded font-bold">
+                                                                    HABIS
+                                                                </span>
+                                                            )}
+                                                        </td>
+                                                        <td className="h-[48px] px-4 text-sm text-gray-600 whitespace-nowrap overflow-hidden text-ellipsis">
+                                                            {product.id_dept}
+                                                        </td>
+                                                        <td className="h-[48px] px-4 text-sm text-gray-600 whitespace-nowrap overflow-hidden text-ellipsis">
+                                                            {product.satuan}
+                                                        </td>
+                                                        <td className="h-[48px] px-4 text-sm text-gray-900 whitespace-nowrap overflow-hidden text-ellipsis">
+                                                            Rp{" "}
+                                                            {product.hj_ecer?.toLocaleString(
+                                                                "id-ID"
+                                                            ) || 0}
+                                                        </td>
+                                                        <td className="h-[48px] px-4 text-sm text-gray-900 whitespace-nowrap overflow-hidden text-ellipsis">
+                                                            Rp{" "}
+                                                            {product.hj_ecer?.toLocaleString(
+                                                                "id-ID"
+                                                            ) || 0}
+                                                        </td>
+                                                        <td className="h-[48px] px-4 text-sm text-gray-900 whitespace-nowrap overflow-hidden text-ellipsis">
+                                                            Rp{" "}
+                                                            {product.hj_ecer?.toLocaleString(
+                                                                "id-ID"
+                                                            ) || 0}
+                                                        </td>
+                                                        <td className="h-[48px] px-4 text-sm text-gray-600 whitespace-nowrap overflow-hidden text-ellipsis">
+                                                            {product.isi}
+                                                        </td>
+                                                        <td className="h-[48px] px-4 text-sm text-gray-600 whitespace-nowrap overflow-hidden text-ellipsis">
+                                                            {product.strip}
+                                                        </td>
+                                                        <td className="h-[48px] px-4 text-sm font-medium text-green-600 whitespace-nowrap overflow-hidden text-ellipsis">
+                                                            {product.q_bbs || 0}
+                                                        </td>
+                                                        {/* FIXED: Stock column with proper q_akhir display */}
+                                                        <td
+                                                            className={`h-[48px] px-4 text-sm font-bold whitespace-nowrap overflow-hidden text-ellipsis ${
+                                                                product.q_akhir ===
+                                                                0
+                                                                    ? "text-red-600"
+                                                                    : product.q_akhir !=
+                                                                          null &&
+                                                                      product.q_akhir <
+                                                                          10
+                                                                    ? "text-orange-600"
+                                                                    : "text-green-600"
+                                                            }`}
+                                                        >
+                                                            {/* Display actual q_akhir value with proper formatting */}
+                                                            {product.q_akhir !=
+                                                            null
+                                                                ? product.q_akhir.toLocaleString(
+                                                                      "id-ID"
+                                                                  )
+                                                                : "N/A"}
+                                                            {product.q_akhir ===
+                                                                0 && (
+                                                                <span className="ml-1 text-xs">
+                                                                    (HABIS)
+                                                                </span>
+                                                            )}
+                                                        </td>
+                                                        <td
+                                                            className="h-[48px] px-4 text-sm text-gray-600 whitespace-nowrap overflow-hidden text-ellipsis"
+                                                            title={
+                                                                product.barcode
+                                                            }
+                                                        >
+                                                            {product.barcode ||
+                                                                "-"}
+                                                        </td>
+                                                        <td className="h-[48px] px-4 text-sm text-gray-600 whitespace-nowrap overflow-hidden text-ellipsis">
+                                                            -
+                                                        </td>
+                                                        <td className="h-[48px] px-4 text-sm text-gray-600 whitespace-nowrap overflow-hidden text-ellipsis">
+                                                            -
+                                                        </td>
+                                                        <td className="h-[48px] px-4 text-sm text-gray-600 whitespace-nowrap overflow-hidden text-ellipsis">
+                                                            -
+                                                        </td>
+                                                        <td className="h-[48px] px-4 text-sm text-gray-600 whitespace-nowrap overflow-hidden text-ellipsis">
+                                                            -
+                                                        </td>
+                                                    </tr>
+                                                );
+                                            })
                                         ) : (
                                             <tr>
                                                 <td
-                                                    colSpan={15}
+                                                    colSpan={16}
                                                     className="p-8 text-center text-gray-500"
                                                 >
                                                     {isSearchActive
@@ -658,7 +670,6 @@ export default function SelectProductDialog({
                                 </table>
                             </div>
                         </div>
-
                         {stockList.length > 0 && (
                             <div className="mt-5 flex justify-between items-center flex-shrink-0">
                                 <div className="flex items-center gap-4">
@@ -720,32 +731,23 @@ export default function SelectProductDialog({
                         )}
                     </div>
                 </div>
-
-                <style jsx>{`
-                    kbd {
-                        background-color: #f3f4f6;
-                        border: 1px solid #d1d5db;
-                        border-radius: 3px;
-                        box-shadow: 0 1px 0 rgba(0, 0, 0, 0.2),
-                            inset 0 0 0 2px #ffffff;
-                        color: #374151;
-                        display: inline-block;
-                        font-family: -apple-system, BlinkMacSystemFont,
-                            "Segoe UI", Roboto, "Helvetica Neue", Arial,
-                            sans-serif;
-                        font-size: 11px;
-                        font-weight: 600;
-                        line-height: 1;
-                        padding: 2px 4px;
-                        white-space: nowrap;
-                    }
-                `}</style>
             </div>
 
+            {/* UPDATED: Pass both productName and productCode to ProductHistoryDialog */}
             <ProductHistoryDialog
                 isOpen={isHistoryDialogOpen}
                 onClose={handleHistoryDialogClose}
                 productName={selectedProductForHistory}
+                productCode={selectedProductCodeForHistory}
+            />
+
+            <StockWarningDialog
+                isOpen={stockWarningDialog.isOpen}
+                onClose={handleStockWarningClose}
+                productName={stockWarningDialog.productName}
+                warningType={stockWarningDialog.warningType}
+                availableStock={stockWarningDialog.availableStock}
+                requestedQuantity={stockWarningDialog.requestedQuantity}
             />
         </>
     );

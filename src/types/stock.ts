@@ -19,37 +19,38 @@ export interface StockData {
     hna: number;
     moq?: number;
     min_bulan_ed?: number;
-  }
-  
-  export interface StockPaginationData {
+    q_akhir?: number; // 🔥 NEW: Field for remaining stock
+}
+
+export interface StockPaginationData {
     docs: StockData[];
     totalDocs: number;
     page: number;
     totalPages: number;
-  }
-  
-  export interface StockApiResponse {
+}
+
+export interface StockApiResponse {
     success: boolean;
     message: string;
     data?: StockPaginationData;
     errors?: any;
-  }
-  
-  export interface StockExternalApiResponse {
+}
+
+export interface StockExternalApiResponse {
     message: string;
     data: StockPaginationData;
-  }
-  
-  export interface StockApiParams {
+}
+
+export interface StockApiParams {
     offset?: number;
     limit?: number;
     search?: string;
-  }
-  
-  export interface ProductTableItem {
+}
+
+export interface ProductTableItem {
     id: number;
     name: string;
-    type?: 'R/' | 'RC' | 'OTC' | string;
+    type?: "R/" | "RC" | "OTC" | string;
     price: number;
     quantity: number;
     subtotal: number;
@@ -62,20 +63,20 @@ export interface StockData {
     noVoucher?: number;
     total?: number;
     stockData?: StockData;
-  }
-  
-  export const STOCK_CATEGORIES = {
+}
+
+export const STOCK_CATEGORIES = {
     "001": "OTC",
     "002": "Ethical",
     "003": "Supplement",
-  } as const;
-  
-  export const STOCK_DEPARTMENTS = {
-    "A1": "Obat Keras",
-    "A2": "Obat Bebas", 
-    "H3": "Herbal",
-    "L": "Alat Kesehatan",
-    "N4": "Kosmetik",
-    "S": "Supplement",
-    "U": "Makanan & Minuman",
-  } as const;
+} as const;
+
+export const STOCK_DEPARTMENTS = {
+    A1: "Obat Keras",
+    A2: "Obat Bebas",
+    H3: "Herbal",
+    L: "Alat Kesehatan",
+    N4: "Kosmetik",
+    S: "Supplement",
+    U: "Makanan & Minuman",
+} as const;

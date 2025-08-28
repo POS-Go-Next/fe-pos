@@ -1,4 +1,4 @@
-// components/shared/product-history-dialog.tsx
+// components/shared/product-history-dialog.tsx - UPDATED WITH PRODUCT CODE FILTER
 "use client";
 
 import React, { useState, useEffect, useRef } from "react";
@@ -29,12 +29,14 @@ interface ProductHistoryDialogProps {
     isOpen: boolean;
     onClose: () => void;
     productName?: string;
+    productCode?: string; // NEW: Add product code prop
 }
 
 export default function ProductHistoryDialog({
     isOpen,
     onClose,
     productName = "ALAMII BISCUIT OAT & MILK 60G",
+    productCode = "", // NEW: Product code for filtering
 }: ProductHistoryDialogProps) {
     const [searchInput, setSearchInput] = useState("");
     const [searchTerm, setSearchTerm] = useState("");
@@ -56,6 +58,7 @@ export default function ProductHistoryDialog({
         return date.toISOString().split("T")[0];
     };
 
+    // UPDATED: Add product code to useTransaction parameters
     const {
         transactionList,
         isLoading,
@@ -72,6 +75,7 @@ export default function ProductHistoryDialog({
         to_date: appliedDateRange?.to
             ? formatDateForAPI(appliedDateRange.to)
             : "",
+        bought_product_code: productCode, // NEW: Filter by product code
     });
 
     const historyData: ProductHistoryData[] = transactionList.map(
@@ -104,7 +108,12 @@ export default function ProductHistoryDialog({
 
     useEffect(() => {
         if (isOpen) {
-            console.log("📋 Product History Dialog opened");
+            console.log(
+                "📋 Product History Dialog opened for:",
+                productName,
+                "Code:",
+                productCode
+            );
             setCurrentPage(1);
             setPageSize(10);
             setSearchInput("");
@@ -114,7 +123,7 @@ export default function ProductHistoryDialog({
                 searchInputRef.current?.focus();
             }, 100);
         }
-    }, [isOpen]);
+    }, [isOpen, productName, productCode]);
 
     useEffect(() => {
         const trimmedSearch = searchInput.trim();
@@ -213,6 +222,11 @@ export default function ProductHistoryDialog({
                 <div className="flex items-center justify-between p-6 border-b border-gray-200">
                     <h2 className="text-xl font-semibold text-gray-900">
                         History Product - {productName}
+                        {productCode && (
+                            <span className="ml-2 text-sm text-gray-500">
+                                ({productCode})
+                            </span>
+                        )}
                     </h2>
                     <button
                         onClick={handleClose}
@@ -372,6 +386,8 @@ export default function ProductHistoryDialog({
                                                       searchInput.trim()
                                                           .length < 3
                                                     ? "Please enter at least 3 characters to search."
+                                                    : productCode
+                                                    ? `No transaction history found for product ${productCode}.`
                                                     : "No product history found."}
                                             </td>
                                         </tr>

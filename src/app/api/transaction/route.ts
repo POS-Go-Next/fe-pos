@@ -1,4 +1,4 @@
-// app/api/transaction/route.ts - CORRECTED VERSION WITH POST METHOD
+// app/api/transaction/route.ts - UPDATED WITH PRODUCT CODE FILTER
 import { NextRequest, NextResponse } from "next/server";
 import { cookies } from "next/headers";
 import type {
@@ -11,7 +11,7 @@ export const dynamic = "force-dynamic";
 
 const API_BASE_URL = "http://localhost:8081/api";
 
-// POST method for creating new transactions (MISSING IN YOUR VERSION)
+// POST method for creating new transactions (EXISTING CODE)
 export async function POST(request: NextRequest) {
     try {
         const cookieStore = cookies();
@@ -153,7 +153,7 @@ export async function POST(request: NextRequest) {
     }
 }
 
-// GET method for transaction list (YOUR EXISTING CODE IS GOOD)
+// GET method for transaction list - UPDATED WITH PRODUCT CODE FILTER
 export async function GET(request: NextRequest) {
     try {
         const cookieStore = cookies();
@@ -177,8 +177,9 @@ export async function GET(request: NextRequest) {
         const limit = parseInt(searchParams.get("limit") || "10");
         const fromDate = searchParams.get("from_date") || "";
         const toDate = searchParams.get("to_date") || "";
+        const boughtProductCode = searchParams.get("bought_product_code") || "";
 
-        // FIXED: Validate offset to prevent excessive values
+        // Validate offset to prevent excessive values
         if (offset < 0 || limit < 1 || limit > 100) {
             return NextResponse.json(
                 { success: false, message: "Invalid pagination parameters" },
@@ -192,6 +193,8 @@ export async function GET(request: NextRequest) {
         apiUrl.searchParams.set("limit", limit.toString());
         if (fromDate) apiUrl.searchParams.set("from_date", fromDate);
         if (toDate) apiUrl.searchParams.set("to_date", toDate);
+        if (boughtProductCode)
+            apiUrl.searchParams.set("bought_product_code", boughtProductCode);
 
         console.log("API URL:", apiUrl.toString());
 
@@ -224,7 +227,7 @@ export async function GET(request: NextRequest) {
                     { status: 401 }
                 );
             }
-            // FIXED: Return 400 for client errors instead of propagating 503
+            // Return 400 for client errors instead of propagating 503
             if (response.status >= 400 && response.status < 500) {
                 return NextResponse.json(
                     { success: false, message: "Invalid request parameters" },
