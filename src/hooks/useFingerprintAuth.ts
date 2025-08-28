@@ -4,7 +4,7 @@
 import { useState } from "react";
 
 interface FingerprintLoginRequest {
-    mac_address: string;
+    device_id: string;
     need_generate_token?: boolean;
 }
 
@@ -50,7 +50,7 @@ export const useFingerprintAuth = (): UseFingerprintAuthReturn => {
 
         try {
             console.log("🔐 Starting fingerprint login:", {
-                mac_address: request.mac_address,
+                device_id: request.device_id,
                 need_generate_token: request.need_generate_token,
                 timestamp: new Date().toISOString(),
             });

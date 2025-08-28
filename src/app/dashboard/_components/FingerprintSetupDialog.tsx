@@ -160,7 +160,7 @@ const FingerprintSetupDialog: FC<FingerprintSetupDialogProps> = ({
         useScanningManager();
 
     const {
-        macAddress,
+        deviceId,
         isLoading: isSystemLoading,
         error: systemError,
         refetch: refetchSystemInfo,
@@ -281,7 +281,7 @@ const FingerprintSetupDialog: FC<FingerprintSetupDialogProps> = ({
         if (
             isOpen &&
             isAuthenticated &&
-            !macAddress &&
+            !deviceId &&
             !isSystemLoading &&
             !systemError
         ) {
@@ -291,7 +291,7 @@ const FingerprintSetupDialog: FC<FingerprintSetupDialogProps> = ({
     }, [
         isOpen,
         isAuthenticated,
-        macAddress,
+        deviceId,
         isSystemLoading,
         systemError,
         refetchSystemInfo,
@@ -300,7 +300,7 @@ const FingerprintSetupDialog: FC<FingerprintSetupDialogProps> = ({
     const handleStartScanning = async (type: ScanningType) => {
         if (!employeeState.selectedEmployeeId) return;
 
-        if (!macAddress) {
+        if (!deviceId) {
             await showErrorAlert(
                 "System Error",
                 "MAC address not available. Please ensure system service is running and try again.",
@@ -327,7 +327,7 @@ const FingerprintSetupDialog: FC<FingerprintSetupDialogProps> = ({
 
             const fingerprintData = {
                 user_id: employeeState.selectedEmployeeId,
-                mac_address: macAddress,
+                device_id: deviceId,
                 number_of_fingerprint: fingerprintNumber,
             };
 
@@ -629,7 +629,7 @@ const FingerprintSetupDialog: FC<FingerprintSetupDialogProps> = ({
                                 }
                                 isEnabled={
                                     !!employeeState.selectedEmployeeId &&
-                                    !!macAddress
+                                    !!deviceId
                                 }
                                 onAction={() =>
                                     handleStartScanning("finger1-scan")
@@ -648,7 +648,7 @@ const FingerprintSetupDialog: FC<FingerprintSetupDialogProps> = ({
                                 }
                                 isEnabled={
                                     fingerprintState.finger1ScanCompleted &&
-                                    !!macAddress
+                                    !!deviceId
                                 }
                                 onAction={() =>
                                     handleStartScanning("finger1-rescan")
@@ -687,7 +687,7 @@ const FingerprintSetupDialog: FC<FingerprintSetupDialogProps> = ({
                                 }
                                 isEnabled={
                                     currentStep === "finger1-scan" &&
-                                    !!macAddress
+                                    !!deviceId
                                 }
                                 onAction={() =>
                                     handleStartScanning("finger1-scan")
@@ -706,7 +706,7 @@ const FingerprintSetupDialog: FC<FingerprintSetupDialogProps> = ({
                                 }
                                 isEnabled={
                                     currentStep === "finger1-rescan" &&
-                                    !!macAddress
+                                    !!deviceId
                                 }
                                 onAction={() =>
                                     handleStartScanning("finger1-rescan")
@@ -772,7 +772,7 @@ const FingerprintSetupDialog: FC<FingerprintSetupDialogProps> = ({
                                 }
                                 isEnabled={
                                     currentStep === "finger2-scan" &&
-                                    !!macAddress
+                                    !!deviceId
                                 }
                                 onAction={() =>
                                     handleStartScanning("finger2-scan")
@@ -791,7 +791,7 @@ const FingerprintSetupDialog: FC<FingerprintSetupDialogProps> = ({
                                 }
                                 isEnabled={
                                     currentStep === "finger2-rescan" &&
-                                    !!macAddress
+                                    !!deviceId
                                 }
                                 onAction={() =>
                                     handleStartScanning("finger2-rescan")

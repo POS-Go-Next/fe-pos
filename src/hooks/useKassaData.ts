@@ -6,7 +6,7 @@ import type { KassaResponse } from "@/types/kassa";
 import { useEffect, useState } from "react";
 
 interface UseKassaDataParams {
-    macAddress: string | null;
+    deviceId: string | null;
     enabled?: boolean;
 }
 
@@ -19,7 +19,7 @@ interface UseKassaDataReturn {
 }
 
 export const useKassaData = ({
-    macAddress,
+    deviceId,
     enabled = true,
 }: UseKassaDataParams): UseKassaDataReturn => {
     const [kassaData, setKassaData] = useState<KassaResponse | null>(null);
@@ -28,7 +28,7 @@ export const useKassaData = ({
     const [isSessionExpiredState, setIsSessionExpiredState] = useState(false);
 
     const fetchKassaData = async () => {
-        if (!macAddress || !enabled) {
+        if (!deviceId || !enabled) {
             return;
         }
 
@@ -37,9 +37,9 @@ export const useKassaData = ({
         setIsSessionExpiredState(false);
 
         try {
-            console.log(`🔄 Fetching kassa data for MAC: ${macAddress}`);
+            console.log(`🔄 Fetching kassa data for device ID: ${deviceId}`);
 
-            const response = await fetch(`/api/kassa/${macAddress}`, {
+            const response = await fetch(`/api/kassa/${deviceId}`, {
                 method: "GET",
                 headers: {
                     "Content-Type": "application/json",
@@ -65,7 +65,7 @@ export const useKassaData = ({
                 setKassaData(result.data);
                 console.log("✅ Kassa data fetched:", result.data);
             } else {
-                setError("No kassa data found for this MAC address");
+                setError("No kassa data found for this device ID");
             }
         } catch (err) {
             console.error("❌ Error fetching kassa data:", err);
@@ -88,10 +88,10 @@ export const useKassaData = ({
     };
 
     useEffect(() => {
-        if (macAddress && enabled) {
+        if (deviceId && enabled) {
             fetchKassaData();
         }
-    }, [macAddress, enabled]);
+    }, [deviceId, enabled]);
 
     return {
         kassaData,

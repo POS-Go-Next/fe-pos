@@ -135,14 +135,8 @@ export default function PaymentDialog({
             );
             const data = await response.json();
 
-            if (data.success && data.data.ipAddresses) {
-                const activeInterface = data.data.ipAddresses.find(
-                    (iface: any) =>
-                        !iface.isLoopback && iface.macAddress && iface.isUp
-                );
-                return (
-                    activeInterface?.macAddress || data.data.macAddresses?.[0]
-                );
+            if (data.success && data.data.deviceConfig?.deviceId) {
+                return data.data.deviceConfig.deviceId;
             }
             return null;
         } catch (error) {
@@ -164,9 +158,9 @@ export default function PaymentDialog({
         }
     };
 
-    const getTransactionType = async (macAddress: string) => {
+    const getTransactionType = async (deviceId: string) => {
         try {
-            const response = await fetch(`/api/kassa/${macAddress}`);
+            const response = await fetch(`/api/kassa/${deviceId}`);
             const data = await response.json();
             return data.success ? data.data?.default_jual || "1" : "1";
         } catch (error) {
@@ -294,21 +288,21 @@ export default function PaymentDialog({
                 return;
             }
 
-            const [macAddress, invoiceNumber] = await Promise.all([
+            const [deviceId, invoiceNumber] = await Promise.all([
                 getSystemInfo(),
                 getNextInvoice(),
             ]);
 
-            if (!macAddress) {
+            if (!deviceId) {
                 Swal.close();
                 showErrorAlert(
                     "System Error",
-                    "Unable to get system MAC address. Please try again."
+                    "Unable to get system device ID. Please try again."
                 );
                 return;
             }
 
-            const transactionType = await getTransactionType(macAddress);
+            const transactionType = await getTransactionType(deviceId);
 
             const subTotal = products.reduce(
                 (sum, p) => sum + (p.subtotal || 0),
@@ -332,7 +326,7 @@ export default function PaymentDialog({
             );
 
             const transactionPayload = {
-                mac_address: macAddress,
+                device_id: deviceId,
                 invoice_number: invoiceNumber,
                 notes: "",
                 customer_id: customerData.id,
@@ -381,7 +375,7 @@ export default function PaymentDialog({
             };
 
             console.log("🔥 Transaction Payload with need_print_invoice:", {
-                macAddress: transactionPayload.mac_address,
+                deviceId: transactionPayload.device_id,
                 invoiceNumber: transactionPayload.invoice_number,
                 customerId: transactionPayload.customer_id,
                 needPrintInvoice: transactionPayload.need_print_invoice, // 🔥 Log the new field

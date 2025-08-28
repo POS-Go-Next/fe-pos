@@ -7,6 +7,7 @@ import { useEffect, useState } from "react";
 interface UseSystemInfoReturn {
     systemInfo: SystemInfoData | null;
     macAddress: string | null;
+    deviceId: string | null;
     ipAddress: string | null;
     isLoading: boolean;
     error: string | null;
@@ -16,6 +17,7 @@ interface UseSystemInfoReturn {
 export const useSystemInfo = (): UseSystemInfoReturn => {
     const [systemInfo, setSystemInfo] = useState<SystemInfoData | null>(null);
     const [macAddress, setMacAddress] = useState<string | null>(null);
+    const [deviceId, setDeviceId] = useState<string | null>(null);
     const [ipAddress, setIpAddress] = useState<string | null>(null);
     const [isLoading, setIsLoading] = useState(true);
     const [error, setError] = useState<string | null>(null);
@@ -54,6 +56,12 @@ export const useSystemInfo = (): UseSystemInfoReturn => {
             console.log("✅ System info fetched:", result.data);
 
             setSystemInfo(result.data);
+
+            // Set device ID if available
+            if (result.data.deviceConfig && result.data.deviceConfig.deviceId) {
+                setDeviceId(result.data.deviceConfig.deviceId);
+                console.log("🆔 Device ID:", result.data.deviceConfig.deviceId);
+            }
 
             const activeInterface =
                 result.data.ipAddresses.find(
@@ -97,6 +105,7 @@ export const useSystemInfo = (): UseSystemInfoReturn => {
     return {
         systemInfo,
         macAddress,
+        deviceId,
         ipAddress,
         isLoading,
         error,

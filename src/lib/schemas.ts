@@ -15,17 +15,25 @@ export const loginSchema = z.object({
 
 export type LoginData = z.infer<typeof loginSchema>;
 
-// Extended login schema for API payload (includes MAC address)
+// Extended login schema for API payload (includes device ID)
 export const loginApiPayloadSchema = z.object({
     username: z.string().min(1).max(50),
     password: z.string().min(1).max(100),
-    mac_address: z.string().min(1, "MAC address is required"),
+    device_id: z.string().min(1, "Device ID is required"),
     need_generate_token: z.boolean().default(true),
 });
 
 export type LoginApiPayload = z.infer<typeof loginApiPayloadSchema>;
 
-// MAC address validation schema
+// Device ID validation schema  
+export const deviceIdSchema = z
+    .string()
+    .regex(
+        /^KASSA-[0-9A-F]{4}-[0-9A-F]{4}-[0-9A-F]{4}$/,
+        "Invalid device ID format"
+    );
+
+// MAC address validation schema (keeping for backwards compatibility)
 export const macAddressSchema = z
     .string()
     .regex(
@@ -80,9 +88,22 @@ export const systemInfoResponseSchema = z.object({
             osInfo: z.object({
                 platform: z.string(),
                 architecture: z.string(),
+                goVersion: z.string(),
                 numCPU: z.number(),
             }),
             workingDir: z.string(),
+            deviceConfig: z.object({
+                deviceId: z.string(),
+                deviceName: z.string(),
+                grpcServerHost: z.string(),
+                grpcServerPort: z.number(),
+                grpcTlsEnabled: z.boolean(),
+                grpcCertPath: z.string(),
+                version: z.string(),
+                logRetentionDays: z.number(),
+                createdAt: z.string(),
+                updatedAt: z.string(),
+            }),
             timestamp: z.string(),
         })
         .optional(),
