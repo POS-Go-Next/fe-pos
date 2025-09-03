@@ -1,11 +1,11 @@
-// components/shared/product-history-dialog.tsx - FIXED HORIZONTAL SCROLL
+// app/create-order/choose-menu/_components/TransactionCorrectionDialog.tsx - UPDATED TO MATCH PROJECT STRUCTURE
 "use client";
 
 import React, { useState, useEffect, useRef } from "react";
 import { Search, X, ChevronDown } from "lucide-react";
 import { Input } from "@/components/ui/input";
 import { DateRangePicker } from "@/components/ui/date-range-picker";
-import Pagination from "./pagination";
+import Pagination from "@/components/shared/pagination";
 import { useTransaction } from "@/hooks/useTransaction";
 
 interface DateRange {
@@ -13,7 +13,7 @@ interface DateRange {
     to?: Date;
 }
 
-interface ProductHistoryData {
+interface TransactionCorrectionData {
     receipt_id: string;
     date: string;
     shift: number;
@@ -25,19 +25,17 @@ interface ProductHistoryData {
     phone: string;
 }
 
-interface ProductHistoryDialogProps {
+interface TransactionCorrectionDialogProps {
     isOpen: boolean;
     onClose: () => void;
-    productName?: string;
-    productCode?: string;
+    onSelectTransaction?: (transaction: TransactionCorrectionData) => void;
 }
 
-export default function ProductHistoryDialog({
+export default function TransactionCorrectionDialog({
     isOpen,
     onClose,
-    productName = "ALAMII BISCUIT OAT & MILK 60G",
-    productCode = "",
-}: ProductHistoryDialogProps) {
+    onSelectTransaction,
+}: TransactionCorrectionDialogProps) {
     const [searchInput, setSearchInput] = useState("");
     const [searchTerm, setSearchTerm] = useState("");
     const [currentPage, setCurrentPage] = useState(1);
@@ -74,10 +72,9 @@ export default function ProductHistoryDialog({
         to_date: appliedDateRange?.to
             ? formatDateForAPI(appliedDateRange.to)
             : "",
-        bought_product_code: productCode,
     });
 
-    const historyData: ProductHistoryData[] = transactionList.map(
+    const correctionData: TransactionCorrectionData[] = transactionList.map(
         (transaction) => ({
             receipt_id: transaction.invoice_number,
             date: new Date(transaction.transaction_date).toLocaleDateString(
@@ -107,12 +104,7 @@ export default function ProductHistoryDialog({
 
     useEffect(() => {
         if (isOpen) {
-            console.log(
-                "📋 Product History Dialog opened for:",
-                productName,
-                "Code:",
-                productCode
-            );
+            console.log("Transaction Correction Dialog opened");
             setCurrentPage(1);
             setPageSize(10);
             setSearchInput("");
@@ -122,7 +114,7 @@ export default function ProductHistoryDialog({
                 searchInputRef.current?.focus();
             }, 100);
         }
-    }, [isOpen, productName, productCode]);
+    }, [isOpen]);
 
     useEffect(() => {
         const trimmedSearch = searchInput.trim();
@@ -140,10 +132,10 @@ export default function ProductHistoryDialog({
         }
     }, [searchInput]);
 
-    const filteredHistoryData = React.useMemo(() => {
-        if (!searchTerm) return historyData;
+    const filteredCorrectionData = React.useMemo(() => {
+        if (!searchTerm) return correctionData;
 
-        return historyData.filter((record) => {
+        return correctionData.filter((record) => {
             const customerName = record.customer_name?.toLowerCase() || "";
             const receiptId = record.receipt_id?.toLowerCase() || "";
             const searchLower = searchTerm.toLowerCase();
@@ -153,23 +145,23 @@ export default function ProductHistoryDialog({
                 receiptId.includes(searchLower)
             );
         });
-    }, [historyData, searchTerm]);
+    }, [correctionData, searchTerm]);
 
-    const filteredTotalDocs = filteredHistoryData.length;
+    const filteredTotalDocs = filteredCorrectionData.length;
     const filteredTotalPages = Math.ceil(filteredTotalDocs / pageSize);
-    const paginatedFilteredData = filteredHistoryData.slice(
+    const paginatedFilteredData = filteredCorrectionData.slice(
         (currentPage - 1) * pageSize,
         currentPage * pageSize
     );
 
-    const displayData = searchTerm ? paginatedFilteredData : historyData;
+    const displayData = searchTerm ? paginatedFilteredData : correctionData;
     const displayTotalPages = searchTerm ? filteredTotalPages : totalPages;
     const displayTotalDocs = searchTerm ? filteredTotalDocs : totalDocs;
 
     const handleDateRangeChange = (range: DateRange | undefined) => {
         setAppliedDateRange(range);
         setCurrentPage(1);
-        console.log("✅ Date range applied:", range);
+        console.log("Date range applied:", range);
     };
 
     const handlePageChange = (page: number) => {
@@ -213,6 +205,13 @@ export default function ProductHistoryDialog({
         onClose();
     };
 
+    const handleTransactionClick = (transaction: TransactionCorrectionData) => {
+        if (onSelectTransaction) {
+            onSelectTransaction(transaction);
+        }
+        console.log("Transaction selected for correction:", transaction);
+    };
+
     if (!isOpen) return null;
 
     return (
@@ -221,12 +220,7 @@ export default function ProductHistoryDialog({
                 {/* Header */}
                 <div className="flex items-center justify-between p-6 border-b border-gray-200 flex-shrink-0">
                     <h2 className="text-xl font-semibold text-gray-900">
-                        History Product - {productName}
-                        {productCode && (
-                            <span className="ml-2 text-sm text-gray-500">
-                                ({productCode})
-                            </span>
-                        )}
+                        Transaction Correction / Return
                     </h2>
                     <button
                         onClick={handleClose}
@@ -270,17 +264,17 @@ export default function ProductHistoryDialog({
                     </div>
                 </div>
 
-                {/* Main Content Area - FIXED: Proper flex layout for scrolling */}
+                {/* Main Content Area */}
                 <div className="flex-1 min-h-0 flex flex-col p-6">
                     {error && (
                         <div className="bg-red-50 border border-red-200 rounded-lg p-4 mb-6 flex-shrink-0">
                             <div className="text-red-700 text-sm">
-                                Error loading product history: {error}
+                                Error loading transactions: {error}
                             </div>
                         </div>
                     )}
 
-                    {/* FIXED: Table Container with proper horizontal scroll */}
+                    {/* Table Container */}
                     <div className="flex-1 min-h-0 border border-gray-200 rounded-lg overflow-hidden">
                         <div
                             ref={tableContainerRef}
@@ -290,7 +284,6 @@ export default function ProductHistoryDialog({
                                 scrollbarColor: "#3b82f6 #f1f5f9",
                             }}
                         >
-                            {/* FIXED: Table with min-width to ensure horizontal scroll */}
                             <table className="w-full border-collapse min-w-[1200px]">
                                 <thead className="sticky top-0 z-10 bg-gray-50">
                                     <tr className="border-b border-gray-200">
@@ -334,8 +327,7 @@ export default function ProductHistoryDialog({
                                                 <div className="flex items-center justify-center">
                                                     <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-500"></div>
                                                     <span className="ml-2 text-gray-600">
-                                                        Loading product
-                                                        history...
+                                                        Loading transactions...
                                                     </span>
                                                 </div>
                                             </td>
@@ -349,6 +341,11 @@ export default function ProductHistoryDialog({
                                                         ? "bg-gray-50/30"
                                                         : ""
                                                 }`}
+                                                onClick={() =>
+                                                    handleTransactionClick(
+                                                        record
+                                                    )
+                                                }
                                             >
                                                 <td className="h-[48px] px-4 text-sm font-medium text-gray-900">
                                                     {record.receipt_id}
@@ -387,16 +384,14 @@ export default function ProductHistoryDialog({
                                             >
                                                 {searchTerm &&
                                                 searchInput.trim().length >= 3
-                                                    ? "No records found for your search."
+                                                    ? "No transactions found for your search."
                                                     : searchTerm &&
                                                       searchInput.trim()
                                                           .length > 0 &&
                                                       searchInput.trim()
                                                           .length < 3
                                                     ? "Please enter at least 3 characters to search."
-                                                    : productCode
-                                                    ? `No transaction history found for product ${productCode}.`
-                                                    : "No product history found."}
+                                                    : "No transactions found for correction."}
                                             </td>
                                         </tr>
                                     )}
@@ -405,7 +400,7 @@ export default function ProductHistoryDialog({
                         </div>
                     </div>
 
-                    {/* Pagination Controls - FIXED: Flex-shrink-0 to prevent compression */}
+                    {/* Pagination Controls */}
                     {displayData.length > 0 && (
                         <div className="mt-4 flex justify-between items-center flex-shrink-0">
                             <div className="flex items-center gap-4">

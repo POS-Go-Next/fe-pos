@@ -13,3 +13,6 @@ export { default as ChooseMiscDialog } from "./ChooseMiscDialog";
 export { default as CorporateDiscountDialog } from "./CorporateDiscountDialog";
 export { default as TransactionHistoryDialog } from "./TransactionHistoryDialog";
 export { default as GlobalDiscountDialog } from "./GlobalDiscountDialog";
+export { default as TransactionCorrectionDialog } from "./TransactionCorrectionDialog";
+export { default as AddPendingBillDialog } from "./AddPendingBillDialog";
+export { default as ViewPendingBillDialog } from "./ViewPendingBillDialog";

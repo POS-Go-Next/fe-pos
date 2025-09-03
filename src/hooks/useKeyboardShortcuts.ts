@@ -1,4 +1,4 @@
-// hooks/useKeyboardShortcuts.ts - UPDATED WITH PRODUCT HISTORY DIALOG
+// hooks/useKeyboardShortcuts.ts - UPDATED WITH PENDING BILL SHORTCUTS
 "use client";
 
 import { useEffect, useState } from "react";
@@ -27,7 +27,7 @@ export const useKeyboardShortcuts = ({
 }: UseKeyboardShortcutsOptions) => {
     const [isClient, setIsClient] = useState(false);
 
-    // ✅ Safe client-side initialization
+    // Safe client-side initialization
     useEffect(() => {
         setIsClient(true);
     }, []);
@@ -77,7 +77,7 @@ export const useKeyboardShortcuts = ({
                     }
 
                     if (debug) {
-                        console.log(`🎹 Keyboard shortcut triggered:`, {
+                        console.log(`Keyboard shortcut triggered:`, {
                             key: shortcut.key,
                             ctrl: shortcut.ctrl,
                             shift: shortcut.shift,
@@ -135,14 +135,14 @@ export const useKeyboardShortcuts = ({
     };
 };
 
-// ✅ UPDATED: Safe F1-F12 shortcuts creator with Product History Dialog
+// Safe F1-F12 shortcuts creator with Product History Dialog
 export const createSafeDialogShortcuts = (actions: {
     showShortcutGuide?: () => void; // Ctrl+Shift+F1 -> F1 (Petunjuk Shortcut)
     showProductHistory?: () => void; // Ctrl+Shift+F2 -> F2 (Product History Dialog)
     showPrescriptionDiscount?: () => void; // Ctrl+Shift+F3 -> F3 (Discount Resep)
     showGlobalDiscount?: () => void; // Shift+Alt+F3 -> F3 (Global Discount)
     clearAllProducts?: () => void; // Ctrl+Shift+F4 -> F4 (Batal/Void)
-    showPromoList?: () => void; // ✅ NEW: Ctrl+Shift+F5 -> F5 (Monthly Promo Highlights)
+    showPromoList?: () => void; // Ctrl+Shift+F5 -> F5 (Monthly Promo Highlights)
     showUpSelling?: () => void; // Ctrl+Shift+F6 -> F6 (Up Selling)
     showTransactionList?: () => void; // Ctrl+Shift+F7 -> F7 (Daftar Transaksi)
     showTransactionCorrection?: () => void; // Ctrl+Shift+F8 -> F8 (Koreksi Transaksi)
@@ -150,6 +150,7 @@ export const createSafeDialogShortcuts = (actions: {
     showMemberCorporate?: () => void; // Ctrl+Shift+F10 -> F10 (Member Corporate)
     showNewItemSuggestion?: () => void; // Ctrl+Shift+F11 -> F11 (Usulan barang baru)
     addMisc?: () => void; // Ctrl+Shift+F12 -> F12 (Tambah Misc)
+    viewPendingBill?: () => void; // Alt+Shift+F9 -> F9 (Lihat Bon Gantung)
 }): KeyboardShortcut[] => {
     const shortcuts: KeyboardShortcut[] = [];
 
@@ -163,7 +164,7 @@ export const createSafeDialogShortcuts = (actions: {
         });
     }
 
-    // ✅ NEW: F2 should open Product History Dialog
+    // F2 should open Product History Dialog
     if (actions.showProductHistory) {
         shortcuts.push({
             key: "F2",
@@ -205,7 +206,7 @@ export const createSafeDialogShortcuts = (actions: {
         });
     }
 
-    // ✅ NEW: F5 should open Monthly Promo Highlights
+    // F5 should open Monthly Promo Highlights
     if (actions.showPromoList) {
         shortcuts.push({
             key: "F5",
@@ -256,6 +257,17 @@ export const createSafeDialogShortcuts = (actions: {
         });
     }
 
+    // NEW: View Pending Bill with Alt+Shift+F9
+    if (actions.viewPendingBill) {
+        shortcuts.push({
+            key: "F9",
+            alt: true,
+            shift: true,
+            action: actions.viewPendingBill,
+            description: "Lihat Bon Gantung",
+        });
+    }
+
     if (actions.showMemberCorporate) {
         shortcuts.push({
             key: "F10",
@@ -289,7 +301,7 @@ export const createSafeDialogShortcuts = (actions: {
     return shortcuts;
 };
 
-// ✅ ENHANCED: Existing POS shortcuts (keep existing functionality)
+// Existing POS shortcuts (keep existing functionality)
 export const createPOSShortcuts = (actions: {
     clearAllProducts?: () => void;
     showShortcutGuide?: () => void;
@@ -300,7 +312,7 @@ export const createPOSShortcuts = (actions: {
     pendingBill?: () => void;
     memberCorporate?: () => void;
     transactionHistory?: () => void;
-    showCustomerDoctorDialog?: () => void; // ✅ NEW: Ctrl+Space for Customer & Doctor Dialog
+    showCustomerDoctorDialog?: () => void; // Ctrl+Space for Customer & Doctor Dialog
 }): KeyboardShortcut[] => {
     const shortcuts: KeyboardShortcut[] = [];
 
@@ -373,7 +385,7 @@ export const createPOSShortcuts = (actions: {
         });
     }
 
-    // ✅ NEW: Ctrl+Space for Customer & Doctor Dialog
+    // Ctrl+Space for Customer & Doctor Dialog
     if (actions.showCustomerDoctorDialog) {
         shortcuts.push({
             key: " ", // Space key
@@ -387,7 +399,7 @@ export const createPOSShortcuts = (actions: {
     return shortcuts;
 };
 
-// ✅ ENHANCED: Combined hook for both safe dialog shortcuts and existing POS shortcuts
+// Combined hook for both safe dialog shortcuts and existing POS shortcuts
 export const usePOSKeyboardShortcuts = (
     dialogActions: Parameters<typeof createSafeDialogShortcuts>[0],
     posActions: Parameters<typeof createPOSShortcuts>[0],

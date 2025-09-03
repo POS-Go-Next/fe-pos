@@ -1,4 +1,4 @@
-// components/shared/ChooseMenuProductTable.tsx - UPDATED CHOOSE MISC SHORTCUT LOGIC
+// components/shared/ChooseMenuProductTable.tsx - UPDATED WITH PENDING BILL DIALOGS
 "use client";
 
 import BranchWideStockDialog from "@/components/shared/branch-wide-stock-dialog";
@@ -19,7 +19,7 @@ import ProductHistoryDialog from "@/components/shared/product-history-dialog";
 import { Input } from "@/components/ui/input";
 import { usePOSKeyboardShortcuts } from "@/hooks/useKeyboardShortcuts";
 import { useLogout } from "@/hooks/useLogout";
-import { useParameter } from "@/hooks/useParameter"; // 🔥 NEW: Import useParameter hook
+import { useParameter } from "@/hooks/useParameter";
 import type { ProductTableItem } from "@/types/stock";
 import { Plus, Trash } from "lucide-react";
 import React, { useState, useEffect, useRef } from "react";
@@ -31,6 +31,9 @@ import CorporateDiscountDialog from "./CorporateDiscountDialog";
 import TransactionHistoryDialog from "./TransactionHistoryDialog";
 import GlobalDiscountDialog from "./GlobalDiscountDialog";
 import MonthlyPromoDialog from "./MonthlyPromoDialog";
+import TransactionCorrectionDialog from "./TransactionCorrectionDialog";
+import AddPendingBillDialog from "./AddPendingBillDialog";
+import ViewPendingBillDialog from "./ViewPendingBillDialog";
 
 export interface Product extends ProductTableItem {}
 
@@ -125,7 +128,7 @@ interface ChooseMenuProductTableProps {
     onProductSelect?: (product: any, productId: number) => void;
     onTypeChange?: (id: number, type: string) => void;
     onDiscountChange?: (id: number, discount: number) => void;
-    onMiscChange?: (id: number, miscAmount: number) => void; // 🔥 NEW: Handler for misc changes
+    onMiscChange?: (id: number, miscAmount: number) => void;
     className?: string;
 }
 
@@ -139,12 +142,11 @@ export default function ChooseMenuProductTable({
     onProductSelect,
     onTypeChange,
     onDiscountChange,
-    onMiscChange, // 🔥 NEW: Destructure onMiscChange prop
+    onMiscChange,
     className = "",
 }: ChooseMenuProductTableProps) {
     const [isClient, setIsClient] = useState(false);
 
-    // 🔥 NEW: Get parameter data for dynamic SC values
     const { parameterData } = useParameter();
 
     const [dialogStates, setDialogStates] = useState({
@@ -169,12 +171,13 @@ export default function ChooseMenuProductTable({
         globalDiscount: false,
         productHistory: false,
         monthlyPromo: false,
+        transactionCorrection: false,
+        addPendingBill: false,
+        viewPendingBill: false,
     });
 
-    // 🔥 NEW: State for Customer and Doctor data
     const [selectedCustomer, setSelectedCustomer] = useState<any>(null);
     const [selectedDoctor, setSelectedDoctor] = useState<any>(null);
-    // 🔥 NEW: State for transaction type data
     const [transactionTypeData, setTransactionTypeData] = useState<any>(null);
 
     const [selectedProductId, setSelectedProductId] = useState<number | null>(
@@ -197,11 +200,11 @@ export default function ChooseMenuProductTable({
 
     useEffect(() => {
         setIsClient(true);
-        console.log("🎯 Component mounted");
+        console.log("Component mounted");
     }, []);
 
     const toggleDialog = (dialogName: keyof typeof dialogStates) => {
-        console.log(`🎭 Toggling dialog: ${dialogName}`, {
+        console.log(`Toggling dialog: ${dialogName}`, {
             currentState: dialogStates[dialogName],
             newState: !dialogStates[dialogName],
         });
@@ -213,7 +216,7 @@ export default function ChooseMenuProductTable({
     };
 
     const closeDialog = (dialogName: keyof typeof dialogStates) => {
-        console.log(`🔒 Force closing dialog: ${dialogName}`);
+        console.log(`Force closing dialog: ${dialogName}`);
 
         setDialogStates((prev) => ({
             ...prev,
@@ -221,28 +224,24 @@ export default function ChooseMenuProductTable({
         }));
     };
 
-    // 🔥 UPDATED: Enhanced Ctrl+Space handler for payment flow
     const handleShowCustomerDoctorDialog = () => {
         console.log(
-            "🔥 Ctrl+Space: Opening Customer and Doctor Dialog for Payment Flow"
+            "Ctrl+Space: Opening Customer and Doctor Dialog for Payment Flow"
         );
 
-        // Check if there are products in the cart
         if (
             !products ||
             products.length === 0 ||
             !products.some((p) => p.name)
         ) {
-            console.log("⚠️ No products in cart, cannot proceed with payment");
+            console.log("No products in cart, cannot proceed with payment");
             alert("Please add products to cart before proceeding with payment");
             return;
         }
 
-        // Open the dialog with triggerPaymentFlow = true
         toggleDialog("customerDoctor");
     };
 
-    // 🔥 NEW: Function to get SC value based on type
     const getSCValueByType = (type: string): number => {
         if (!parameterData) return 0;
 
@@ -256,80 +255,96 @@ export default function ChooseMenuProductTable({
         }
     };
 
+    // Calculate current cart totals for pending bill
+    const currentCartTotals = React.useMemo(() => {
+        const filledProducts = products.filter((p) => p.name && p.quantity > 0);
+        const subtotal = filledProducts.reduce(
+            (sum, product) => sum + (product.subtotal || 0),
+            0
+        );
+        return {
+            products: filledProducts,
+            totalAmount: subtotal,
+        };
+    }, [products]);
+
     usePOSKeyboardShortcuts(
         {
             showShortcutGuide: () => {
-                console.log("🔥 Ctrl+Shift+F1: Opening Shortcut Guide");
+                console.log("Ctrl+Shift+F1: Opening Shortcut Guide");
                 toggleDialog("shortcutGuide");
             },
             showProductHistory: () => {
-                console.log("🔥 Ctrl+Shift+F2: Opening Product History Dialog");
+                console.log("Ctrl+Shift+F2: Opening Product History Dialog");
                 if (selectedRowId !== null && selectedProduct) {
                     toggleDialog("productHistory");
                 } else {
-                    console.log("⚠️ No product selected for history");
+                    console.log("No product selected for history");
                 }
             },
             showPrescriptionDiscount: () => {
-                console.log("🔥 Ctrl+Shift+F3: Opening Prescription Discount");
+                console.log("Ctrl+Shift+F3: Opening Prescription Discount");
                 if (selectedRowId !== null && selectedProduct) {
                     toggleDialog("prescriptionDiscount");
                 } else {
-                    console.log("⚠️ No product selected for discount");
+                    console.log("No product selected for discount");
                 }
             },
             showGlobalDiscount: () => {
-                console.log("🔥 Shift+Alt+F3: Opening Global Discount");
+                console.log("Shift+Alt+F3: Opening Global Discount");
                 toggleDialog("globalDiscount");
             },
             clearAllProducts: () => {
-                console.log("🔥 Ctrl+Shift+F4: Clear all products");
+                console.log("Ctrl+Shift+F4: Clear all products");
             },
             showPromoList: () => {
-                console.log(
-                    "🔥 Ctrl+Shift+F5: Opening Monthly Promo Highlights"
-                );
+                console.log("Ctrl+Shift+F5: Opening Monthly Promo Highlights");
                 toggleDialog("monthlyPromo");
             },
             showUpSelling: () => {
-                console.log("🔥 Ctrl+Shift+F6: Opening Up Selling Dialog");
+                console.log("Ctrl+Shift+F6: Opening Up Selling Dialog");
                 if (selectedRowId !== null) {
                     toggleDialog("upsell");
                 } else {
-                    console.log("⚠️ No product selected for upselling");
+                    console.log("No product selected for upselling");
                 }
             },
             showTransactionList: () => {
-                console.log("🔥 Ctrl+Shift+F7: Opening Transaction History");
+                console.log("Ctrl+Shift+F7: Opening Transaction History");
                 toggleDialog("transactionHistory");
             },
             showTransactionCorrection: () => {
-                console.log("🔥 Ctrl+Shift+F8: Opening Transaction Correction");
+                console.log("Ctrl+Shift+F8: Opening Transaction Correction");
+                toggleDialog("transactionCorrection");
             },
             addPendingBill: () => {
-                console.log("🔥 Ctrl+Shift+F9: Add Pending Bill");
+                console.log("Ctrl+Shift+F9: Add Pending Bill");
+                toggleDialog("addPendingBill");
+            },
+            viewPendingBill: () => {
+                console.log("Alt+Shift+F9: View Pending Bills");
+                toggleDialog("viewPendingBill");
             },
             showMemberCorporate: () => {
-                console.log("🔥 Ctrl+Shift+F10: Opening Corporate Discount");
+                console.log("Ctrl+Shift+F10: Opening Corporate Discount");
                 toggleDialog("corporateDiscount");
             },
             showNewItemSuggestion: () => {
-                console.log("🔥 Ctrl+Shift+F11: Opening New Item Suggestion");
+                console.log("Ctrl+Shift+F11: Opening New Item Suggestion");
             },
-            // 🔥 UPDATED: addMisc now requires product selection like showProductHistory
             addMisc: () => {
-                console.log("🔥 Ctrl+Shift+F12: Opening Add Misc Dialog");
+                console.log("Ctrl+Shift+F12: Opening Add Misc Dialog");
                 if (selectedRowId !== null && selectedProduct) {
                     toggleDialog("chooseMisc");
                 } else {
                     console.log(
-                        "⚠️ No product selected for misc - no action taken"
+                        "No product selected for misc - no action taken"
                     );
                 }
             },
         },
         {
-            showCustomerDoctorDialog: handleShowCustomerDoctorDialog, // 🔥 UPDATED
+            showCustomerDoctorDialog: handleShowCustomerDoctorDialog,
         },
         { enabled: isClient, debug: true }
     );
@@ -346,7 +361,7 @@ export default function ChooseMenuProductTable({
     }, [products.length, isClient]);
 
     const handleProductSelectFromDialog = (selectedProduct: any) => {
-        console.log("🎯 Product selected from dialog:", selectedProduct);
+        console.log("Product selected from dialog:", selectedProduct);
 
         if (onProductSelect && selectedProductId !== null) {
             onProductSelect(selectedProduct, selectedProductId);
@@ -365,10 +380,10 @@ export default function ChooseMenuProductTable({
 
         if (newSelectedRowId !== null && product.name) {
             setSelectedProduct(product);
-            console.log("🎯 Product selected:", product.name);
+            console.log("Product selected:", product.name);
         } else {
             setSelectedProduct(null);
-            console.log("🎯 Product deselected");
+            console.log("Product deselected");
         }
     };
 
@@ -386,18 +401,15 @@ export default function ChooseMenuProductTable({
         }
     };
 
-    // 🔥 UPDATED: Handle type change with dynamic SC calculation
     const handleTypeChange = (productId: number, newType: string) => {
         if (productId === 999) return;
         if (onTypeChange) {
             onTypeChange(productId, newType);
         }
 
-        // 🔥 NEW: Update SC value based on type
         const newSCValue = getSCValueByType(newType);
-        console.log(`🔥 Type changed to ${newType}, SC value: ${newSCValue}`);
+        console.log(`Type changed to ${newType}, SC value: ${newSCValue}`);
 
-        // Find and update the product's SC value
         const updatedProducts = products.map((product) => {
             if (product.id === productId) {
                 const updatedProduct = {
@@ -406,7 +418,6 @@ export default function ChooseMenuProductTable({
                     sc: newSCValue,
                 };
 
-                // Recalculate total
                 updatedProduct.total =
                     (updatedProduct.subtotal || 0) +
                     (updatedProduct.sc || 0) +
@@ -420,10 +431,8 @@ export default function ChooseMenuProductTable({
             return product;
         });
 
-        // This would need to be handled by parent component
-        // For now, we just log the change
         console.log(
-            "🔥 Updated product with new SC:",
+            "Updated product with new SC:",
             updatedProducts.find((p) => p.id === productId)
         );
     };
@@ -444,7 +453,6 @@ export default function ChooseMenuProductTable({
         }
     };
 
-    // 🔥 HELPER: Convert ProductTableItem to ProductItem for PaymentDialog
     const convertToProductItems = (tableItems: ProductTableItem[]) => {
         return tableItems
             .filter((p) => p.name)
@@ -457,14 +465,13 @@ export default function ChooseMenuProductTable({
                 discount: p.discount || 0,
                 sc: p.sc || 0,
                 misc: p.misc || 0,
-                promo: p.promo || 0, // 🔥 FIXED: Ensure promo is always a number
+                promo: p.promo || 0,
                 total: p.total || p.subtotal || 0,
                 stockData: p.stockData,
                 up: p.up || "N",
             }));
     };
 
-    // 🔥 FIXED: Proper function declaration
     const handleSearchInputChange = (
         e: React.ChangeEvent<HTMLInputElement>
     ) => {
@@ -478,7 +485,7 @@ export default function ChooseMenuProductTable({
         if (value.trim().length >= 3) {
             const timeoutId = setTimeout(() => {
                 console.log(
-                    "🔍 Auto-triggering product dialog with query after 2s delay:",
+                    "Auto-triggering product dialog with query after 2s delay:",
                     value.trim()
                 );
                 setPreSearchQuery(value.trim());
@@ -503,12 +510,12 @@ export default function ChooseMenuProductTable({
             }
             setSearchValue("");
             setPreSearchQuery("");
-            console.log("🗑️ Search cleared via ESC key");
+            console.log("Search cleared via ESC key");
         }
     };
 
     const handleOpenSelectProductDialog = () => {
-        console.log("🔍 Opening Select Product Dialog (legacy)");
+        console.log("Opening Select Product Dialog (legacy)");
         setPreSearchQuery("");
         setSelectedProductId(999);
         closeDialog("selectProduct");
@@ -517,25 +524,21 @@ export default function ChooseMenuProductTable({
         }, 50);
     };
 
-    // 🔥 FIXED: Customer/Doctor dialog handlers for Ctrl+Space flow
     const handleCustomerDoctorSubmit = (
         customerData: any,
         doctorData?: any
     ) => {
-        console.log("🔥 Customer & Doctor submitted from Ctrl+Space:", {
+        console.log("Customer & Doctor submitted from Ctrl+Space:", {
             customerData,
             doctorData,
         });
 
-        // Store the data
         setSelectedCustomer(customerData);
         setSelectedDoctor(doctorData || null);
 
-        // Close the customer/doctor dialog
         closeDialog("customerDoctor");
 
-        // 🔥 FIXED: Directly open Transaction Type Dialog here
-        console.log("🔥 Opening Transaction Type Dialog from Ctrl+Space flow");
+        console.log("Opening Transaction Type Dialog from Ctrl+Space flow");
         toggleDialog("transactionType");
     };
 
@@ -545,6 +548,25 @@ export default function ChooseMenuProductTable({
 
     const handleDoctorSelect = (doctor: any) => {
         setSelectedDoctor(doctor);
+    };
+
+    const handlePendingBillSubmit = (pendingBillData: any) => {
+        console.log("Pending bill saved:", pendingBillData);
+        // Here you would typically save to localStorage or send to API
+        // For now, just log and close
+        alert("Pending bill saved successfully!");
+    };
+
+    const handleLoadPendingBill = (bill: any) => {
+        console.log("Loading pending bill to cart:", bill);
+        // Here you would load the bill's products into the current cart
+        alert(`Loading pending bill: ${bill.customerName}`);
+    };
+
+    const handleDeletePendingBill = (billId: string) => {
+        console.log("Deleting pending bill:", billId);
+        // Here you would delete from localStorage or API
+        alert(`Deleted pending bill: ${billId}`);
     };
 
     const tableData = React.useMemo(() => {
@@ -570,7 +592,7 @@ export default function ChooseMenuProductTable({
     }, [products]);
 
     useEffect(() => {
-        console.log("🎭 Dialog states:", dialogStates);
+        console.log("Dialog states:", dialogStates);
     }, [dialogStates]);
 
     useEffect(() => {
@@ -656,7 +678,6 @@ export default function ChooseMenuProductTable({
                                     const hasProductData = !!product.name;
                                     const isSearchRow = product.id === 999;
 
-                                    // 🔥 NEW: Calculate dynamic SC value for display
                                     const displaySCValue = hasProductData
                                         ? getSCValueByType(product.type || "")
                                         : 0;
@@ -909,10 +930,11 @@ export default function ChooseMenuProductTable({
                 </div>
             </div>
 
+            {/* All Dialogs */}
             <SelectProductDialog
                 isOpen={dialogStates.selectProduct}
                 onClose={() => {
-                    console.log("🔒 SelectProduct onClose called");
+                    console.log("SelectProduct onClose called");
                     closeDialog("selectProduct");
                     setSelectedProductId(null);
                     setSearchValue("");
@@ -970,7 +992,7 @@ export default function ChooseMenuProductTable({
                 onClose={() => closeDialog("payment")}
                 onPaymentSuccess={() => {
                     closeDialog("payment");
-                    console.log("✅ Payment successful from Ctrl+Space flow");
+                    console.log("Payment successful from Ctrl+Space flow");
                     toggleDialog("paymentSuccess");
                 }}
                 totalAmount={
@@ -997,7 +1019,7 @@ export default function ChooseMenuProductTable({
                 isOpen={dialogStates.addCustomer}
                 onClose={() => closeDialog("addCustomer")}
                 onSubmit={(customer) => {
-                    console.log("✅ New customer added:", customer);
+                    console.log("New customer added:", customer);
                     closeDialog("addCustomer");
                 }}
             />
@@ -1006,7 +1028,7 @@ export default function ChooseMenuProductTable({
                 isOpen={dialogStates.addDoctor}
                 onClose={() => closeDialog("addDoctor")}
                 onSubmit={(doctor) => {
-                    console.log("✅ New doctor added:", doctor);
+                    console.log("New doctor added:", doctor);
                     closeDialog("addDoctor");
                 }}
             />
@@ -1015,15 +1037,10 @@ export default function ChooseMenuProductTable({
                 isOpen={dialogStates.transactionType}
                 onClose={() => closeDialog("transactionType")}
                 onSubmit={(transactionData) => {
-                    console.log(
-                        "✅ Transaction type selected:",
-                        transactionData
-                    );
+                    console.log("Transaction type selected:", transactionData);
                     setTransactionTypeData(transactionData);
                     closeDialog("transactionType");
-                    console.log(
-                        "🔥 Opening Payment Dialog from Transaction Type"
-                    );
+                    console.log("Opening Payment Dialog from Transaction Type");
                     toggleDialog("payment");
                 }}
             />
@@ -1032,7 +1049,7 @@ export default function ChooseMenuProductTable({
                 isOpen={dialogStates.employeeLogin}
                 onClose={() => closeDialog("employeeLogin")}
                 onLogin={(userData) => {
-                    console.log("✅ Employee logged in:", userData);
+                    console.log("Employee logged in:", userData);
                     closeDialog("employeeLogin");
                 }}
             />
@@ -1041,7 +1058,7 @@ export default function ChooseMenuProductTable({
                 isOpen={dialogStates.paymentSuccess}
                 onClose={() => closeDialog("paymentSuccess")}
                 onPrintBills={() => {
-                    console.log("✅ Print bills requested");
+                    console.log("Print bills requested");
                     closeDialog("paymentSuccess");
                 }}
             />
@@ -1051,7 +1068,7 @@ export default function ChooseMenuProductTable({
                 onClose={() => closeDialog("fingerprint")}
                 onComplete={() => {
                     closeDialog("fingerprint");
-                    console.log("✅ Fingerprint scanning completed");
+                    console.log("Fingerprint scanning completed");
                 }}
                 scanningType="finger1-scan"
             />
@@ -1086,7 +1103,7 @@ export default function ChooseMenuProductTable({
                 onConfirm={() => {
                     if (selectedRowId !== null) {
                         console.log(
-                            `✅ Product ${selectedRowId} marked as upselling product`
+                            `Product ${selectedRowId} marked as upselling product`
                         );
                     }
                     closeDialog("upsell");
@@ -1114,45 +1131,22 @@ export default function ChooseMenuProductTable({
                 isOpen={dialogStates.chooseMisc}
                 onClose={() => closeDialog("chooseMisc")}
                 onSubmit={(miscData) => {
-                    console.log("✅ Misc applied:", miscData);
+                    console.log("Misc applied:", miscData);
 
-                    // Apply misc amount to selected product
                     if (selectedRowId !== null && selectedProduct) {
-                        // Call parent callback if available
                         if (onMiscChange) {
                             onMiscChange(selectedRowId, miscData.amount);
                         } else {
-                            // Fallback: Show warning that parent callback is not implemented
                             console.warn(
-                                "⚠️ onMiscChange callback not provided by parent component"
+                                "onMiscChange callback not provided by parent component"
                             );
-                            console.log(
-                                "💡 Parent component needs to implement onMiscChange handler to update products state"
-                            );
-                            console.log("💡 Example implementation in parent:");
-                            console.log(`
-const handleMiscChange = (productId, miscAmount) => {
-    setProducts(prev => prev.map(product => 
-        product.id === productId 
-            ? { ...product, misc: (product.misc || 0) + miscAmount }
-            : product
-    ));
-};
-
-<ChooseMenuProductTable 
-    onMiscChange={handleMiscChange}
-    // ... other props
-/>
-                            `);
                         }
 
-                        // Update local selected product state for immediate UI feedback
                         const updatedProduct = {
                             ...selectedProduct,
                             misc: (selectedProduct.misc || 0) + miscData.amount,
                         };
 
-                        // Recalculate total with new misc value
                         const displaySCValue = getSCValueByType(
                             selectedProduct.type || ""
                         );
@@ -1166,7 +1160,7 @@ const handleMiscChange = (productId, miscAmount) => {
 
                         setSelectedProduct(updatedProduct);
 
-                        console.log("🔥 Misc applied to product:", {
+                        console.log("Misc applied to product:", {
                             productId: selectedRowId,
                             productName: selectedProduct?.name,
                             previousMisc: selectedProduct.misc || 0,
@@ -1188,7 +1182,7 @@ const handleMiscChange = (productId, miscAmount) => {
                 onClose={() => closeDialog("corporateDiscount")}
                 onSubmit={(selectedCorporates) => {
                     console.log(
-                        "✅ Corporate discount applied:",
+                        "Corporate discount applied:",
                         selectedCorporates
                     );
                     closeDialog("corporateDiscount");
@@ -1200,14 +1194,23 @@ const handleMiscChange = (productId, miscAmount) => {
                 onClose={() => closeDialog("transactionHistory")}
             />
 
+            <TransactionCorrectionDialog
+                isOpen={dialogStates.transactionCorrection}
+                onClose={() => closeDialog("transactionCorrection")}
+                onSelectTransaction={(transaction) => {
+                    console.log(
+                        "Transaction selected for correction:",
+                        transaction
+                    );
+                    closeDialog("transactionCorrection");
+                }}
+            />
+
             <GlobalDiscountDialog
                 isOpen={dialogStates.globalDiscount}
                 onClose={() => closeDialog("globalDiscount")}
                 onSubmit={(globalDiscountData) => {
-                    console.log(
-                        "✅ Global discount applied:",
-                        globalDiscountData
-                    );
+                    console.log("Global discount applied:", globalDiscountData);
                     closeDialog("globalDiscount");
                 }}
             />
@@ -1215,6 +1218,21 @@ const handleMiscChange = (productId, miscAmount) => {
             <MonthlyPromoDialog
                 isOpen={dialogStates.monthlyPromo}
                 onClose={() => closeDialog("monthlyPromo")}
+            />
+
+            <AddPendingBillDialog
+                isOpen={dialogStates.addPendingBill}
+                onClose={() => closeDialog("addPendingBill")}
+                onSubmit={handlePendingBillSubmit}
+                currentProducts={currentCartTotals.products}
+                currentTotal={currentCartTotals.totalAmount}
+            />
+
+            <ViewPendingBillDialog
+                isOpen={dialogStates.viewPendingBill}
+                onClose={() => closeDialog("viewPendingBill")}
+                onLoadBill={handleLoadPendingBill}
+                onDeleteBill={handleDeletePendingBill}
             />
 
             <style jsx>{`

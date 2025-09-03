@@ -1,43 +1,44 @@
-// components/shared/product-history-dialog.tsx - FIXED HORIZONTAL SCROLL
+// app/create-order/choose-menu/_components/AddPendingBillDialog.tsx
 "use client";
 
-import React, { useState, useEffect, useRef } from "react";
-import { Search, X, ChevronDown } from "lucide-react";
-import { Input } from "@/components/ui/input";
+import Pagination from "@/components/shared/pagination";
 import { DateRangePicker } from "@/components/ui/date-range-picker";
-import Pagination from "./pagination";
-import { useTransaction } from "@/hooks/useTransaction";
+import { Input } from "@/components/ui/input";
+import { ChevronDown, Search, X } from "lucide-react";
+import React, { useEffect, useRef, useState } from "react";
 
 interface DateRange {
     from?: Date;
     to?: Date;
 }
 
-interface ProductHistoryData {
-    receipt_id: string;
-    date: string;
-    shift: number;
-    time: string;
-    cashier_name: string;
-    kassa: number;
-    customer_name: string;
-    age: number;
-    phone: string;
+interface PendingBillData {
+    id: string;
+    customerName: string;
+    customerPhone: string;
+    notes: string;
+    products: any[];
+    totalAmount: number;
+    savedAt: string;
+    createdDate: string;
+    createdTime: string;
 }
 
-interface ProductHistoryDialogProps {
+interface AddPendingBillDialogProps {
     isOpen: boolean;
     onClose: () => void;
-    productName?: string;
-    productCode?: string;
+    onSubmit?: (pendingBillData: PendingBillData) => void;
+    currentProducts?: any[];
+    currentTotal?: number;
 }
 
-export default function ProductHistoryDialog({
+export default function AddPendingBillDialog({
     isOpen,
     onClose,
-    productName = "ALAMII BISCUIT OAT & MILK 60G",
-    productCode = "",
-}: ProductHistoryDialogProps) {
+    onSubmit,
+    currentProducts = [],
+    currentTotal = 0,
+}: AddPendingBillDialogProps) {
     const [searchInput, setSearchInput] = useState("");
     const [searchTerm, setSearchTerm] = useState("");
     const [currentPage, setCurrentPage] = useState(1);
@@ -46,11 +47,45 @@ export default function ProductHistoryDialog({
     const [appliedDateRange, setAppliedDateRange] = useState<
         DateRange | undefined
     >(undefined);
+    const [selectedBill, setSelectedBill] = useState<string | null>(null);
+    const [isLoading, setIsLoading] = useState(false);
 
     const searchInputRef = useRef<HTMLInputElement>(null);
     const tableContainerRef = useRef<HTMLDivElement>(null);
 
     const pageSizeOptions = [5, 10, 25, 50, 100];
+
+    // Mock data for existing pending bills
+    const mockPendingBills: PendingBillData[] = [
+        {
+            id: "PB001",
+            customerName: "Andi Wijaya",
+            customerPhone: "+62812345678",
+            notes: "Resep untuk sakit kepala, ambil besok pagi",
+            products: [
+                { name: "Paracetamol 500mg", quantity: 2, price: 15000 },
+                { name: "Vitamin C", quantity: 1, price: 25000 },
+            ],
+            totalAmount: 55000,
+            savedAt: "2025-01-15T10:30:00.000Z",
+            createdDate: "15/01/2025",
+            createdTime: "10:30:15",
+        },
+        {
+            id: "PB002",
+            customerName: "Siti Rahayu",
+            customerPhone: "+62856789012",
+            notes: "Obat diabetes rutin, diambil setiap minggu",
+            products: [
+                { name: "Metformin 500mg", quantity: 1, price: 45000 },
+                { name: "Glibenclamide", quantity: 1, price: 30000 },
+            ],
+            totalAmount: 75000,
+            savedAt: "2025-01-14T14:15:00.000Z",
+            createdDate: "14/01/2025",
+            createdTime: "14:15:32",
+        },
+    ];
 
     const offset = (currentPage - 1) * pageSize;
 
@@ -58,71 +93,20 @@ export default function ProductHistoryDialog({
         return date.toISOString().split("T")[0];
     };
 
-    const {
-        transactionList,
-        isLoading,
-        error,
-        totalPages = 1,
-        totalDocs = 0,
-        refetch,
-    } = useTransaction({
-        offset,
-        limit: pageSize,
-        from_date: appliedDateRange?.from
-            ? formatDateForAPI(appliedDateRange.from)
-            : "",
-        to_date: appliedDateRange?.to
-            ? formatDateForAPI(appliedDateRange.to)
-            : "",
-        bought_product_code: productCode,
-    });
-
-    const historyData: ProductHistoryData[] = transactionList.map(
-        (transaction) => ({
-            receipt_id: transaction.invoice_number,
-            date: new Date(transaction.transaction_date).toLocaleDateString(
-                "en-GB",
-                {
-                    day: "2-digit",
-                    month: "2-digit",
-                    year: "numeric",
-                }
-            ),
-            shift: Math.floor(Math.random() * 3) + 1,
-            time: new Date(transaction.transaction_date).toLocaleTimeString(
-                "en-GB",
-                {
-                    hour: "2-digit",
-                    minute: "2-digit",
-                    second: "2-digit",
-                }
-            ),
-            cashier_name: transaction.cashier || "Unknown Cashier",
-            kassa: Math.floor(Math.random() * 50) + 1,
-            customer_name: transaction.customer_name || "Walk-in Customer",
-            age: Math.floor(Math.random() * 50) + 18,
-            phone: `+62${Math.floor(Math.random() * 900000000) + 100000000}`,
-        })
-    );
-
     useEffect(() => {
         if (isOpen) {
-            console.log(
-                "📋 Product History Dialog opened for:",
-                productName,
-                "Code:",
-                productCode
-            );
+            console.log("Add Pending Bill Dialog opened");
             setCurrentPage(1);
             setPageSize(10);
             setSearchInput("");
             setSearchTerm("");
             setAppliedDateRange(undefined);
+            setSelectedBill(null);
             setTimeout(() => {
                 searchInputRef.current?.focus();
             }, 100);
         }
-    }, [isOpen, productName, productCode]);
+    }, [isOpen]);
 
     useEffect(() => {
         const trimmedSearch = searchInput.trim();
@@ -140,56 +124,44 @@ export default function ProductHistoryDialog({
         }
     }, [searchInput]);
 
-    const filteredHistoryData = React.useMemo(() => {
-        if (!searchTerm) return historyData;
+    const filteredBills = React.useMemo(() => {
+        if (!searchTerm) return mockPendingBills;
 
-        return historyData.filter((record) => {
-            const customerName = record.customer_name?.toLowerCase() || "";
-            const receiptId = record.receipt_id?.toLowerCase() || "";
+        return mockPendingBills.filter((bill) => {
+            const customerName = bill.customerName?.toLowerCase() || "";
+            const billId = bill.id?.toLowerCase() || "";
             const searchLower = searchTerm.toLowerCase();
 
             return (
                 customerName.includes(searchLower) ||
-                receiptId.includes(searchLower)
+                billId.includes(searchLower)
             );
         });
-    }, [historyData, searchTerm]);
+    }, [mockPendingBills, searchTerm]);
 
-    const filteredTotalDocs = filteredHistoryData.length;
+    const filteredTotalDocs = filteredBills.length;
     const filteredTotalPages = Math.ceil(filteredTotalDocs / pageSize);
-    const paginatedFilteredData = filteredHistoryData.slice(
+    const paginatedFilteredData = filteredBills.slice(
         (currentPage - 1) * pageSize,
         currentPage * pageSize
     );
 
-    const displayData = searchTerm ? paginatedFilteredData : historyData;
-    const displayTotalPages = searchTerm ? filteredTotalPages : totalPages;
-    const displayTotalDocs = searchTerm ? filteredTotalDocs : totalDocs;
+    const displayData = paginatedFilteredData;
+    const displayTotalPages = filteredTotalPages;
+    const displayTotalDocs = filteredTotalDocs;
+
+    const formatCurrency = (amount: number): string => {
+        return `Rp ${amount.toLocaleString("id-ID")}`;
+    };
 
     const handleDateRangeChange = (range: DateRange | undefined) => {
         setAppliedDateRange(range);
         setCurrentPage(1);
-        console.log("✅ Date range applied:", range);
+        console.log("Date range applied:", range);
     };
 
     const handlePageChange = (page: number) => {
-        const maxPages = searchTerm ? filteredTotalPages : totalPages;
-        if (page < 1 || page > maxPages) return;
-
-        if (!searchTerm) {
-            if (
-                page > totalPages ||
-                (page - 1) * pageSize >= (totalDocs || 0)
-            ) {
-                console.warn("Page out of bounds:", {
-                    page,
-                    totalPages,
-                    totalDocs,
-                });
-                return;
-            }
-        }
-
+        if (page < 1 || page > filteredTotalPages) return;
         setCurrentPage(page);
     };
 
@@ -210,7 +182,12 @@ export default function ProductHistoryDialog({
         setSearchTerm("");
         setCurrentPage(1);
         setAppliedDateRange(undefined);
+        setSelectedBill(null);
         onClose();
+    };
+
+    const handleRowClick = (billId: string) => {
+        setSelectedBill(selectedBill === billId ? null : billId);
     };
 
     if (!isOpen) return null;
@@ -221,12 +198,7 @@ export default function ProductHistoryDialog({
                 {/* Header */}
                 <div className="flex items-center justify-between p-6 border-b border-gray-200 flex-shrink-0">
                     <h2 className="text-xl font-semibold text-gray-900">
-                        History Product - {productName}
-                        {productCode && (
-                            <span className="ml-2 text-sm text-gray-500">
-                                ({productCode})
-                            </span>
-                        )}
+                        Add Pending Bill
                     </h2>
                     <button
                         onClick={handleClose}
@@ -243,7 +215,7 @@ export default function ProductHistoryDialog({
                             <Input
                                 ref={searchInputRef}
                                 type="text"
-                                placeholder="Search Customer Name or Receipt ID (min 3 characters)"
+                                placeholder="Search Customer Name or Bill ID (min 3 characters)"
                                 className="pl-10 bg-gray-50 border-gray-200 h-10"
                                 value={searchInput}
                                 onChange={(e) => setSearchInput(e.target.value)}
@@ -270,17 +242,9 @@ export default function ProductHistoryDialog({
                     </div>
                 </div>
 
-                {/* Main Content Area - FIXED: Proper flex layout for scrolling */}
+                {/* Main Content Area */}
                 <div className="flex-1 min-h-0 flex flex-col p-6">
-                    {error && (
-                        <div className="bg-red-50 border border-red-200 rounded-lg p-4 mb-6 flex-shrink-0">
-                            <div className="text-red-700 text-sm">
-                                Error loading product history: {error}
-                            </div>
-                        </div>
-                    )}
-
-                    {/* FIXED: Table Container with proper horizontal scroll */}
+                    {/* Table Container */}
                     <div className="flex-1 min-h-0 border border-gray-200 rounded-lg overflow-hidden">
                         <div
                             ref={tableContainerRef}
@@ -290,36 +254,35 @@ export default function ProductHistoryDialog({
                                 scrollbarColor: "#3b82f6 #f1f5f9",
                             }}
                         >
-                            {/* FIXED: Table with min-width to ensure horizontal scroll */}
                             <table className="w-full border-collapse min-w-[1200px]">
                                 <thead className="sticky top-0 z-10 bg-gray-50">
                                     <tr className="border-b border-gray-200">
                                         <th className="text-left h-[48px] px-4 text-sm font-medium text-gray-600 bg-gray-50 min-w-[120px]">
-                                            Receipt ID
+                                            Bill ID
                                         </th>
                                         <th className="text-left h-[48px] px-4 text-sm font-medium text-gray-600 bg-gray-50 min-w-[100px]">
                                             Date
                                         </th>
                                         <th className="text-left h-[48px] px-4 text-sm font-medium text-gray-600 bg-gray-50 min-w-[60px]">
-                                            Shift
+                                            Items
                                         </th>
                                         <th className="text-left h-[48px] px-4 text-sm font-medium text-gray-600 bg-gray-50 min-w-[80px]">
                                             Time
                                         </th>
                                         <th className="text-left h-[48px] px-4 text-sm font-medium text-gray-600 bg-gray-50 min-w-[120px]">
-                                            Cashier Name
-                                        </th>
-                                        <th className="text-left h-[48px] px-4 text-sm font-medium text-gray-600 bg-gray-50 min-w-[60px]">
-                                            Kassa
-                                        </th>
-                                        <th className="text-left h-[48px] px-4 text-sm font-medium text-gray-600 bg-gray-50 min-w-[150px]">
                                             Customer Name
                                         </th>
                                         <th className="text-left h-[48px] px-4 text-sm font-medium text-gray-600 bg-gray-50 min-w-[60px]">
-                                            Age
+                                            Phone
+                                        </th>
+                                        <th className="text-left h-[48px] px-4 text-sm font-medium text-gray-600 bg-gray-50 min-w-[150px]">
+                                            Total Amount
+                                        </th>
+                                        <th className="text-left h-[48px] px-4 text-sm font-medium text-gray-600 bg-gray-50 min-w-[60px]">
+                                            Status
                                         </th>
                                         <th className="text-left h-[48px] px-4 text-sm font-medium text-gray-600 bg-gray-50 min-w-[120px]">
-                                            Phone Number
+                                            Notes
                                         </th>
                                     </tr>
                                 </thead>
@@ -334,8 +297,7 @@ export default function ProductHistoryDialog({
                                                 <div className="flex items-center justify-center">
                                                     <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-500"></div>
                                                     <span className="ml-2 text-gray-600">
-                                                        Loading product
-                                                        history...
+                                                        Loading pending bills...
                                                     </span>
                                                 </div>
                                             </td>
@@ -343,39 +305,56 @@ export default function ProductHistoryDialog({
                                     ) : displayData.length > 0 ? (
                                         displayData.map((record, index) => (
                                             <tr
-                                                key={record.receipt_id}
+                                                key={record.id}
                                                 className={`border-b border-gray-100 hover:bg-blue-50 cursor-pointer transition-colors ${
+                                                    selectedBill === record.id
+                                                        ? "bg-blue-50 border-2 border-blue-400"
+                                                        : "border-2 border-transparent"
+                                                } ${
                                                     index % 2 === 1
                                                         ? "bg-gray-50/30"
                                                         : ""
                                                 }`}
+                                                onClick={() =>
+                                                    handleRowClick(record.id)
+                                                }
                                             >
                                                 <td className="h-[48px] px-4 text-sm font-medium text-gray-900">
-                                                    {record.receipt_id}
+                                                    {record.id}
                                                 </td>
                                                 <td className="h-[48px] px-4 text-sm text-gray-600">
-                                                    {record.date}
+                                                    {record.createdDate}
+                                                </td>
+                                                <td className="h-[48px] px-4 text-sm text-center text-gray-600">
+                                                    {record.products.length}
                                                 </td>
                                                 <td className="h-[48px] px-4 text-sm text-gray-600">
-                                                    {record.shift}
-                                                </td>
-                                                <td className="h-[48px] px-4 text-sm text-gray-600">
-                                                    {record.time}
+                                                    {record.createdTime}
                                                 </td>
                                                 <td className="h-[48px] px-4 text-sm text-gray-900">
-                                                    {record.cashier_name}
+                                                    {record.customerName}
                                                 </td>
                                                 <td className="h-[48px] px-4 text-sm text-gray-600">
-                                                    {record.kassa}
+                                                    {record.customerPhone ||
+                                                        "-"}
                                                 </td>
-                                                <td className="h-[48px] px-4 text-sm text-gray-900">
-                                                    {record.customer_name}
+                                                <td className="h-[48px] px-4 text-sm font-semibold text-green-600">
+                                                    {formatCurrency(
+                                                        record.totalAmount
+                                                    )}
+                                                </td>
+                                                <td className="h-[48px] px-4 text-sm text-center">
+                                                    <span className="px-2 py-1 bg-orange-100 text-orange-800 rounded-full text-xs font-medium">
+                                                        Pending
+                                                    </span>
                                                 </td>
                                                 <td className="h-[48px] px-4 text-sm text-gray-600">
-                                                    {record.age}
-                                                </td>
-                                                <td className="h-[48px] px-4 text-sm text-gray-600">
-                                                    {record.phone}
+                                                    <div
+                                                        className="max-w-[120px] truncate"
+                                                        title={record.notes}
+                                                    >
+                                                        {record.notes || "-"}
+                                                    </div>
                                                 </td>
                                             </tr>
                                         ))
@@ -387,16 +366,14 @@ export default function ProductHistoryDialog({
                                             >
                                                 {searchTerm &&
                                                 searchInput.trim().length >= 3
-                                                    ? "No records found for your search."
+                                                    ? "No pending bills found for your search."
                                                     : searchTerm &&
                                                       searchInput.trim()
                                                           .length > 0 &&
                                                       searchInput.trim()
                                                           .length < 3
                                                     ? "Please enter at least 3 characters to search."
-                                                    : productCode
-                                                    ? `No transaction history found for product ${productCode}.`
-                                                    : "No product history found."}
+                                                    : "No pending bills found."}
                                             </td>
                                         </tr>
                                     )}
@@ -405,7 +382,7 @@ export default function ProductHistoryDialog({
                         </div>
                     </div>
 
-                    {/* Pagination Controls - FIXED: Flex-shrink-0 to prevent compression */}
+                    {/* Pagination Controls */}
                     {displayData.length > 0 && (
                         <div className="mt-4 flex justify-between items-center flex-shrink-0">
                             <div className="flex items-center gap-4">
