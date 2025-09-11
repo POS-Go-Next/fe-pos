@@ -1,4 +1,4 @@
-// hooks/useTransactionInfo.ts
+// hooks/useTransactionInfo.ts - UPDATED
 "use client";
 
 import { useState, useEffect, useCallback } from "react";
@@ -106,7 +106,7 @@ export const useTransactionInfo = (): UseTransactionInfoReturn => {
 
     const getSystemDeviceId = async (): Promise<string | null> => {
         try {
-            console.log("🔄 Fetching device ID from system service...");
+            console.log("📄 Fetching device ID from system service...");
 
             const response = await fetch(
                 "http://localhost:8321/api/system/info",
@@ -162,7 +162,7 @@ export const useTransactionInfo = (): UseTransactionInfoReturn => {
                 throw new Error("Could not obtain device ID from system");
             }
 
-            console.log("🔄 Using device ID:", deviceId);
+            console.log("📄 Using device ID:", deviceId);
 
             // Step 2: Fetch all 3 APIs in parallel using the real device ID
             const [kassaResponse, queueResponse, invoiceResponse] =
@@ -179,8 +179,8 @@ export const useTransactionInfo = (): UseTransactionInfoReturn => {
                         headers: { "Content-Type": "application/json" },
                     }),
 
-                    // 3. Get next invoice number
-                    fetch("/api/transaction/next-invoice?transaction_type=1", {
+                    // 3. Get next invoice number (NO MORE HARDCODED transaction_type)
+                    fetch("/api/transaction/next-invoice", {
                         method: "GET",
                         headers: { "Content-Type": "application/json" },
                     }),
@@ -196,6 +196,7 @@ export const useTransactionInfo = (): UseTransactionInfoReturn => {
                         id_kassa: kassaData.data.id_kassa,
                         no_kassa: kassaData.data.no_kassa,
                         device_id: kassaData.data.device_id,
+                        default_jual: kassaData.data.default_jual, // Log default_jual
                     });
                 }
             } else {

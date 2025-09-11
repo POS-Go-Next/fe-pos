@@ -147,9 +147,8 @@ export default function PaymentDialog({
 
     const getNextInvoice = async () => {
         try {
-            const response = await fetch(
-                "/api/transaction/next-invoice?transaction_type=1"
-            );
+            // FIXED: Remove hardcoded transaction_type parameter
+            const response = await fetch("/api/transaction/next-invoice");
             const data = await response.json();
             return data.data?.invoice_number || "S25080315";
         } catch (error) {

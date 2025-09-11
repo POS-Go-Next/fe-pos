@@ -29,7 +29,7 @@ interface KassaSetupDialogProps {
 }
 
 interface KassaSetupData {
-    default_jual: "0" | "1" | "2";
+    default_jual: "1" | "2"; // Changed from "0" | "1" | "2" to "1" | "2"
     status_aktif: boolean;
     antrian: boolean;
     finger: "Y" | "N";
@@ -82,7 +82,7 @@ const KassaSetupDialog: FC<KassaSetupDialogProps> = ({
     const { updateKassa, isLoading: isSubmitting } = useKassa();
 
     const [formData, setFormData] = useState<KassaSetupData>({
-        default_jual: "0",
+        default_jual: "1", // Changed default from "0" to "1"
         status_aktif: true,
         antrian: true,
         finger: "Y",
@@ -105,7 +105,7 @@ const KassaSetupDialog: FC<KassaSetupDialogProps> = ({
             console.log("🪟 Loading kassa data into form:", kassaData);
 
             setFormData({
-                default_jual: kassaData.default_jual as "0" | "1" | "2",
+                default_jual: kassaData.default_jual as "1" | "2", // Updated type
                 status_aktif: kassaData.status_aktif,
                 antrian: kassaData.antrian,
                 finger: kassaData.finger as "Y" | "N",
@@ -118,12 +118,7 @@ const KassaSetupDialog: FC<KassaSetupDialogProps> = ({
             }
 
             setIsDataLoaded(true);
-        } else if (
-            !kassaData &&
-            deviceId &&
-            hasValidToken &&
-            !isKassaLoading
-        ) {
+        } else if (!kassaData && deviceId && hasValidToken && !isKassaLoading) {
             console.log("🪟 Using system info for new kassa setup");
 
             setFormData((prev) => ({
@@ -133,13 +128,7 @@ const KassaSetupDialog: FC<KassaSetupDialogProps> = ({
 
             setIsDataLoaded(true);
         }
-    }, [
-        kassaData,
-        deviceId,
-        hasValidToken,
-        isKassaLoading,
-        isDataLoaded,
-    ]);
+    }, [kassaData, deviceId, hasValidToken, isKassaLoading, isDataLoaded]);
 
     useEffect(() => {
         if (printerSessionExpired) {
@@ -433,7 +422,7 @@ const KassaSetupDialog: FC<KassaSetupDialogProps> = ({
 
     const handleCancel = async () => {
         setFormData({
-            default_jual: "0",
+            default_jual: "1", // Changed default from "0" to "1"
             status_aktif: true,
             antrian: true,
             finger: "Y",
@@ -484,20 +473,6 @@ const KassaSetupDialog: FC<KassaSetupDialogProps> = ({
                                 />
                             </div>
                             <div className="flex bg-gray-100 rounded-lg p-1">
-                                <button
-                                    type="button"
-                                    onClick={() =>
-                                        handleToggle("default_jual", "0")
-                                    }
-                                    disabled={isLoading}
-                                    className={`flex-1 py-2 px-3 rounded-md text-sm font-medium transition-colors ${
-                                        formData.default_jual === "0"
-                                            ? "bg-blue-600 text-white shadow-sm"
-                                            : "text-gray-700 hover:text-gray-900"
-                                    }`}
-                                >
-                                    Both
-                                </button>
                                 <button
                                     type="button"
                                     onClick={() =>
@@ -678,10 +653,7 @@ const KassaSetupDialog: FC<KassaSetupDialogProps> = ({
                             <Input
                                 value={formData.device_id}
                                 onChange={(e) =>
-                                    handleToggle(
-                                        "device_id",
-                                        e.target.value
-                                    )
+                                    handleToggle("device_id", e.target.value)
                                 }
                                 className="flex-1 bg-gray-50"
                                 placeholder="KASSA-1234-5678-9ABC"
