@@ -1,4 +1,4 @@
-// components/shared/ChooseMenuProductTable.tsx - UPDATED WITH PENDING BILL DIALOGS
+// components/shared/ChooseMenuProductTable.tsx - UPDATED WITH PRODUCT CODE FOR HISTORY
 "use client";
 
 import BranchWideStockDialog from "@/components/shared/branch-wide-stock-dialog";
@@ -974,6 +974,7 @@ export default function ChooseMenuProductTable({
                 isOpen={dialogStates.productHistory}
                 onClose={() => closeDialog("productHistory")}
                 productName={selectedProduct?.name}
+                productCode={selectedProduct?.stockData?.kode_brg}
             />
 
             <CustomerDoctorDialog

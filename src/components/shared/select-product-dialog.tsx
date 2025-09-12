@@ -1,4 +1,4 @@
-// components/shared/select-product-dialog.tsx - UPDATED TO PASS PRODUCT CODE TO HISTORY
+// components/shared/select-product-dialog.tsx - FIXED SYNTAX ERRORS
 "use client";
 
 import { Button } from "@/components/ui/button";
@@ -43,7 +43,7 @@ export default function SelectProductDialog({
     const [selectedProductForHistory, setSelectedProductForHistory] =
         useState<string>("");
     const [selectedProductCodeForHistory, setSelectedProductCodeForHistory] =
-        useState<string>(""); // NEW: Track product code for history
+        useState<string>("");
 
     // Stock Warning Dialog States
     const [stockWarningDialog, setStockWarningDialog] = useState({
@@ -188,7 +188,7 @@ export default function SelectProductDialog({
 
             setIsHistoryDialogOpen(false);
             setSelectedProductForHistory("");
-            setSelectedProductCodeForHistory(""); // NEW: Reset product code
+            setSelectedProductCodeForHistory("");
             setStockWarningDialog({
                 isOpen: false,
                 productName: "",
@@ -305,13 +305,13 @@ export default function SelectProductDialog({
         if (selectedIndex >= 0 && stockList[selectedIndex]) {
             const selectedProduct = stockList[selectedIndex];
             setSelectedProductForHistory(selectedProduct.nama_brg);
-            setSelectedProductCodeForHistory(selectedProduct.kode_brg); // NEW: Set product code
+            setSelectedProductCodeForHistory(selectedProduct.kode_brg);
         } else if (searchTerm.trim()) {
             setSelectedProductForHistory(searchTerm.trim());
-            setSelectedProductCodeForHistory(""); // No specific product code for search term
+            setSelectedProductCodeForHistory("");
         } else {
             setSelectedProductForHistory("Product History");
-            setSelectedProductCodeForHistory(""); // No specific product code
+            setSelectedProductCodeForHistory("");
         }
         setIsHistoryDialogOpen(true);
     };
@@ -319,7 +319,7 @@ export default function SelectProductDialog({
     const handleHistoryDialogClose = () => {
         setIsHistoryDialogOpen(false);
         setSelectedProductForHistory("");
-        setSelectedProductCodeForHistory(""); // NEW: Reset product code
+        setSelectedProductCodeForHistory("");
     };
 
     const handleStockWarningClose = () => {
@@ -338,7 +338,7 @@ export default function SelectProductDialog({
         setApiParams({ offset: 0, limit: 10, search: "" });
         setIsHistoryDialogOpen(false);
         setSelectedProductForHistory("");
-        setSelectedProductCodeForHistory(""); // NEW: Reset product code
+        setSelectedProductCodeForHistory("");
         setStockWarningDialog({
             isOpen: false,
             productName: "",
@@ -412,7 +412,11 @@ export default function SelectProductDialog({
                             <div
                                 ref={tableContainerRef}
                                 className="flex-1 overflow-auto"
-                                style={{ maxHeight: "400px" }}
+                                style={{
+                                    maxHeight: "400px",
+                                    scrollbarWidth: "thin",
+                                    scrollbarColor: "#3b82f6 #f1f5f9",
+                                }}
                             >
                                 <table
                                     ref={tableRef}
@@ -749,6 +753,38 @@ export default function SelectProductDialog({
                 availableStock={stockWarningDialog.availableStock}
                 requestedQuantity={stockWarningDialog.requestedQuantity}
             />
+
+            {/* UPDATED: Custom Scrollbar Styles - Same as History Product */}
+            <style jsx>{`
+                div[ref] {
+                    scrollbar-width: thin;
+                    scrollbar-color: #3b82f6 #f1f5f9;
+                }
+
+                div[ref]::-webkit-scrollbar {
+                    width: 8px;
+                    height: 8px;
+                }
+
+                div[ref]::-webkit-scrollbar-track {
+                    background: #f1f5f9;
+                    border-radius: 4px;
+                }
+
+                div[ref]::-webkit-scrollbar-thumb {
+                    background: #3b82f6;
+                    border-radius: 4px;
+                    border: 1px solid #f1f5f9;
+                }
+
+                div[ref]::-webkit-scrollbar-thumb:hover {
+                    background: #2563eb;
+                }
+
+                div[ref]::-webkit-scrollbar-corner {
+                    background: #f1f5f9;
+                }
+            `}</style>
         </>
     );
 }

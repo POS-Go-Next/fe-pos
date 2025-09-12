@@ -1,4 +1,4 @@
-// components/shared/product-history-dialog.tsx - FIXED HORIZONTAL SCROLL
+// components/shared/product-history-dialog.tsx - FIXED PAGINATION AND SCROLL
 "use client";
 
 import React, { useState, useEffect, useRef } from "react";
@@ -140,6 +140,7 @@ export default function ProductHistoryDialog({
         }
     }, [searchInput]);
 
+    // FIXED: Simplified filtering - use API data directly for pagination
     const filteredHistoryData = React.useMemo(() => {
         if (!searchTerm) return historyData;
 
@@ -155,16 +156,14 @@ export default function ProductHistoryDialog({
         });
     }, [historyData, searchTerm]);
 
-    const filteredTotalDocs = filteredHistoryData.length;
-    const filteredTotalPages = Math.ceil(filteredTotalDocs / pageSize);
-    const paginatedFilteredData = filteredHistoryData.slice(
-        (currentPage - 1) * pageSize,
-        currentPage * pageSize
-    );
-
-    const displayData = searchTerm ? paginatedFilteredData : historyData;
-    const displayTotalPages = searchTerm ? filteredTotalPages : totalPages;
-    const displayTotalDocs = searchTerm ? filteredTotalDocs : totalDocs;
+    // FIXED: Use API pagination data properly
+    const displayData = searchTerm ? filteredHistoryData : historyData;
+    const displayTotalPages = searchTerm
+        ? Math.ceil(filteredHistoryData.length / pageSize)
+        : totalPages;
+    const displayTotalDocs = searchTerm
+        ? filteredHistoryData.length
+        : totalDocs;
 
     const handleDateRangeChange = (range: DateRange | undefined) => {
         setAppliedDateRange(range);
@@ -173,23 +172,14 @@ export default function ProductHistoryDialog({
     };
 
     const handlePageChange = (page: number) => {
-        const maxPages = searchTerm ? filteredTotalPages : totalPages;
-        if (page < 1 || page > maxPages) return;
-
-        if (!searchTerm) {
-            if (
-                page > totalPages ||
-                (page - 1) * pageSize >= (totalDocs || 0)
-            ) {
-                console.warn("Page out of bounds:", {
-                    page,
-                    totalPages,
-                    totalDocs,
-                });
-                return;
-            }
+        if (searchTerm) {
+            // For local search, use client-side pagination
+            const maxPages = Math.ceil(filteredHistoryData.length / pageSize);
+            if (page < 1 || page > maxPages) return;
+        } else {
+            // For API pagination
+            if (page < 1 || page > totalPages) return;
         }
-
         setCurrentPage(page);
     };
 
@@ -238,13 +228,13 @@ export default function ProductHistoryDialog({
 
                 {/* Search and Filter Controls */}
                 <div className="p-6 border-b border-gray-200 flex-shrink-0">
-                    <div className="flex items-center gap-4">
-                        <div className="relative flex-1 max-w-md">
+                    <div className="flex items-center gap-3">
+                        <div className="relative flex-1">
                             <Input
                                 ref={searchInputRef}
                                 type="text"
                                 placeholder="Search Customer Name or Receipt ID (min 3 characters)"
-                                className="pl-10 bg-gray-50 border-gray-200 h-10"
+                                className="pl-10 pr-10 bg-[#F5F5F5] h-12 border-none"
                                 value={searchInput}
                                 onChange={(e) => setSearchInput(e.target.value)}
                             />
@@ -255,9 +245,10 @@ export default function ProductHistoryDialog({
                             {searchInput && (
                                 <button
                                     onClick={handleSearchReset}
-                                    className="absolute right-3 top-1/2 transform -translate-y-1/2 text-gray-400 hover:text-gray-600"
+                                    className="absolute right-3 top-1/2 transform -translate-y-1/2 text-gray-400 hover:text-gray-600 transition-colors"
+                                    title="Clear search"
                                 >
-                                    <X size={16} />
+                                    <X size={18} />
                                 </button>
                             )}
                         </div>
@@ -270,7 +261,7 @@ export default function ProductHistoryDialog({
                     </div>
                 </div>
 
-                {/* Main Content Area - FIXED: Proper flex layout for scrolling */}
+                {/* Main Content Area */}
                 <div className="flex-1 min-h-0 flex flex-col p-6">
                     {error && (
                         <div className="bg-red-50 border border-red-200 rounded-lg p-4 mb-6 flex-shrink-0">
@@ -280,7 +271,7 @@ export default function ProductHistoryDialog({
                         </div>
                     )}
 
-                    {/* FIXED: Table Container with proper horizontal scroll */}
+                    {/* FIXED: Table Container with proper scroll and height */}
                     <div className="flex-1 min-h-0 border border-gray-200 rounded-lg overflow-hidden">
                         <div
                             ref={tableContainerRef}
@@ -288,9 +279,9 @@ export default function ProductHistoryDialog({
                             style={{
                                 scrollbarWidth: "thin",
                                 scrollbarColor: "#3b82f6 #f1f5f9",
+                                maxHeight: "400px", // Fixed height for scroll
                             }}
                         >
-                            {/* FIXED: Table with min-width to ensure horizontal scroll */}
                             <table className="w-full border-collapse min-w-[1200px]">
                                 <thead className="sticky top-0 z-10 bg-gray-50">
                                     <tr className="border-b border-gray-200">
@@ -341,6 +332,7 @@ export default function ProductHistoryDialog({
                                             </td>
                                         </tr>
                                     ) : displayData.length > 0 ? (
+                                        // FIXED: Show all data from API (should be 10 items per page)
                                         displayData.map((record, index) => (
                                             <tr
                                                 key={record.receipt_id}
@@ -405,7 +397,7 @@ export default function ProductHistoryDialog({
                         </div>
                     </div>
 
-                    {/* Pagination Controls - FIXED: Flex-shrink-0 to prevent compression */}
+                    {/* Pagination Controls */}
                     {displayData.length > 0 && (
                         <div className="mt-4 flex justify-between items-center flex-shrink-0">
                             <div className="flex items-center gap-4">
