@@ -1,25 +1,25 @@
 // types/promo.ts
 export interface PromoData {
-    id: string;
-    promo_code?: string;
-    code?: string;
-    product_name?: string;
-    name?: string;
-    title?: string;
-    promo_type?: string;
-    type?: string;
-    start_date?: string;
-    startDate?: string;
-    end_date?: string;
-    endDate?: string;
-    description?: string;
-    discount_amount?: number;
-    discount_percentage?: number;
-    min_purchase?: number;
-    max_discount?: number;
-    is_active?: boolean;
-    created_at?: string;
-    updated_at?: string;
+    no_promo: string;
+    jns_promo: string;
+    tgl_awal_promo: string;
+    tgl_akhir_promo: string;
+    kd_brgdg: string;
+    nm_brgdg: string;
+    disc_promo: number;
+    nilai_promo: number;
+    kd_brgdg_promo: string;
+    qty_get: number;
+    qty_promo: number;
+    kd_brgdg_bundling: string;
+    plafon_promo: number;
+    harga_sebelum: number;
+    harga_sesudah: number;
+    coupon_name: string;
+    jenis_promo: {
+        jns_promo: number;
+        nm_promo: string;
+    };
 }
 
 export interface PromoPaginationData {
@@ -71,4 +71,7 @@ export interface PromoDisplayData {
     promo_type: string;
     start_date: string;
     end_date: string;
+    disc_promo: number;
+    harga_sebelum: number;
+    harga_sesudah: number;
 }
