@@ -4,6 +4,7 @@
 import { Button } from "@/components/ui/button";
 import { useCustomer } from "@/hooks/useCustomer";
 import { useDoctor } from "@/hooks/useDoctor";
+import { showErrorAlert } from "@/lib/swal";
 import type { CustomerData as CustomerApiData } from "@/types/customer";
 import type { DoctorData } from "@/types/doctor";
 import { X } from "lucide-react";
@@ -206,7 +207,6 @@ export default function CustomerDoctorDialog({
       setSelectedDoctorId(null);
     }
 
-    // Clear validation error when user starts typing
     if (
       validationErrors[
         `doctor${field.charAt(0).toUpperCase() + field.slice(1)}`
@@ -299,7 +299,6 @@ export default function CustomerDoctorDialog({
 
   const createCustomerViaAPI = async (): Promise<CustomerData | null> => {
     try {
-      console.log("🌐 Starting API call to create customer");
       setIsCreatingCustomer(true);
 
       const requestBody = {
@@ -311,9 +310,6 @@ export default function CustomerDoctorDialog({
         status: customerForm.status === "true",
       };
 
-      console.log("📤 Request body:", requestBody);
-
-      // Hit API melalui internal route yang sudah handle auth
       const response = await fetch("/api/customer", {
         method: "POST",
         headers: {
@@ -322,20 +318,16 @@ export default function CustomerDoctorDialog({
         body: JSON.stringify(requestBody),
       });
 
-      console.log("📥 Response status:", response.status);
       const data = await response.json();
-      console.log("📥 Response data:", data);
 
       if (!response.ok) {
         throw new Error(data.message || "Failed to create customer");
       }
 
-      // Check if API response is successful
       if (!data.success) {
         throw new Error(data.message || "Failed to create customer");
       }
 
-      // Transform response sesuai format yang diharapkan
       const createdCustomer: CustomerData = {
         id: data.data.kd_cust,
         name: data.data.nm_cust,
@@ -346,21 +338,15 @@ export default function CustomerDoctorDialog({
         status: data.data.status ? "true" : "false",
       };
 
-      console.log("✅ Customer created successfully:", createdCustomer);
-
-      // CRITICAL: Refresh customer list untuk dropdown
       if (refetchCustomers) {
-        console.log("🔄 Refreshing customer list...");
         await refetchCustomers();
       }
 
       return createdCustomer;
     } catch (error) {
-      console.error("❌ Error creating customer:", error);
-      setValidationErrors({
-        submit:
-          error instanceof Error ? error.message : "Failed to create customer",
-      });
+      const errorMessage =
+        error instanceof Error ? error.message : "Failed to create customer";
+      await showErrorAlert("Error Creating Customer", errorMessage);
       return null;
     } finally {
       setIsCreatingCustomer(false);
@@ -369,17 +355,14 @@ export default function CustomerDoctorDialog({
 
   const createDoctorViaAPI = async (): Promise<DoctorFormData | null> => {
     try {
-      console.log("🌐 Starting API call to create doctor");
       setIsCreatingDoctor(true);
 
       const requestBody = {
         fullname: doctorForm.fullname,
-        phone: parseInt(doctorForm.phone.replace(/\D/g, "")), // Remove non-digits and convert to number
+        phone: doctorForm.phone,
         address: doctorForm.address,
         sip: doctorForm.sip,
       };
-
-      console.log("📤 Request body:", requestBody);
 
       const response = await fetch("/api/doctor", {
         method: "POST",
@@ -389,9 +372,7 @@ export default function CustomerDoctorDialog({
         body: JSON.stringify(requestBody),
       });
 
-      console.log("📥 Response status:", response.status);
       const data = await response.json();
-      console.log("📥 Response data:", data);
 
       if (!response.ok) {
         throw new Error(data.message || "Failed to create doctor");
@@ -401,7 +382,6 @@ export default function CustomerDoctorDialog({
         throw new Error(data.message || "Failed to create doctor");
       }
 
-      // Transform response sesuai format yang diharapkan
       const createdDoctor: DoctorFormData = {
         id: data.data.id,
         fullname: data.data.fullname,
@@ -411,21 +391,15 @@ export default function CustomerDoctorDialog({
         sip: data.data.sip,
       };
 
-      console.log("✅ Doctor created successfully:", createdDoctor);
-
-      // CRITICAL: Refresh doctor list untuk dropdown
       if (refetchDoctors) {
-        console.log("🔄 Refreshing doctor list...");
         await refetchDoctors();
       }
 
       return createdDoctor;
     } catch (error) {
-      console.error("❌ Error creating doctor:", error);
-      setValidationErrors({
-        submit:
-          error instanceof Error ? error.message : "Failed to create doctor",
-      });
+      const errorMessage =
+        error instanceof Error ? error.message : "Failed to create doctor";
+      await showErrorAlert("Error Creating Doctor", errorMessage);
       return null;
     } finally {
       setIsCreatingDoctor(false);
@@ -433,68 +407,31 @@ export default function CustomerDoctorDialog({
   };
 
   const handleSubmit = async () => {
-    console.log("🚀 Submit button clicked!");
-    console.log("Current form data:", { customerForm, doctorForm });
-    console.log("View mode:", viewMode);
-    console.log("Selected customer ID:", selectedCustomerId);
-    console.log("Selected doctor ID:", selectedDoctorId);
-    console.log("Trigger payment flow:", triggerPaymentFlow);
-
     if (viewMode === "customer-only" && customerForm.name) {
       if (!validateCustomerForm()) {
-        console.log("❌ Customer form validation failed");
         return;
       }
 
-      console.log("👤 Creating new customer via API (customer-only mode)...");
       const createdCustomer = await createCustomerViaAPI();
       if (createdCustomer) {
-        console.log("✅ Customer created successfully:", createdCustomer);
-
-        // Update form dengan data customer yang baru dibuat
         setCustomerForm(createdCustomer);
         setSelectedCustomerId(createdCustomer.id);
-
-        // Reset customer search untuk trigger dropdown refresh
         setCustomerSearch("");
-
-        // Kembali ke mode "both" otomatis
         setViewMode("both");
-
-        // Notify parent component
         onSelectCustomer(createdCustomer);
-
-        console.log("🔄 Switched back to 'both' mode with new customer data");
-      } else {
-        console.log("❌ Customer creation failed");
       }
     } else if (viewMode === "doctor-only" && doctorForm.fullname) {
       if (!validateDoctorForm()) {
-        console.log("❌ Doctor form validation failed");
         return;
       }
 
-      console.log("👨‍⚕️ Creating new doctor via API (doctor-only mode)...");
       const createdDoctor = await createDoctorViaAPI();
       if (createdDoctor) {
-        console.log("✅ Doctor created successfully:", createdDoctor);
-
-        // Update form dengan data doctor yang baru dibuat
         setDoctorForm(createdDoctor);
         setSelectedDoctorId(createdDoctor.id);
-
-        // Reset doctor search untuk trigger dropdown refresh
         setDoctorSearch("");
-
-        // Kembali ke mode "both" otomatis
         setViewMode("both");
-
-        // Notify parent component
         onSelectDoctor(createdDoctor);
-
-        console.log("🔄 Switched back to 'both' mode with new doctor data");
-      } else {
-        console.log("❌ Doctor creation failed");
       }
 
       if (!triggerPaymentFlow) {
@@ -502,44 +439,30 @@ export default function CustomerDoctorDialog({
       }
     } else if (viewMode === "both" && customerForm.name) {
       if (!validateCustomerForm()) {
-        console.log("❌ Customer form validation failed");
         return;
       }
 
-      console.log("👥 Submitting both customer and doctor data");
       let finalCustomerData = customerForm;
 
       if (!selectedCustomerId) {
-        console.log("👤 Creating new customer via API (both mode)...");
         const createdCustomer = await createCustomerViaAPI();
         if (!createdCustomer) {
-          console.log("❌ Customer creation failed, stopping submission");
           return;
         }
-        console.log("✅ Customer created successfully:", createdCustomer);
         finalCustomerData = createdCustomer;
-      } else {
-        console.log("🔄 Using existing customer from selection");
       }
 
       let finalDoctorData = doctorForm.fullname ? doctorForm : undefined;
 
-      // If doctor form has data but no ID, create new doctor
       if (doctorForm.fullname && !selectedDoctorId) {
         if (validateDoctorForm()) {
-          console.log("👨‍⚕️ Creating new doctor via API (both mode)...");
           const createdDoctor = await createDoctorViaAPI();
           if (createdDoctor) {
-            console.log("✅ Doctor created successfully:", createdDoctor);
             finalDoctorData = createdDoctor;
           } else {
-            console.log("❌ Doctor creation failed, continuing without doctor");
             finalDoctorData = undefined;
           }
         } else {
-          console.log(
-            "❌ Doctor form validation failed, continuing without doctor"
-          );
           finalDoctorData = undefined;
         }
       }
@@ -636,7 +559,6 @@ export default function CustomerDoctorDialog({
         </div>
 
         <div className="flex-1 overflow-auto space-y-6">
-          {/* Customer Info Section */}
           <CustomerSection
             customerForm={customerForm}
             customerList={customerList}
@@ -657,7 +579,6 @@ export default function CustomerDoctorDialog({
             setIsCustomerDropdownOpen={setIsCustomerDropdownOpen}
           />
 
-          {/* Doctor Info Section */}
           <DoctorSection
             doctorForm={doctorForm}
             doctorList={doctorList}

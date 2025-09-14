@@ -1,7 +1,5 @@
-// lib/swal.ts
 import Swal from "sweetalert2";
 
-// Default styling untuk SweetAlert2
 const defaultCustomClass = {
   popup: "rounded-xl shadow-2xl",
   confirmButton: "rounded-lg px-6 py-2 font-medium",
@@ -10,7 +8,6 @@ const defaultCustomClass = {
   htmlContainer: "text-sm text-gray-600",
 };
 
-// Success alert
 export const showSuccessAlert = (
   title: string,
   text?: string,
@@ -28,7 +25,6 @@ export const showSuccessAlert = (
   });
 };
 
-// Error alert
 export const showErrorAlert = (
   title: string,
   text?: string,
@@ -46,7 +42,6 @@ export const showErrorAlert = (
   });
 };
 
-// Warning alert
 export const showWarningAlert = (
   title: string,
   text?: string,
@@ -64,7 +59,6 @@ export const showWarningAlert = (
   });
 };
 
-// Confirmation alert
 export const showConfirmAlert = (
   title: string,
   text?: string,
@@ -86,7 +80,6 @@ export const showConfirmAlert = (
   });
 };
 
-// Loading alert
 export const showLoadingAlert = (
   title: string = "Please wait...",
   text?: string
@@ -107,7 +100,6 @@ export const showLoadingAlert = (
   });
 };
 
-// Toast notification
 export const showToast = (
   icon: "success" | "error" | "warning" | "info",
   title: string
@@ -133,7 +125,6 @@ export const showToast = (
   });
 };
 
-// Session expired alert with auto-close timer
 export const showSessionExpiredAlert = () => {
   let timerInterval: NodeJS.Timeout;
 
@@ -180,13 +171,10 @@ export const showSessionExpiredAlert = () => {
       clearInterval(timerInterval);
     },
   }).then((result) => {
-    // Handle the result
     if (result.isConfirmed || result.dismiss === Swal.DismissReason.timer) {
-      // ✅ Fix: Safe localStorage access
       if (typeof window !== "undefined") {
         localStorage.removeItem("user-data");
         localStorage.removeItem("auth-token");
-        // Redirect to login page or dashboard
         window.location.href = "/";
       }
     }

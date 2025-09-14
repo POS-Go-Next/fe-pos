@@ -5,406 +5,390 @@ import { useState } from "react";
 import { Button } from "@/components/ui/button";
 import CustomerDoctorDialog from "@/components/shared/customer-doctor-dialog";
 import TransactionTypeDialog, {
-    TransactionTypeData,
+  TransactionTypeData,
 } from "@/components/shared/transaction-type-dialog";
 import PaymentDialog from "@/components/shared/payment-dialog";
 import SavePendingBillDialog from "@/components/shared/save-pending-bill-dialog";
 import PendingBillSavedDialog from "@/components/shared/pending-bill-saved-dialog";
 
 interface CustomerData {
-    id: number;
-    name: string;
-    gender: string;
-    age: string;
-    phone: string;
-    address: string;
-    status: string;
+  id: number;
+  name: string;
+  gender: string;
+  age: string;
+  phone: string;
+  address: string;
+  status: string;
 }
 
 interface DoctorData {
-    id: number;
-    fullname: string;
-    phone: string;
-    address: string;
-    fee_consultation?: number;
-    sip: string;
-    email?: string;
+  id: number;
+  fullname: string;
+  phone: string;
+  address: string;
+  fee_consultation?: number;
+  sip: string;
+  email?: string;
 }
 
 interface ProductItem {
-    id: number;
-    name: string;
-    quantity: number;
-    price: number;
-    subtotal: number;
-    discount: number;
-    sc: number;
-    misc: number;
-    promo: number;
-    total: number;
-    stockData?: {
-        kode_brg: string;
-    };
-    up?: string;
+  id: number;
+  name: string;
+  quantity: number;
+  price: number;
+  subtotal: number;
+  discount: number;
+  sc: number;
+  misc: number;
+  promo: number;
+  total: number;
+  stockData?: {
+    kode_brg: string;
+  };
+  up?: string;
 }
 
 interface OrderSummaryProps {
-    subtotal: number;
-    misc?: number;
-    serviceCharge?: number;
-    discount?: number;
-    promo?: number;
-    className?: string;
-    onPendingBill?: () => void;
-    onPayNow?: (customerData?: CustomerData, doctorData?: DoctorData) => void;
-    products?: ProductItem[];
-    // 🔥 NEW: Props for external dialog control from Ctrl+Space
-    isCustomerDoctorDialogOpen?: boolean;
-    onCustomerDoctorDialogClose?: () => void;
-    triggerPaymentFlow?: boolean;
+  subtotal: number;
+  misc?: number;
+  serviceCharge?: number;
+  discount?: number;
+  promo?: number;
+  className?: string;
+  onPendingBill?: () => void;
+  onPayNow?: (customerData?: CustomerData, doctorData?: DoctorData) => void;
+  products?: ProductItem[];
+  // 🔥 NEW: Props for external dialog control from Ctrl+Space
+  isCustomerDoctorDialogOpen?: boolean;
+  onCustomerDoctorDialogClose?: () => void;
+  triggerPaymentFlow?: boolean;
 }
 
 export default function OrderSummary({
-    subtotal,
-    misc = 0,
-    serviceCharge = 0,
-    discount = 0,
-    promo = 0,
-    className = "",
-    onPendingBill,
-    onPayNow,
-    products = [],
-    // 🔥 NEW: External dialog control props
-    isCustomerDoctorDialogOpen = false,
-    onCustomerDoctorDialogClose,
-    triggerPaymentFlow = false,
+  subtotal,
+  misc = 0,
+  serviceCharge = 0,
+  discount = 0,
+  promo = 0,
+  className = "",
+  onPendingBill,
+  onPayNow,
+  products = [],
+  // 🔥 NEW: External dialog control props
+  isCustomerDoctorDialogOpen = false,
+  onCustomerDoctorDialogClose,
+  triggerPaymentFlow = false,
 }: OrderSummaryProps) {
-    // 🔥 MODIFIED: Use external control or internal state
-    const [internalDialogOpen, setInternalDialogOpen] = useState(false);
-    const [isTransactionTypeDialogOpen, setIsTransactionTypeDialogOpen] =
-        useState(false);
-    const [isPaymentDialogOpen, setIsPaymentDialogOpen] = useState(false);
-    const [isSavePendingBillDialogOpen, setIsSavePendingBillDialogOpen] =
-        useState(false);
-    const [isPendingBillSavedDialogOpen, setIsPendingBillSavedDialogOpen] =
-        useState(false);
+  // 🔥 MODIFIED: Use external control or internal state
+  const [internalDialogOpen, setInternalDialogOpen] = useState(false);
+  const [isTransactionTypeDialogOpen, setIsTransactionTypeDialogOpen] =
+    useState(false);
+  const [isPaymentDialogOpen, setIsPaymentDialogOpen] = useState(false);
+  const [isSavePendingBillDialogOpen, setIsSavePendingBillDialogOpen] =
+    useState(false);
+  const [isPendingBillSavedDialogOpen, setIsPendingBillSavedDialogOpen] =
+    useState(false);
 
-    const [selectedCustomer, setSelectedCustomer] =
-        useState<CustomerData | null>(null);
-    const [selectedDoctor, setSelectedDoctor] = useState<DoctorData | null>(
-        null
-    );
-    const [transactionTypeData, setTransactionTypeData] =
-        useState<TransactionTypeData | null>(null);
+  const [selectedCustomer, setSelectedCustomer] = useState<CustomerData | null>(
+    null
+  );
+  const [selectedDoctor, setSelectedDoctor] = useState<DoctorData | null>(null);
+  const [transactionTypeData, setTransactionTypeData] =
+    useState<TransactionTypeData | null>(null);
 
-    const grandTotal = subtotal - discount + serviceCharge + misc - promo;
+  const grandTotal = subtotal - discount + serviceCharge + misc - promo;
 
-    // 🔥 COMPUTED: Determine which dialog state to use
-    const isDialogOpen = isCustomerDoctorDialogOpen || internalDialogOpen;
+  // 🔥 COMPUTED: Determine which dialog state to use
+  const isDialogOpen = isCustomerDoctorDialogOpen || internalDialogOpen;
 
-    const handlePendingBillClick = () => {
-        if (products.length === 0) {
-            alert("No products to save as pending bill");
-            return;
-        }
-        setIsSavePendingBillDialogOpen(true);
-    };
+  const handlePendingBillClick = () => {
+    if (products.length === 0) {
+      alert("No products to save as pending bill");
+      return;
+    }
+    setIsSavePendingBillDialogOpen(true);
+  };
 
-    const handleSavePendingBill = () => {
-        setIsPendingBillSavedDialogOpen(true);
+  const handleSavePendingBill = () => {
+    setIsPendingBillSavedDialogOpen(true);
 
-        if (onPendingBill) {
-            onPendingBill();
-        }
+    if (onPendingBill) {
+      onPendingBill();
+    }
 
-        resetAllStates();
-    };
+    resetAllStates();
+  };
 
-    const handleCancelPendingBill = () => {
-        // Just close the dialog without doing anything
-    };
+  const handleCancelPendingBill = () => {
+    // Just close the dialog without doing anything
+  };
 
-    const handlePayNowClick = () => {
-        if (products.length === 0) {
-            alert("No products to process payment");
-            return;
-        }
+  const handlePayNowClick = () => {
+    if (products.length === 0) {
+      alert("No products to process payment");
+      return;
+    }
 
-        // 🔥 FIXED: Use internal state for Pay Now button
-        setInternalDialogOpen(true);
-    };
+    // 🔥 FIXED: Use internal state for Pay Now button
+    setInternalDialogOpen(true);
+  };
 
-    // 🔥 FIXED: Unified handler for both flows (Pay Now button & Ctrl+Space)
-    const handleCustomerDoctorSubmit = (
-        customerData: CustomerData,
-        doctorData?: DoctorData
-    ) => {
-        console.log("🔥 CustomerDoctorSubmit called:", {
-            customerData,
-            doctorData,
-            triggerPaymentFlow,
-            isExternal: isCustomerDoctorDialogOpen,
-        });
+  // 🔥 FIXED: Unified handler for both flows (Pay Now button & Ctrl+Space)
+  const handleCustomerDoctorSubmit = (
+    customerData: CustomerData,
+    doctorData?: DoctorData
+  ) => {
+    console.log("🔥 CustomerDoctorSubmit called:", {
+      customerData,
+      doctorData,
+      triggerPaymentFlow,
+      isExternal: isCustomerDoctorDialogOpen,
+    });
 
-        // Save the selected data
-        setSelectedCustomer(customerData);
-        setSelectedDoctor(doctorData || null);
+    // Save the selected data
+    setSelectedCustomer(customerData);
+    setSelectedDoctor(doctorData || null);
 
-        // Close the customer/doctor dialog
-        if (isCustomerDoctorDialogOpen && onCustomerDoctorDialogClose) {
-            // External control - close via parent
-            onCustomerDoctorDialogClose();
-        } else {
-            // Internal control - close internal dialog
-            setInternalDialogOpen(false);
-        }
+    // Close the customer/doctor dialog
+    if (isCustomerDoctorDialogOpen && onCustomerDoctorDialogClose) {
+      // External control - close via parent
+      onCustomerDoctorDialogClose();
+    } else {
+      // Internal control - close internal dialog
+      setInternalDialogOpen(false);
+    }
 
-        // 🔥 FIXED: Always proceed to Transaction Type dialog when triggerPaymentFlow is true
-        // This should happen for BOTH Pay Now button and Ctrl+Space
-        if (triggerPaymentFlow || !isCustomerDoctorDialogOpen) {
-            console.log("🔥 Opening Transaction Type Dialog");
-            setIsTransactionTypeDialogOpen(true);
-        }
-    };
+    // 🔥 FIXED: Always proceed to Transaction Type dialog when triggerPaymentFlow is true
+    // This should happen for BOTH Pay Now button and Ctrl+Space
+    if (triggerPaymentFlow || !isCustomerDoctorDialogOpen) {
+      console.log("🔥 Opening Transaction Type Dialog");
+      setIsTransactionTypeDialogOpen(true);
+    }
+  };
 
-    const handleTransactionTypeSubmit = (
-        transactionData: TransactionTypeData
-    ) => {
-        console.log("✅ Transaction type selected:", transactionData);
+  const handleTransactionTypeSubmit = (
+    transactionData: TransactionTypeData
+  ) => {
+    console.log("✅ Transaction type selected:", transactionData);
 
-        setTransactionTypeData(transactionData);
-        setIsTransactionTypeDialogOpen(false);
-        setIsPaymentDialogOpen(true);
-    };
+    setTransactionTypeData(transactionData);
+    setIsTransactionTypeDialogOpen(false);
+    setIsPaymentDialogOpen(true);
+  };
 
-    const handlePaymentSuccess = () => {
-        console.log("✅ Payment successful");
+  const handlePaymentSuccess = () => {
+    console.log("✅ Payment successful");
 
-        setIsPaymentDialogOpen(false);
+    setIsPaymentDialogOpen(false);
 
-        if (onPayNow) {
-            onPayNow(
-                selectedCustomer || undefined,
-                selectedDoctor || undefined
-            );
-        }
+    if (onPayNow) {
+      onPayNow(selectedCustomer || undefined, selectedDoctor || undefined);
+    }
 
-        resetAllStates();
-    };
+    resetAllStates();
+  };
 
-    const resetAllStates = () => {
-        setSelectedCustomer(null);
-        setSelectedDoctor(null);
-        setTransactionTypeData(null);
-    };
+  const resetAllStates = () => {
+    setSelectedCustomer(null);
+    setSelectedDoctor(null);
+    setTransactionTypeData(null);
+  };
 
-    const handleCustomerSelect = (customer: CustomerData) => {
-        setSelectedCustomer(customer);
-    };
+  const handleCustomerSelect = (customer: CustomerData) => {
+    setSelectedCustomer(customer);
+  };
 
-    const handleDoctorSelect = (doctor: DoctorData) => {
-        setSelectedDoctor(doctor);
-    };
+  const handleDoctorSelect = (doctor: DoctorData) => {
+    setSelectedDoctor(doctor);
+  };
 
-    // 🔥 FIXED: Unified close handler
-    const handleCustomerDoctorClose = () => {
-        if (isCustomerDoctorDialogOpen && onCustomerDoctorDialogClose) {
-            // External control
-            onCustomerDoctorDialogClose();
-        } else {
-            // Internal control
-            setInternalDialogOpen(false);
-        }
+  // 🔥 FIXED: Unified close handler
+  const handleCustomerDoctorClose = () => {
+    if (isCustomerDoctorDialogOpen && onCustomerDoctorDialogClose) {
+      // External control
+      onCustomerDoctorDialogClose();
+    } else {
+      // Internal control
+      setInternalDialogOpen(false);
+    }
 
-        // Reset states when closing
-        resetAllStates();
-    };
+    // Reset states when closing
+    resetAllStates();
+  };
 
-    const handleTransactionTypeClose = () => {
-        setIsTransactionTypeDialogOpen(false);
-        resetAllStates();
-    };
+  const handleTransactionTypeClose = () => {
+    setIsTransactionTypeDialogOpen(false);
+    resetAllStates();
+  };
 
-    const handlePaymentClose = () => {
-        setIsPaymentDialogOpen(false);
-        resetAllStates();
-    };
+  const handlePaymentClose = () => {
+    setIsPaymentDialogOpen(false);
+    resetAllStates();
+  };
 
-    const handleSavePendingBillClose = () => {
-        setIsSavePendingBillDialogOpen(false);
-    };
+  const handleSavePendingBillClose = () => {
+    setIsSavePendingBillDialogOpen(false);
+  };
 
-    const handlePendingBillSavedClose = () => {
-        setIsPendingBillSavedDialogOpen(false);
-    };
+  const handlePendingBillSavedClose = () => {
+    setIsPendingBillSavedDialogOpen(false);
+  };
 
-    const handlePendingBillSavedDone = () => {
-        setIsPendingBillSavedDialogOpen(false);
-    };
+  const handlePendingBillSavedDone = () => {
+    setIsPendingBillSavedDialogOpen(false);
+  };
 
-    return (
-        <>
-            <div className={className}>
-                <div className="space-y-2">
-                    <div className="flex justify-between">
-                        <span className="text-gray-600">Sub Total</span>
-                        <span className="font-medium">{`Rp ${subtotal.toLocaleString(
-                            "id-ID"
-                        )}`}</span>
-                    </div>
-                    <div className="flex justify-between">
-                        <span className="text-gray-600">Misc</span>
-                        <span className="font-medium">{`Rp ${misc.toLocaleString(
-                            "id-ID"
-                        )}`}</span>
-                    </div>
-                    <div className="flex justify-between">
-                        <span className="text-gray-600">SC</span>
-                        <span className="font-medium">{`Rp ${serviceCharge.toLocaleString(
-                            "id-ID"
-                        )}`}</span>
-                    </div>
-                    <div className="flex justify-between">
-                        <span className="text-gray-600">Discount</span>
-                        <span className="font-medium">{`Rp ${discount.toLocaleString(
-                            "id-ID"
-                        )}`}</span>
-                    </div>
-                    <div className="flex justify-between">
-                        <span className="text-gray-600">Promo</span>
-                        <span className="font-medium">{`Rp ${promo.toLocaleString(
-                            "id-ID"
-                        )}`}</span>
-                    </div>
-                    <div className="flex justify-between font-semibold text-lg">
-                        <span>Grand Total</span>
-                        <span>{`Rp ${grandTotal.toLocaleString(
-                            "id-ID"
-                        )}`}</span>
-                    </div>
-                </div>
+  return (
+    <>
+      <div className={className}>
+        <div className="space-y-2">
+          <div className="flex justify-between">
+            <span className="text-gray-600">Sub Total</span>
+            <span className="font-medium">{`Rp ${subtotal.toLocaleString(
+              "id-ID"
+            )}`}</span>
+          </div>
+          <div className="flex justify-between">
+            <span className="text-gray-600">Misc</span>
+            <span className="font-medium">{`Rp ${misc.toLocaleString(
+              "id-ID"
+            )}`}</span>
+          </div>
+          <div className="flex justify-between">
+            <span className="text-gray-600">SC</span>
+            <span className="font-medium">{`Rp ${serviceCharge.toLocaleString(
+              "id-ID"
+            )}`}</span>
+          </div>
+          <div className="flex justify-between">
+            <span className="text-gray-600">Discount</span>
+            <span className="font-medium">{`Rp ${discount.toLocaleString(
+              "id-ID"
+            )}`}</span>
+          </div>
+          <div className="flex justify-between">
+            <span className="text-gray-600">Promo</span>
+            <span className="font-medium">{`Rp ${promo.toLocaleString(
+              "id-ID"
+            )}`}</span>
+          </div>
+          <div className="flex justify-between font-semibold text-lg">
+            <span>Grand Total</span>
+            <span>{`Rp ${grandTotal.toLocaleString("id-ID")}`}</span>
+          </div>
+        </div>
 
-                {(selectedCustomer ||
-                    selectedDoctor ||
-                    transactionTypeData) && (
-                    <div className="mt-4 p-3 bg-blue-50 rounded-lg border">
-                        <h4 className="text-sm font-medium text-gray-900 mb-2">
-                            Selected Information
-                        </h4>
-                        {selectedCustomer && (
-                            <div className="text-sm text-gray-600 mb-1">
-                                <span className="font-medium">Customer:</span>{" "}
-                                {selectedCustomer.name}
-                                {selectedCustomer.phone && (
-                                    <span className="text-gray-500">
-                                        {" "}
-                                        • {selectedCustomer.phone}
-                                    </span>
-                                )}
-                            </div>
-                        )}
-                        {selectedDoctor && (
-                            <div className="text-sm text-gray-600 mb-1">
-                                <span className="font-medium">Doctor:</span> Dr.{" "}
-                                {selectedDoctor.fullname}
-                                {selectedDoctor.sip && (
-                                    <span className="text-gray-500">
-                                        {" "}
-                                        • {selectedDoctor.sip}
-                                    </span>
-                                )}
-                            </div>
-                        )}
-                        {transactionTypeData && (
-                            <div className="text-sm text-gray-600">
-                                <span className="font-medium">
-                                    Transaction:
-                                </span>{" "}
-                                {transactionTypeData.transactionType} •{" "}
-                                {transactionTypeData.medicineType}
-                                {transactionTypeData.availability !==
-                                    "Available" && (
-                                    <span className="text-orange-600">
-                                        {" "}
-                                        • {transactionTypeData.availability}
-                                    </span>
-                                )}
-                            </div>
-                        )}
-                    </div>
+        {/* {(selectedCustomer || selectedDoctor || transactionTypeData) && (
+          <div className="mt-4 p-3 bg-blue-50 rounded-lg border">
+            <h4 className="text-sm font-medium text-gray-900 mb-2">
+              Selected Information
+            </h4>
+            {selectedCustomer && (
+              <div className="text-sm text-gray-600 mb-1">
+                <span className="font-medium">Customer:</span>{" "}
+                {selectedCustomer.name}
+                {selectedCustomer.phone && (
+                  <span className="text-gray-500">
+                    {" "}
+                    • {selectedCustomer.phone}
+                  </span>
                 )}
+              </div>
+            )}
+            {selectedDoctor && (
+              <div className="text-sm text-gray-600 mb-1">
+                <span className="font-medium">Doctor:</span> Dr.{" "}
+                {selectedDoctor.fullname}
+                {selectedDoctor.sip && (
+                  <span className="text-gray-500"> • {selectedDoctor.sip}</span>
+                )}
+              </div>
+            )}
+            {transactionTypeData && (
+              <div className="text-sm text-gray-600">
+                <span className="font-medium">Transaction:</span>{" "}
+                {transactionTypeData.transactionType} •{" "}
+                {transactionTypeData.medicineType}
+                {transactionTypeData.availability !== "Available" && (
+                  <span className="text-orange-600">
+                    {" "}
+                    • {transactionTypeData.availability}
+                  </span>
+                )}
+              </div>
+            )}
+          </div>
+        )} */}
 
-                <div className="mt-6 space-y-2">
-                    <Button
-                        variant="destructive"
-                        className="w-full p-5 text-white font-medium"
-                        onClick={handlePendingBillClick}
-                        disabled={products.length === 0}
-                    >
-                        Pending Bill
-                    </Button>
-                    <Button
-                        variant="default"
-                        className="w-full p-5 bg-blue-600 hover:bg-blue-700 text-white font-medium"
-                        onClick={handlePayNowClick}
-                        disabled={products.length === 0}
-                    >
-                        Pay Now
-                    </Button>
-                </div>
-            </div>
+        <div className="mt-6 space-y-2">
+          <Button
+            variant="destructive"
+            className="w-full p-5 text-white font-medium"
+            onClick={handlePendingBillClick}
+            disabled={products.length === 0}
+          >
+            Pending Bill
+          </Button>
+          <Button
+            variant="default"
+            className="w-full p-5 bg-blue-600 hover:bg-blue-700 text-white font-medium"
+            onClick={handlePayNowClick}
+            disabled={products.length === 0}
+          >
+            Pay Now
+          </Button>
+        </div>
+      </div>
 
-            <SavePendingBillDialog
-                isOpen={isSavePendingBillDialogOpen}
-                onClose={handleSavePendingBillClose}
-                onSave={handleSavePendingBill}
-                onCancel={handleCancelPendingBill}
-            />
+      <SavePendingBillDialog
+        isOpen={isSavePendingBillDialogOpen}
+        onClose={handleSavePendingBillClose}
+        onSave={handleSavePendingBill}
+        onCancel={handleCancelPendingBill}
+      />
 
-            <PendingBillSavedDialog
-                isOpen={isPendingBillSavedDialogOpen}
-                onClose={handlePendingBillSavedClose}
-                onDone={handlePendingBillSavedDone}
-            />
+      <PendingBillSavedDialog
+        isOpen={isPendingBillSavedDialogOpen}
+        onClose={handlePendingBillSavedClose}
+        onDone={handlePendingBillSavedDone}
+      />
 
-            {/* 🔥 FIXED: Use unified dialog state and proper flow integration */}
-            <CustomerDoctorDialog
-                isOpen={isDialogOpen}
-                onClose={handleCustomerDoctorClose}
-                onSelectCustomer={handleCustomerSelect}
-                onSelectDoctor={handleDoctorSelect}
-                onSubmit={handleCustomerDoctorSubmit}
-                mode="both"
-                initialFocus="customer"
-                triggerPaymentFlow={
-                    triggerPaymentFlow || !isCustomerDoctorDialogOpen
-                }
-            />
+      {/* 🔥 FIXED: Use unified dialog state and proper flow integration */}
+      <CustomerDoctorDialog
+        isOpen={isDialogOpen}
+        onClose={handleCustomerDoctorClose}
+        onSelectCustomer={handleCustomerSelect}
+        onSelectDoctor={handleDoctorSelect}
+        onSubmit={handleCustomerDoctorSubmit}
+        mode="both"
+        initialFocus="customer"
+        triggerPaymentFlow={triggerPaymentFlow || !isCustomerDoctorDialogOpen}
+      />
 
-            <TransactionTypeDialog
-                isOpen={isTransactionTypeDialogOpen}
-                onClose={handleTransactionTypeClose}
-                onSubmit={handleTransactionTypeSubmit}
-            />
+      <TransactionTypeDialog
+        isOpen={isTransactionTypeDialogOpen}
+        onClose={handleTransactionTypeClose}
+        onSubmit={handleTransactionTypeSubmit}
+      />
 
-            <PaymentDialog
-                isOpen={isPaymentDialogOpen}
-                onClose={handlePaymentClose}
-                onPaymentSuccess={handlePaymentSuccess}
-                totalAmount={grandTotal}
-                orderDetails={{
-                    customer: selectedCustomer?.name || "Unknown Customer",
-                    items: products.map((p) => ({
-                        name: p.name,
-                        quantity: p.quantity,
-                        price: p.price,
-                    })),
-                }}
-                customerData={selectedCustomer}
-                doctorData={selectedDoctor}
-                transactionTypeData={transactionTypeData}
-                products={products}
-            />
-        </>
-    );
+      <PaymentDialog
+        isOpen={isPaymentDialogOpen}
+        onClose={handlePaymentClose}
+        onPaymentSuccess={handlePaymentSuccess}
+        totalAmount={grandTotal}
+        orderDetails={{
+          customer: selectedCustomer?.name || "Unknown Customer",
+          items: products.map((p) => ({
+            name: p.name,
+            quantity: p.quantity,
+            price: p.price,
+          })),
+        }}
+        customerData={selectedCustomer}
+        doctorData={selectedDoctor}
+        transactionTypeData={transactionTypeData}
+        products={products}
+      />
+    </>
+  );
 }
