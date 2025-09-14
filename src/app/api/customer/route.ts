@@ -28,11 +28,16 @@ export async function GET(request: NextRequest) {
         const { searchParams } = new URL(request.url);
         const offset = searchParams.get("offset") || "0";
         const limit = searchParams.get("limit") || "100";
+        const search = searchParams.get("search") || "";
 
         const queryParams = new URLSearchParams({
             offset,
             limit,
         });
+
+        if (search) {
+            queryParams.append("search", search);
+        }
 
         const response = await fetch(
             `${API_BASE_URL}/customer?${queryParams.toString()}`,
