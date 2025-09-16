@@ -1,4 +1,3 @@
-// app/dashboard/_components/ParameterReceiptSection.tsx
 "use client";
 
 import { Button } from "@/components/ui/button";
@@ -24,7 +23,7 @@ interface ParameterReceiptSectionProps {
     isSubmitting: boolean;
     onInputChange: (field: keyof ParameterFormData, value: string) => void;
     onViewReceipt: () => void;
-    showPreview?: boolean; // New prop to determine if we're in preview mode
+    showPreview?: boolean;
 }
 
 const ParameterReceiptSection: FC<ParameterReceiptSectionProps> = ({
@@ -32,11 +31,10 @@ const ParameterReceiptSection: FC<ParameterReceiptSectionProps> = ({
     isSubmitting,
     onInputChange,
     onViewReceipt,
-    showPreview = false, // Default to false
+    showPreview = false,
 }) => {
     return (
         <div className="bg-white border rounded-lg p-4 h-fit">
-            {/* Receipt Type Selector */}
             <div className="flex gap-4 mb-6">
                 <div
                     className={`flex-1 p-4 rounded-2xl border-2 cursor-pointer transition-all duration-200 ${
@@ -113,7 +111,6 @@ const ParameterReceiptSection: FC<ParameterReceiptSectionProps> = ({
                 </div>
             </div>
 
-            {/* Receipt Fields */}
             <div className="space-y-4 mb-6">
                 {formData.receiptType === "header" ? (
                     <>
@@ -248,7 +245,6 @@ const ParameterReceiptSection: FC<ParameterReceiptSectionProps> = ({
                 )}
             </div>
 
-            {/* View/Hide Receipt Button */}
             <Button
                 onClick={onViewReceipt}
                 className="w-full bg-blue-600 hover:bg-blue-700 h-[44px]"

@@ -1,15 +1,13 @@
-// components/dashboard/FingerprintSetupDialog.tsx
 "use client";
 
-import { useAuthManager } from "@/components/shared/AuthenticationManager";
 import EmployeeDropdown from "@/components/shared/EmployeeDropdown";
 import EmployeeLoginDialog from "@/components/shared/EmployeeLoginDialog";
 import FingerprintCard from "@/components/shared/FingerprintCard";
 import FingerprintScanningDialog from "@/components/shared/FingerprintScanningDialog";
 import { Button } from "@/components/ui/button";
+import { useAuth } from "@/hooks/useAuth";
 import { useEmployeeSelection } from "@/hooks/useEmployeeSelection";
 import { useSystemInfo } from "@/hooks/useSystemInfo";
-import { useAuth } from "@/hooks/useAuth";
 import { showErrorAlert } from "@/lib/swal";
 import { CheckCircle, X } from "lucide-react";
 import { FC, useCallback, useEffect, useState } from "react";
@@ -539,6 +537,7 @@ const FingerprintSetupDialog: FC<FingerprintSetupDialogProps> = ({
                 isOpen={true}
                 onClose={handleLoginCloseWithoutAuth}
                 onLogin={handleLoginSuccessWithInterface}
+                loginType="fingerprint"
             />
         );
     }
@@ -686,8 +685,7 @@ const FingerprintSetupDialog: FC<FingerprintSetupDialogProps> = ({
                                     fingerprintState.finger1ScanCompleted
                                 }
                                 isEnabled={
-                                    currentStep === "finger1-scan" &&
-                                    !!deviceId
+                                    currentStep === "finger1-scan" && !!deviceId
                                 }
                                 onAction={() =>
                                     handleStartScanning("finger1-scan")
@@ -771,8 +769,7 @@ const FingerprintSetupDialog: FC<FingerprintSetupDialogProps> = ({
                                     fingerprintState.finger2ScanCompleted
                                 }
                                 isEnabled={
-                                    currentStep === "finger2-scan" &&
-                                    !!deviceId
+                                    currentStep === "finger2-scan" && !!deviceId
                                 }
                                 onAction={() =>
                                     handleStartScanning("finger2-scan")

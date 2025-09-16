@@ -1,4 +1,3 @@
-// app/create-order/choose-menu/_components/UpsellDialog.tsx
 "use client";
 
 import React from "react";

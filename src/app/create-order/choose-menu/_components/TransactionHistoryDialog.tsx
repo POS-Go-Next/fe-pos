@@ -1,4 +1,3 @@
-// app/create-order/choose-menu/_components/TransactionHistoryDialog.tsx - FIXED TYPESCRIPT ERRORS
 "use client";
 
 import React, { useState, useEffect } from "react";

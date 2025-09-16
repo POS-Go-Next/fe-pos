@@ -1,4 +1,3 @@
-// app/dashboard/_components/ParameterReceiptPreview.tsx
 "use client";
 
 import { FC } from "react";
@@ -24,9 +23,7 @@ const ParameterReceiptPreview: FC<ParameterReceiptPreviewProps> = ({
 }) => {
     return (
         <div className="bg-white rounded-lg p-6 shadow-lg">
-            {/* Receipt Content */}
             <div className="bg-white border border-gray-200 rounded-lg p-4 text-sm">
-                {/* Header */}
                 <div className="text-center mb-4 border-b pb-4">
                     <div className="font-bold">{formData.header1}</div>
                     <div>{formData.header2}</div>
@@ -35,7 +32,6 @@ const ParameterReceiptPreview: FC<ParameterReceiptPreviewProps> = ({
                     <div>{formData.header5}</div>
                 </div>
 
-                {/* Transaction Details */}
                 <div className="mb-4">
                     <div className="font-bold mb-2">Transaction Details</div>
 
@@ -75,7 +71,6 @@ const ParameterReceiptPreview: FC<ParameterReceiptPreviewProps> = ({
                     </div>
                 </div>
 
-                {/* Grand Total */}
                 <div className="border-t border-b py-2 mb-4">
                     <div className="flex justify-between font-bold">
                         <span>Grand Total</span>
@@ -83,7 +78,6 @@ const ParameterReceiptPreview: FC<ParameterReceiptPreviewProps> = ({
                     </div>
                 </div>
 
-                {/* Footer */}
                 <div className="text-center text-xs space-y-1">
                     <div>eskp.system-apotekroxy.com</div>
                     <div>http://katalog.apotekroxy.com</div>

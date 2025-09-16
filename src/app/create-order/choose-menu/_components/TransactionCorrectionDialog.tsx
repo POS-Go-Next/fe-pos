@@ -1,4 +1,3 @@
-// app/create-order/choose-menu/_components/TransactionCorrectionDialog.tsx - UPDATED TO MATCH PROJECT STRUCTURE
 "use client";
 
 import React, { useState, useEffect, useRef } from "react";
@@ -217,7 +216,6 @@ export default function TransactionCorrectionDialog({
     return (
         <div className="fixed inset-0 bg-black/50 z-50 flex items-center justify-center p-4">
             <div className="bg-white rounded-2xl w-full max-w-6xl max-h-[95vh] flex flex-col shadow-2xl">
-                {/* Header */}
                 <div className="flex items-center justify-between p-6 border-b border-gray-200 flex-shrink-0">
                     <h2 className="text-xl font-semibold text-gray-900">
                         Transaction Correction / Return
@@ -230,7 +228,6 @@ export default function TransactionCorrectionDialog({
                     </button>
                 </div>
 
-                {/* Search and Filter Controls */}
                 <div className="p-6 border-b border-gray-200 flex-shrink-0">
                     <div className="flex items-center gap-4">
                         <div className="relative flex-1 max-w-md">
@@ -264,7 +261,6 @@ export default function TransactionCorrectionDialog({
                     </div>
                 </div>
 
-                {/* Main Content Area */}
                 <div className="flex-1 min-h-0 flex flex-col p-6">
                     {error && (
                         <div className="bg-red-50 border border-red-200 rounded-lg p-4 mb-6 flex-shrink-0">
@@ -274,7 +270,6 @@ export default function TransactionCorrectionDialog({
                         </div>
                     )}
 
-                    {/* Table Container */}
                     <div className="flex-1 min-h-0 border border-gray-200 rounded-lg overflow-hidden">
                         <div
                             ref={tableContainerRef}
@@ -400,7 +395,6 @@ export default function TransactionCorrectionDialog({
                         </div>
                     </div>
 
-                    {/* Pagination Controls */}
                     {displayData.length > 0 && (
                         <div className="mt-4 flex justify-between items-center flex-shrink-0">
                             <div className="flex items-center gap-4">
@@ -463,7 +457,6 @@ export default function TransactionCorrectionDialog({
                 </div>
             </div>
 
-            {/* Custom Scrollbar Styles */}
             <style jsx>{`
                 .table-scroll-container {
                     scrollbar-width: thin;

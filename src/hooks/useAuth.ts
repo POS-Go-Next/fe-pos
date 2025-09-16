@@ -1,4 +1,3 @@
-// hooks/useAuth.ts
 "use client";
 
 import { loginSchema, type LoginData } from "@/lib/schemas";
@@ -29,8 +28,20 @@ interface LogoutResponse {
     message: string;
 }
 
+type LoginType =
+    | "parameter"
+    | "fingerprint"
+    | "kassa"
+    | "close-cashier"
+    | "reclose-cashier"
+    | "sales";
+
 interface UseAuthReturn {
     login: (credentials: LoginData) => Promise<LoginResponse>;
+    loginForPopup: (
+        credentials: LoginData,
+        type: LoginType
+    ) => Promise<LoginResponse>;
     logout: () => Promise<LogoutResponse>;
     isLoading: boolean;
     error: string | null;
@@ -178,12 +189,126 @@ export const useAuth = (): UseAuthReturn => {
         }
     };
 
+    const loginForPopup = async (
+        credentials: LoginData,
+        type: LoginType
+    ): Promise<LoginResponse> => {
+        setIsLoading(true);
+        setError(null);
+
+        try {
+            const validatedData = loginSchema.parse(credentials);
+
+            console.log(`🔍 Attempting to get device ID for ${type} popup...`);
+            const deviceId = await getSystemDeviceId();
+
+            if (!deviceId) {
+                console.warn(
+                    "⚠️ Could not retrieve device ID from system service"
+                );
+                console.warn("⚠️ This might happen if:");
+                console.warn(
+                    "   - System service is not running on localhost:8321"
+                );
+                console.warn("   - Device configuration not found");
+                console.warn("   - Network permission issues");
+            }
+
+            const baseLoginPayload = {
+                username: validatedData.username,
+                password: validatedData.password,
+                device_id: deviceId || "KASSA-0000-0000-0000",
+                need_generate_token: true,
+            };
+
+            const loginPayload =
+                type === "sales"
+                    ? { ...baseLoginPayload, type: "sales" }
+                    : baseLoginPayload;
+
+            console.log(`🚀 Sending ${type} login payload:`, {
+                username: loginPayload.username,
+                device_id: loginPayload.device_id,
+                device_id_source: deviceId ? "system_service" : "fallback",
+                need_generate_token: loginPayload.need_generate_token,
+                type: type,
+                ...(type === "sales" && { type_field: "sales" }),
+            });
+
+            const response = await fetch("/api/auth/login", {
+                method: "POST",
+                headers: {
+                    "Content-Type": "application/json",
+                },
+                body: JSON.stringify(loginPayload),
+            });
+
+            const data: LoginResponse = await response.json();
+
+            if (!response.ok) {
+                return {
+                    success: false,
+                    message: data.message || "Login failed",
+                    errors: data.errors,
+                };
+            }
+
+            if (data.success && data.data) {
+                try {
+                    localStorage.setItem(
+                        "user-data",
+                        JSON.stringify(data.data.user)
+                    );
+                    localStorage.setItem("auth-token", data.data.token);
+
+                    console.log(
+                        `✅ ${type} login successful - User data saved:`,
+                        {
+                            username: data.data.user.username,
+                            fullname: data.data.user.fullname,
+                            id: data.data.user.id,
+                        }
+                    );
+                } catch (storageError) {
+                    console.error(
+                        "❌ Failed to save user data to localStorage:",
+                        storageError
+                    );
+                }
+
+                return {
+                    success: true,
+                    message: data.message,
+                    data: data.data,
+                };
+            }
+
+            return {
+                success: false,
+                message: data.message || "Login failed",
+                errors: data.errors,
+            };
+        } catch (err) {
+            console.error(`${type} login error:`, err);
+            const errorMessage =
+                err instanceof Error ? err.message : "Login failed";
+            setError(errorMessage);
+
+            return {
+                success: false,
+                message: errorMessage,
+            };
+        } finally {
+            setIsLoading(false);
+        }
+    };
+
     const logout = async (): Promise<LogoutResponse> => {
         setIsLoading(true);
         setError(null);
 
         try {
-            console.log("🔄 Starting logout process...");
+            console.log("🔥 Starting logout process...");
 
             const response = await fetch("/api/auth/logout", {
                 method: "POST",
@@ -242,6 +367,7 @@ export const useAuth = (): UseAuthReturn => {
 
     return {
         login,
+        loginForPopup,
         logout,
         isLoading,
         error,

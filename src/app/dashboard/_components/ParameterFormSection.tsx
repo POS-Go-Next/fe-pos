@@ -1,4 +1,3 @@
-// app/dashboard/_components/ParameterFormSection.tsx
 "use client";
 
 import { Input } from "@/components/ui/input";
@@ -75,7 +74,6 @@ const ParameterFormSection: FC<ParameterFormSectionProps> = ({
 }) => {
     return (
         <div className="space-y-6">
-            {/* Cabang & Area Section */}
             <div className="bg-white border rounded-lg p-4 space-y-4">
                 <div className="grid grid-cols-2 gap-4">
                     <div>
@@ -227,7 +225,6 @@ const ParameterFormSection: FC<ParameterFormSectionProps> = ({
                 </div>
             </div>
 
-            {/* SC Values Section */}
             <div className="bg-white border rounded-lg p-4 space-y-4">
                 <div className="grid grid-cols-4 gap-4">
                     <div>
@@ -292,7 +289,6 @@ const ParameterFormSection: FC<ParameterFormSectionProps> = ({
                 </div>
             </div>
 
-            {/* Shift Times Section */}
             <div className="bg-white border rounded-lg p-4 space-y-4">
                 <div className="grid grid-cols-2 gap-6">
                     <div>

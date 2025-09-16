@@ -1,4 +1,3 @@
-// src\app\create-order\choose-menu\_components\CalculatorToggle.tsx
 "use client";
 
 import { FC } from "react";

@@ -1,4 +1,3 @@
-// app/create-order/choose-menu/_components/index.ts
 export { default as ProductTableSection } from "./ProductTableSection";
 export { default as TabNavigation } from "./TabNavigation";
 export { default as PromoSection } from "./PromoSection";

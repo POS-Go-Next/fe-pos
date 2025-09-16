@@ -1,7 +1,6 @@
-// src\app\dashboard\_components\BiometricLoginDialog.tsx
 import { Button } from "@/components/ui/button";
 import { useFingerprintAuth } from "@/hooks/useFingerprintAuth";
-import { useAuth } from "@/hooks/useAuth"; // Add this import
+import { useAuth } from "@/hooks/useAuth";
 import { ArrowLeft, Check, X } from "lucide-react";
 import React, { useEffect, useState } from "react";
 
@@ -55,12 +54,10 @@ const BiometricLoginDialog: React.FC<BiometricLoginDialogProps> = ({
     const [progress, setProgress] = useState(0);
     const [errorMessage, setErrorMessage] = useState<string>("");
     const [deviceId, setDeviceId] = useState<string>("");
-    const [hasTriedScan, setHasTriedScan] = useState(false); // NEW: Track if scan already attempted
-
+    const [hasTriedScan, setHasTriedScan] = useState(false);
     const { fingerprintLogin, isLoading } = useFingerprintAuth();
-    const { logout } = useAuth(); // Add logout function from useAuth
+    const { logout } = useAuth();
 
-    // Fetch system info to get Device ID
     const fetchSystemInfo = async () => {
         try {
             setBiometricState("loading_system_info");
@@ -78,7 +75,6 @@ const BiometricLoginDialog: React.FC<BiometricLoginDialogProps> = ({
 
             const systemData: SystemInfoData = data.data;
 
-            // Get device ID from device configuration
             if (!systemData.deviceConfig?.deviceId) {
                 throw new Error("No valid device ID found");
             }
@@ -108,9 +104,7 @@ const BiometricLoginDialog: React.FC<BiometricLoginDialogProps> = ({
             setProgress(0);
             setErrorMessage("");
             setDeviceId("");
-            setHasTriedScan(false); // RESET: Reset scan attempt flag
-
-            // Fetch system info when dialog opens
+            setHasTriedScan(false);
             fetchSystemInfo();
         }
     }, [isOpen]);
@@ -125,7 +119,7 @@ const BiometricLoginDialog: React.FC<BiometricLoginDialogProps> = ({
         setBiometricState("scanning");
         setProgress(0);
         setErrorMessage("");
-        setHasTriedScan(true); // MARK: Set flag that scan was attempted
+        setHasTriedScan(true);
 
         const progressInterval = setInterval(() => {
             setProgress((prev) => {
@@ -154,26 +148,16 @@ const BiometricLoginDialog: React.FC<BiometricLoginDialogProps> = ({
                 setErrorMessage(
                     result.message || "Fingerprint verification failed"
                 );
-
-                // REMOVED: Auto-retry timeout - now stays in error state
             }
         } catch (error) {
             clearInterval(progressInterval);
             setBiometricState("error");
             setErrorMessage("Failed to verify fingerprint. Please try again.");
-
-            // REMOVED: Auto-retry timeout - now stays in error state
         }
     };
 
-    // MODIFIED: Only auto-scan if hasn't tried before
     useEffect(() => {
-        if (
-            isOpen &&
-            biometricState === "idle" &&
-            deviceId &&
-            !hasTriedScan
-        ) {
+        if (isOpen && biometricState === "idle" && deviceId && !hasTriedScan) {
             const timer = setTimeout(() => {
                 handleStartScan();
             }, 500);
@@ -182,7 +166,6 @@ const BiometricLoginDialog: React.FC<BiometricLoginDialogProps> = ({
         }
     }, [isOpen, biometricState, deviceId, hasTriedScan]);
 
-    // Add logout function that will be called on dialog close
     const handleLogoutAndClose = async () => {
         try {
             await logout();
@@ -194,7 +177,7 @@ const BiometricLoginDialog: React.FC<BiometricLoginDialogProps> = ({
         setProgress(0);
         setErrorMessage("");
         setDeviceId("");
-        setHasTriedScan(false); // RESET: Reset scan attempt flag
+        setHasTriedScan(false);
         onClose();
     };
 
@@ -209,18 +192,15 @@ const BiometricLoginDialog: React.FC<BiometricLoginDialogProps> = ({
         setProgress(0);
         setErrorMessage("");
         setDeviceId("");
-        setHasTriedScan(false); // RESET: Reset scan attempt flag
+        setHasTriedScan(false);
         onBack();
     };
 
-    // NEW: Manual retry function
     const handleRetry = () => {
         setBiometricState("idle");
         setProgress(0);
         setErrorMessage("");
-        setHasTriedScan(false); // RESET: Allow new scan attempt
-
-        // Start scanning again
+        setHasTriedScan(false);
         setTimeout(() => {
             handleStartScan();
         }, 500);
@@ -398,7 +378,7 @@ const BiometricLoginDialog: React.FC<BiometricLoginDialogProps> = ({
                         Biometric Login
                     </h2>
                     <button
-                        onClick={handleLogoutAndClose} // Updated to call logout and close
+                        onClick={handleLogoutAndClose}
                         className="w-8 h-8 flex items-center justify-center rounded-full border border-gray-300 hover:border-gray-400 transition-colors"
                     >
                         <X className="h-4 w-4 text-gray-600" />
@@ -412,7 +392,7 @@ const BiometricLoginDialog: React.FC<BiometricLoginDialogProps> = ({
                         {biometricState === "error" ? (
                             <Button
                                 variant="outline"
-                                onClick={handleRetry} // CHANGED: Use retry function instead of inline reset
+                                onClick={handleRetry}
                                 className="px-8 py-3 border-red-500 text-red-500 hover:bg-red-50 transition-all duration-200"
                             >
                                 Try Again
@@ -420,7 +400,7 @@ const BiometricLoginDialog: React.FC<BiometricLoginDialogProps> = ({
                         ) : (
                             <Button
                                 variant="outline"
-                                onClick={handleBack} // Updated to call logout and close
+                                onClick={handleBack}
                                 className="px-8 py-3 border-blue-500 text-blue-500 hover:bg-blue-50 transition-all duration-200"
                                 disabled={
                                     biometricState === "scanning" ||

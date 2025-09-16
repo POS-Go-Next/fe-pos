@@ -1,4 +1,3 @@
-// app/dashboard/_components/ParameterSettingsDialog.tsx - FIXED VERSION
 "use client";
 
 import { FC, useState, useEffect, useRef } from "react";
@@ -156,7 +155,6 @@ const ParameterSettingsDialog: FC<ParameterSettingsDialogProps> = ({
         }
     };
 
-    // Use same session expired popup as Kassa Setup
     const showSessionExpiredPopup = () => {
         console.log("⚠️ Showing session expired popup");
 
@@ -219,16 +217,11 @@ const ParameterSettingsDialog: FC<ParameterSettingsDialogProps> = ({
         });
     };
 
-    // Reset everything when dialog opens
     useEffect(() => {
         if (isOpen) {
             console.log("🔍 ParameterDialog opened, resetting state...");
-
-            // Reset all states first
             setShouldShowInterface(false);
             setShowReceiptPreview(false);
-
-            // Check for valid token first
             const hasValidToken = checkLocalStorageToken();
 
             if (hasValidToken) {
@@ -248,7 +241,6 @@ const ParameterSettingsDialog: FC<ParameterSettingsDialogProps> = ({
         }
     }, [isOpen]);
 
-    // Data initialization logic
     useEffect(() => {
         if (
             shouldShowInterface &&
@@ -268,11 +260,8 @@ const ParameterSettingsDialog: FC<ParameterSettingsDialogProps> = ({
         areaList.length,
     ]);
 
-    // Handle login success - simplified without authManager
     const handleLoginSuccessWithInterface = (userData: any) => {
         console.log("✅ Login successful, showing interface");
-
-        // Save to localStorage
         try {
             localStorage.setItem("user-data", JSON.stringify(userData));
             localStorage.setItem("auth-token", "employee-token-" + Date.now());
@@ -281,8 +270,6 @@ const ParameterSettingsDialog: FC<ParameterSettingsDialogProps> = ({
         }
 
         setShouldShowInterface(true);
-
-        // Refetch data after successful login
         setTimeout(() => {
             refetchParameter();
             refetchCabang();
@@ -290,11 +277,10 @@ const ParameterSettingsDialog: FC<ParameterSettingsDialogProps> = ({
         }, 500);
     };
 
-    // Handle login close - close main dialog completely
     const handleLoginCloseWithoutAuth = () => {
         console.log("❌ Login dialog closed without login");
         setShouldShowInterface(false);
-        onClose(); // Close the main parameter dialog
+        onClose();
     };
 
     const handleLogoutAndClose = async () => {
@@ -460,7 +446,6 @@ const ParameterSettingsDialog: FC<ParameterSettingsDialogProps> = ({
                 footer_struk_line2: formData.footer2,
                 footer_struk_line3: formData.footer3,
                 footer_struk_line4: formData.footer4,
-                // Include all other required fields from parameterData
                 kd_pt: parameterData?.kd_pt || "001",
                 type_cab: parameterData?.type_cab || "1",
                 trana: parameterData?.trana || 30,
@@ -546,13 +531,13 @@ const ParameterSettingsDialog: FC<ParameterSettingsDialogProps> = ({
 
     if (!isOpen) return null;
 
-    // Show login dialog when not authenticated
     if (!shouldShowInterface) {
         return (
             <EmployeeLoginDialog
                 isOpen={true}
                 onClose={handleLoginCloseWithoutAuth}
                 onLogin={handleLoginSuccessWithInterface}
+                loginType="parameter"
             />
         );
     }
@@ -600,14 +585,12 @@ const ParameterSettingsDialog: FC<ParameterSettingsDialogProps> = ({
                                 : "grid grid-cols-2 gap-3 h-full py-2"
                         }`}
                     >
-                        {/* LEFT SIDE: Changes based on receipt preview state */}
                         <div
                             className={`transition-all duration-500 ease-in-out ${
                                 showReceiptPreview ? "space-y-6" : "space-y-6"
                             }`}
                         >
                             {showReceiptPreview ? (
-                                // Receipt Form when preview is shown
                                 <ParameterReceiptSection
                                     formData={formData}
                                     isSubmitting={isSubmitting}
@@ -616,7 +599,6 @@ const ParameterSettingsDialog: FC<ParameterSettingsDialogProps> = ({
                                     showPreview={true}
                                 />
                             ) : (
-                                // Parameter Form when no preview
                                 <ParameterFormSection
                                     formData={formData}
                                     cabangOptions={cabangOptions}
@@ -633,7 +615,6 @@ const ParameterSettingsDialog: FC<ParameterSettingsDialogProps> = ({
                             )}
                         </div>
 
-                        {/* RIGHT SIDE: Changes based on receipt preview state */}
                         <div
                             className={`transition-all duration-500 ease-in-out transform ${
                                 showReceiptPreview
@@ -642,10 +623,8 @@ const ParameterSettingsDialog: FC<ParameterSettingsDialogProps> = ({
                             }`}
                         >
                             {showReceiptPreview ? (
-                                // Receipt Preview when viewing receipt
                                 <ParameterReceiptPreview formData={formData} />
                             ) : (
-                                // Receipt Section when no preview
                                 <ParameterReceiptSection
                                     formData={formData}
                                     isSubmitting={isSubmitting}

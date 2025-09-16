@@ -1,4 +1,3 @@
-// app/dashboard/page.tsx
 "use client";
 
 import EmployeeLoginDialog from "@/components/shared/EmployeeLoginDialog";
@@ -352,6 +351,7 @@ export default function DashboardPage() {
                 isOpen={isLoginDialogOpen}
                 onClose={handleCloseDialog}
                 onLogin={handleLogin}
+                loginType="sales"
             />
 
             <FingerprintSetupDialog

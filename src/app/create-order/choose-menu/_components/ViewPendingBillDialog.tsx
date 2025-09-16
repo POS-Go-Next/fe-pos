@@ -1,4 +1,3 @@
-// app/create-order/choose-menu/_components/ViewPendingBillDialog.tsx
 "use client";
 
 import React, { useState, useEffect, useRef } from "react";
@@ -50,13 +49,9 @@ const ViewPendingBillDialog: React.FC<ViewPendingBillDialogProps> = ({
     const [isPageSizeOpen, setIsPageSizeOpen] = useState(false);
     const [selectedBill, setSelectedBill] = useState<string | null>(null);
     const [isLoading, setIsLoading] = useState(false);
-
     const searchInputRef = useRef<HTMLInputElement>(null);
     const tableContainerRef = useRef<HTMLDivElement>(null);
-
     const pageSizeOptions = [5, 10, 25, 50];
-
-    // Mock data - replace with actual API call
     const mockPendingBills: PendingBillData[] = [
         {
             id: "PB001",
@@ -208,7 +203,6 @@ const ViewPendingBillDialog: React.FC<ViewPendingBillDialogProps> = ({
     return (
         <div className="fixed inset-0 bg-black/50 z-50 flex items-center justify-center p-4">
             <div className="bg-white rounded-2xl w-full max-w-6xl max-h-[95vh] flex flex-col shadow-2xl">
-                {/* Header */}
                 <div className="flex items-center justify-between p-6 border-b border-gray-200 flex-shrink-0">
                     <div className="flex items-center gap-3">
                         <div className="w-10 h-10 bg-blue-100 rounded-full flex items-center justify-center">
@@ -226,7 +220,6 @@ const ViewPendingBillDialog: React.FC<ViewPendingBillDialogProps> = ({
                     </button>
                 </div>
 
-                {/* Search Controls */}
                 <div className="p-6 border-b border-gray-200 flex-shrink-0">
                     <div className="relative max-w-md">
                         <Input
@@ -252,9 +245,7 @@ const ViewPendingBillDialog: React.FC<ViewPendingBillDialogProps> = ({
                     </div>
                 </div>
 
-                {/* Main Content Area */}
                 <div className="flex-1 min-h-0 flex flex-col p-6">
-                    {/* Table Container */}
                     <div className="flex-1 min-h-0 border border-gray-200 rounded-lg overflow-hidden">
                         <div
                             ref={tableContainerRef}
@@ -435,7 +426,6 @@ const ViewPendingBillDialog: React.FC<ViewPendingBillDialogProps> = ({
                         </div>
                     </div>
 
-                    {/* Pagination Controls */}
                     {paginatedBills.length > 0 && (
                         <div className="mt-4 flex justify-between items-center flex-shrink-0">
                             <div className="flex items-center gap-4">

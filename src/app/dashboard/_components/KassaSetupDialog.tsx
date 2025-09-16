@@ -1,4 +1,3 @@
-// components/dashboard/KassaSetupDialog.tsx
 "use client";
 
 import EmployeeLoginDialog from "@/components/shared/EmployeeLoginDialog";
@@ -15,7 +14,7 @@ import { useKassa } from "@/hooks/useKassa";
 import { useSystemInfo } from "@/hooks/useSystemInfo";
 import { useKassaData } from "@/hooks/useKassaData";
 import { usePrinter } from "@/hooks/usePrinter";
-import { useAuth } from "@/hooks/useAuth"; // Add this import
+import { useAuth } from "@/hooks/useAuth";
 import { showErrorAlert, showSuccessAlert } from "@/lib/swal";
 import { X, Loader2, AlertCircle } from "lucide-react";
 import Image from "next/image";
@@ -29,7 +28,7 @@ interface KassaSetupDialogProps {
 }
 
 interface KassaSetupData {
-    default_jual: "1" | "2"; // Changed from "0" | "1" | "2" to "1" | "2"
+    default_jual: "1" | "2";
     status_aktif: boolean;
     antrian: boolean;
     finger: "Y" | "N";
@@ -46,8 +45,7 @@ const KassaSetupDialog: FC<KassaSetupDialogProps> = ({
     const [isLoginDialogOpen, setIsLoginDialogOpen] = useState(false);
     const [isCheckingToken, setIsCheckingToken] = useState(true);
     const [isDataLoaded, setIsDataLoaded] = useState(false);
-
-    const { logout } = useAuth(); // Add logout function from useAuth
+    const { logout } = useAuth();
 
     const {
         deviceId,
@@ -82,7 +80,7 @@ const KassaSetupDialog: FC<KassaSetupDialogProps> = ({
     const { updateKassa, isLoading: isSubmitting } = useKassa();
 
     const [formData, setFormData] = useState<KassaSetupData>({
-        default_jual: "1", // Changed default from "0" to "1"
+        default_jual: "1",
         status_aktif: true,
         antrian: true,
         finger: "Y",
@@ -105,7 +103,7 @@ const KassaSetupDialog: FC<KassaSetupDialogProps> = ({
             console.log("🪟 Loading kassa data into form:", kassaData);
 
             setFormData({
-                default_jual: kassaData.default_jual as "1" | "2", // Updated type
+                default_jual: kassaData.default_jual as "1" | "2",
                 status_aktif: kassaData.status_aktif,
                 antrian: kassaData.antrian,
                 finger: kassaData.finger as "Y" | "N",
@@ -145,7 +143,7 @@ const KassaSetupDialog: FC<KassaSetupDialogProps> = ({
     }, [kassaSessionExpired]);
 
     const checkTokenStatus = async () => {
-        console.log("🔑 CHECKING TOKEN STATUS...");
+        console.log("🔒 CHECKING TOKEN STATUS...");
         setIsCheckingToken(true);
         setIsDataLoaded(false);
 
@@ -157,7 +155,7 @@ const KassaSetupDialog: FC<KassaSetupDialogProps> = ({
                 },
             });
 
-            console.log("🔑 API Test Response status:", response.status);
+            console.log("🔒 API Test Response status:", response.status);
 
             if (response.ok) {
                 console.log("✅ API CALL SUCCESS: User is authenticated");
@@ -257,7 +255,6 @@ const KassaSetupDialog: FC<KassaSetupDialogProps> = ({
         onClose();
     };
 
-    // Add logout function that will be called on dialog close
     const handleLogoutAndClose = async () => {
         try {
             await logout();
@@ -294,6 +291,7 @@ const KassaSetupDialog: FC<KassaSetupDialogProps> = ({
                 isOpen={isLoginDialogOpen}
                 onClose={handleLoginClose}
                 onLogin={handleLoginSuccess}
+                loginType="kassa"
             />
         );
     }
@@ -303,7 +301,7 @@ const KassaSetupDialog: FC<KassaSetupDialogProps> = ({
             <div className="fixed inset-0 flex items-center justify-center z-50">
                 <div
                     className="absolute inset-0 bg-black/50"
-                    onClick={handleLogoutAndClose} // Updated to call logout and close
+                    onClick={handleLogoutAndClose}
                 ></div>
                 <div className="bg-white rounded-lg p-8 relative z-10 max-w-md mx-4">
                     <div className="flex items-center gap-3 mb-4">
@@ -323,7 +321,7 @@ const KassaSetupDialog: FC<KassaSetupDialogProps> = ({
                         </Button>
                         <Button
                             variant="outline"
-                            onClick={handleLogoutAndClose} // Updated to call logout and close
+                            onClick={handleLogoutAndClose}
                             className="flex-1"
                         >
                             Close
@@ -409,7 +407,7 @@ const KassaSetupDialog: FC<KassaSetupDialogProps> = ({
             );
 
             onSubmit();
-            handleLogoutAndClose(); // Call logout and close after success
+            handleLogoutAndClose();
         } catch (error) {
             console.error("❌ Error in kassa setup:", error);
             await showErrorAlert(
@@ -422,7 +420,7 @@ const KassaSetupDialog: FC<KassaSetupDialogProps> = ({
 
     const handleCancel = async () => {
         setFormData({
-            default_jual: "1", // Changed default from "0" to "1"
+            default_jual: "1",
             status_aktif: true,
             antrian: true,
             finger: "Y",
@@ -431,7 +429,7 @@ const KassaSetupDialog: FC<KassaSetupDialogProps> = ({
         });
         setSelectedPrinterId(null);
         setIsDataLoaded(false);
-        handleLogoutAndClose(); // Call logout and close on cancel
+        handleLogoutAndClose();
     };
 
     const isLoading =
@@ -441,7 +439,7 @@ const KassaSetupDialog: FC<KassaSetupDialogProps> = ({
         <div className="fixed inset-0 flex items-center justify-center z-50">
             <div
                 className="absolute inset-0 bg-black/50"
-                onClick={handleCancel} // Updated to call logout and close
+                onClick={handleCancel}
             ></div>
 
             <div className="bg-[#f5f5f5] rounded-2xl w-full max-w-2xl relative z-10 p-6">
@@ -450,7 +448,7 @@ const KassaSetupDialog: FC<KassaSetupDialogProps> = ({
                         Kassa Setup (1)
                     </h2>
                     <button
-                        onClick={handleCancel} // Updated to call logout and close
+                        onClick={handleCancel}
                         disabled={isSubmitting}
                         className="w-8 h-8 flex items-center justify-center rounded-md border border-black hover:scale-105 transition-all"
                     >

@@ -1,4 +1,3 @@
-// app/create-order/choose-menu/_components/PrescriptionDiscountDialog.tsx
 "use client";
 
 import React, { useState, useEffect } from "react";

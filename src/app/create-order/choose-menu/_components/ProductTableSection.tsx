@@ -1,4 +1,3 @@
-// app/create-order/choose-menu/_components/ProductTableSection.tsx - UPDATED WITH onMiscChange
 "use client";
 
 import { FC } from "react";
@@ -15,7 +14,7 @@ interface ProductTableSectionProps {
     onProductSelect: (product: any, productId: number) => void;
     onTypeChange: (id: number, type: string) => void;
     onDiscountChange?: (id: number, discount: number) => void;
-    onMiscChange?: (id: number, miscAmount: number) => void; // 🔥 NEW: Add onMiscChange prop
+    onMiscChange?: (id: number, miscAmount: number) => void;
     className?: string;
 }
 
@@ -29,7 +28,7 @@ const ProductTableSection: FC<ProductTableSectionProps> = ({
     onProductSelect,
     onTypeChange,
     onDiscountChange,
-    onMiscChange, // 🔥 NEW: Destructure onMiscChange
+    onMiscChange,
     className = "",
 }) => {
     return (
@@ -44,7 +43,7 @@ const ProductTableSection: FC<ProductTableSectionProps> = ({
                 onProductSelect={onProductSelect}
                 onTypeChange={onTypeChange}
                 onDiscountChange={onDiscountChange}
-                onMiscChange={onMiscChange} // 🔥 NEW: Pass onMiscChange to ChooseMenuProductTable
+                onMiscChange={onMiscChange}
                 className="h-full"
             />
         </div>

@@ -1,4 +1,3 @@
-// components/shared/add-customer-dialog.tsx
 "use client";
 
 import { useState } from "react";
@@ -82,7 +81,6 @@ export default function AddCustomerDialog({
             [field]: value,
         }));
 
-        // Clear validation error for the field being edited
         if (validationErrors[field]) {
             setValidationErrors((prev) => ({
                 ...prev,
@@ -99,7 +97,6 @@ export default function AddCustomerDialog({
         setIsLoading(true);
 
         try {
-            // Prepare the request body according to API specification
             const requestBody = {
                 nm_cust: customerForm.name,
                 usia_cust: parseInt(customerForm.age),
@@ -123,7 +120,6 @@ export default function AddCustomerDialog({
                 throw new Error(data.message || "Failed to create customer");
             }
 
-            // Transform the response data back to the format expected by the parent component
             const createdCustomer: CustomerData = {
                 id: data.data.kd_cust,
                 name: data.data.nm_cust,
@@ -150,10 +146,9 @@ export default function AddCustomerDialog({
     };
 
     const handleClose = () => {
-        if (isLoading) return; // Prevent closing while submitting
+        if (isLoading) return;
 
         onClose();
-        // Reset form
         setCustomerForm({
             id: 0,
             name: "",

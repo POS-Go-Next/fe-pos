@@ -1,4 +1,3 @@
-// app/create-order/choose-menu/_components/ChooseMiscDialog.tsx
 "use client";
 
 import React, { useState, useEffect } from "react";
@@ -26,7 +25,7 @@ const ChooseMiscDialog: React.FC<ChooseMiscDialogProps> = ({
     );
     const [quantity, setQuantity] = useState("");
     const [amount, setAmount] = useState("");
-    const [baseAmount, setBaseAmount] = useState(400); // Base amount for calculation
+    const [baseAmount, setBaseAmount] = useState(400);
     const [isDropdownOpen, setIsDropdownOpen] = useState(false);
 
     const medicationOptions = [
@@ -38,7 +37,6 @@ const ChooseMiscDialog: React.FC<ChooseMiscDialogProps> = ({
         "Ointment Compound (Racikan Salep)",
     ];
 
-    // Function to get base amount based on medication type
     const getBaseAmount = (type: string): number => {
         switch (type) {
             case "Capsule Compound (Racikan Kapsul)":
@@ -50,25 +48,20 @@ const ChooseMiscDialog: React.FC<ChooseMiscDialogProps> = ({
         }
     };
 
-    // Effect to handle medication type change
     useEffect(() => {
         const newBaseAmount = getBaseAmount(medicationType);
         setBaseAmount(newBaseAmount);
-
-        // Calculate new amount based on current quantity
         if (quantity !== "") {
             const qty = Number(quantity) || 0;
             const newAmount = newBaseAmount * qty;
             setAmount(newAmount > 0 ? newAmount.toString() : "");
         } else if (newBaseAmount > 0) {
-            // If no quantity but baseAmount exists, show the base amount
             setAmount("");
         } else {
             setAmount("");
         }
     }, [medicationType]);
 
-    // Effect to handle quantity change
     useEffect(() => {
         if (quantity !== "" && baseAmount > 0) {
             const qty = Number(quantity) || 0;
@@ -88,7 +81,6 @@ const ChooseMiscDialog: React.FC<ChooseMiscDialogProps> = ({
             amount: Number(amount) || 0,
         });
 
-        // Reset form
         setMedicationType("Capsule Compound (Racikan Kapsul)");
         setQuantity("");
         setAmount("");
@@ -109,14 +101,12 @@ const ChooseMiscDialog: React.FC<ChooseMiscDialogProps> = ({
     };
 
     const handleQuantityChange = (value: string) => {
-        // Only allow empty string or valid positive numbers (no alphabets)
         if (value === "" || (/^\d*\.?\d*$/.test(value) && Number(value) >= 0)) {
             setQuantity(value);
         }
     };
 
     const handleAmountChange = (value: string) => {
-        // Only allow empty string or valid positive numbers (no alphabets)
         if (value === "" || (/^\d*\.?\d*$/.test(value) && Number(value) >= 0)) {
             setAmount(value);
         }

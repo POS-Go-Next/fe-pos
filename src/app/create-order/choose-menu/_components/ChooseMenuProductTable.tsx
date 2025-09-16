@@ -1,4 +1,3 @@
-// components/shared/ChooseMenuProductTable.tsx - UPDATED WITH PRODUCT CODE FOR HISTORY
 "use client";
 
 import BranchWideStockDialog from "@/components/shared/branch-wide-stock-dialog";
@@ -255,7 +254,6 @@ export default function ChooseMenuProductTable({
         }
     };
 
-    // Calculate current cart totals for pending bill
     const currentCartTotals = React.useMemo(() => {
         const filledProducts = products.filter((p) => p.name && p.quantity > 0);
         const subtotal = filledProducts.reduce(
@@ -552,20 +550,16 @@ export default function ChooseMenuProductTable({
 
     const handlePendingBillSubmit = (pendingBillData: any) => {
         console.log("Pending bill saved:", pendingBillData);
-        // Here you would typically save to localStorage or send to API
-        // For now, just log and close
         alert("Pending bill saved successfully!");
     };
 
     const handleLoadPendingBill = (bill: any) => {
         console.log("Loading pending bill to cart:", bill);
-        // Here you would load the bill's products into the current cart
         alert(`Loading pending bill: ${bill.customerName}`);
     };
 
     const handleDeletePendingBill = (billId: string) => {
         console.log("Deleting pending bill:", billId);
-        // Here you would delete from localStorage or API
         alert(`Deleted pending bill: ${billId}`);
     };
 
@@ -930,7 +924,6 @@ export default function ChooseMenuProductTable({
                 </div>
             </div>
 
-            {/* All Dialogs */}
             <SelectProductDialog
                 isOpen={dialogStates.selectProduct}
                 onClose={() => {

@@ -1,4 +1,3 @@
-// app/create-order/choose-menu/_components/MonthlyPromoDialog.tsx
 "use client";
 
 import React, { useState, useEffect, useRef } from "react";
@@ -34,13 +33,8 @@ export default function MonthlyPromoDialog({
 
     const searchInputRef = useRef<HTMLInputElement>(null);
     const tableContainerRef = useRef<HTMLDivElement>(null);
-
     const pageSizeOptions = [5, 10, 25, 50, 100];
-
-    // Calculate offset for API call
     const offset = (currentPage - 1) * pageSize;
-
-    // Use the promo hook - send only offset and limit
     const {
         promoList,
         isLoading,
@@ -53,7 +47,6 @@ export default function MonthlyPromoDialog({
         offset,
     });
 
-    // Transform API data to display format
     const transformedPromoData: PromoDisplayData[] = promoList.map(
         (item: PromoData) => ({
             id: `${item.no_promo}-${item.kd_brgdg}` || `promo-${Math.random()}`,
@@ -80,11 +73,9 @@ export default function MonthlyPromoDialog({
         })
     );
 
-    // Filter data locally since API doesn't support search
     const filteredData = React.useMemo(() => {
         let data = transformedPromoData;
 
-        // Apply search filter
         if (searchTerm) {
             data = data.filter((promo) => {
                 const searchLower = searchTerm.toLowerCase();
@@ -96,12 +87,10 @@ export default function MonthlyPromoDialog({
             });
         }
 
-        // Apply date range filter
         if (appliedDateRange?.from || appliedDateRange?.to) {
             data = data.filter((promo) => {
                 if (!promo.start_date || !promo.end_date) return false;
 
-                // Parse dates from DD/MM/YYYY format
                 const parseDate = (dateStr: string): Date => {
                     const [day, month, year] = dateStr.split("/").map(Number);
                     return new Date(year, month - 1, day);
@@ -113,13 +102,11 @@ export default function MonthlyPromoDialog({
                 let matchesRange = true;
 
                 if (appliedDateRange.from) {
-                    // Promo should end after or on the selected start date
                     matchesRange =
                         matchesRange && promoEndDate >= appliedDateRange.from;
                 }
 
                 if (appliedDateRange.to) {
-                    // Promo should start before or on the selected end date
                     matchesRange =
                         matchesRange && promoStartDate <= appliedDateRange.to;
                 }
@@ -131,7 +118,6 @@ export default function MonthlyPromoDialog({
         return data;
     }, [transformedPromoData, searchTerm, appliedDateRange]);
 
-    // Use API pagination data properly
     const displayData =
         searchTerm || appliedDateRange?.from || appliedDateRange?.to
             ? filteredData
@@ -145,7 +131,6 @@ export default function MonthlyPromoDialog({
             ? filteredData.length
             : totalDocs;
 
-    // Debounce search input - for local filtering only since API doesn't support search
     useEffect(() => {
         const trimmedSearch = searchInput.trim();
 
@@ -177,11 +162,9 @@ export default function MonthlyPromoDialog({
 
     const handlePageChange = (page: number) => {
         if (searchTerm || appliedDateRange?.from || appliedDateRange?.to) {
-            // For local search/filter, use client-side pagination
             const maxPages = Math.ceil(filteredData.length / pageSize);
             if (page < 1 || page > maxPages) return;
         } else {
-            // For API pagination
             if (page < 1 || page > totalPages) return;
         }
         setCurrentPage(page);
@@ -217,7 +200,6 @@ export default function MonthlyPromoDialog({
 
     const handleRowClick = (promo: PromoDisplayData) => {
         console.log("Promo selected:", promo);
-        // Add any logic for selecting promo
     };
 
     const handleRetry = () => {
@@ -241,7 +223,6 @@ export default function MonthlyPromoDialog({
     return (
         <div className="fixed inset-0 bg-black/50 z-50 flex items-center justify-center p-4">
             <div className="bg-white rounded-2xl w-full max-w-6xl max-h-[95vh] flex flex-col shadow-2xl">
-                {/* Header */}
                 <div className="flex items-center justify-between p-6 border-b border-gray-200 flex-shrink-0">
                     <h2 className="text-xl font-semibold text-gray-900">
                         Monthly Promo Highlights
@@ -254,7 +235,6 @@ export default function MonthlyPromoDialog({
                     </button>
                 </div>
 
-                {/* Search and Filter Controls */}
                 <div className="p-6 border-b border-gray-200 flex-shrink-0">
                     <div className="flex items-center gap-3">
                         <div className="relative flex-1">
@@ -289,9 +269,7 @@ export default function MonthlyPromoDialog({
                     </div>
                 </div>
 
-                {/* Main Content Area */}
                 <div className="flex-1 min-h-0 flex flex-col p-6">
-                    {/* Error Message */}
                     {error && (
                         <div className="bg-red-50 border border-red-200 rounded-lg p-4 mb-6 flex-shrink-0">
                             <div className="text-red-700 text-sm">
@@ -306,7 +284,6 @@ export default function MonthlyPromoDialog({
                         </div>
                     )}
 
-                    {/* Table Container with proper scroll and height */}
                     <div className="flex-1 min-h-0 border border-gray-200 rounded-lg overflow-hidden">
                         <div
                             ref={tableContainerRef}
@@ -431,7 +408,6 @@ export default function MonthlyPromoDialog({
                         </div>
                     </div>
 
-                    {/* Pagination Controls */}
                     {displayData.length > 0 && (
                         <div className="mt-4 flex justify-between items-center flex-shrink-0">
                             <div className="flex items-center gap-4">
@@ -494,7 +470,6 @@ export default function MonthlyPromoDialog({
                 </div>
             </div>
 
-            {/* Custom Scrollbar Styles */}
             <style jsx>{`
                 .table-scroll-container {
                     scrollbar-width: thin;

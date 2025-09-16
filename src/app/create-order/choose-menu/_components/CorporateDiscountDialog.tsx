@@ -1,4 +1,3 @@
-// app/create-order/choose-menu/_components/CorporateDiscountDialog.tsx - UPDATED WITH API INTEGRATION
 "use client";
 
 import Pagination from "@/components/shared/pagination";

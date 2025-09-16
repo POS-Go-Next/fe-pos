@@ -9,6 +9,14 @@ import { useAuth } from "@/hooks/useAuth";
 import { showErrorAlert } from "@/lib/swal";
 import BiometricLoginDialog from "@/app/dashboard/_components/BiometricLoginDialog";
 
+type LoginType =
+    | "parameter"
+    | "fingerprint"
+    | "kassa"
+    | "close-cashier"
+    | "reclose-cashier"
+    | "sales";
+
 interface UserData {
     id: number;
     fullname: string;
@@ -25,19 +33,21 @@ interface EmployeeLoginDialogProps {
     isOpen: boolean;
     onClose: () => void;
     onLogin: (userData: UserData) => void;
+    loginType?: LoginType;
 }
 
 export default function EmployeeLoginDialog({
     isOpen,
     onClose,
     onLogin,
+    loginType = "parameter",
 }: EmployeeLoginDialogProps) {
     const [username, setUsername] = useState("");
     const [password, setPassword] = useState("");
     const [showPassword, setShowPassword] = useState(false);
     const [isBiometricOpen, setIsBiometricOpen] = useState(false);
 
-    const { login, isLoading } = useAuth();
+    const { loginForPopup, isLoading } = useAuth();
 
     const handleSubmit = async (e: React.FormEvent) => {
         e.preventDefault();
@@ -52,7 +62,10 @@ export default function EmployeeLoginDialog({
         }
 
         try {
-            const result = await login({ username, password });
+            const result = await loginForPopup(
+                { username, password },
+                loginType
+            );
 
             if (result.success && result.data) {
                 const userData: UserData = {

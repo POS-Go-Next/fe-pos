@@ -1,4 +1,3 @@
-// app/create-order/choose-menu/_components/GlobalDiscountDialog.tsx
 "use client";
 
 import React, { useState, useEffect } from "react";
@@ -37,8 +36,6 @@ const GlobalDiscountDialog: React.FC<GlobalDiscountDialogProps> = ({
 }) => {
     const [activeTab, setActiveTab] = useState<"Global" | "Employee">("Global");
     const [discountPercentage, setDiscountPercentage] = useState(0);
-
-    // Employee tab specific states
     const [searchInput, setSearchInput] = useState("");
     const [debouncedSearch, setDebouncedSearch] = useState("");
     const [currentPage, setCurrentPage] = useState(1);
@@ -50,7 +47,6 @@ const GlobalDiscountDialog: React.FC<GlobalDiscountDialogProps> = ({
 
     const pageSizeOptions = [5, 10, 25, 50];
 
-    // Employee API integration
     const {
         corporateList,
         isLoading,
@@ -62,7 +58,7 @@ const GlobalDiscountDialog: React.FC<GlobalDiscountDialogProps> = ({
         limit: pageSize,
         offset: (currentPage - 1) * pageSize,
         search: debouncedSearch,
-        type: "employee" as "corporate", // Type assertion for API compatibility
+        type: "employee" as "corporate",
     });
 
     useEffect(() => {
@@ -89,7 +85,6 @@ const GlobalDiscountDialog: React.FC<GlobalDiscountDialogProps> = ({
 
     if (!isOpen) return null;
 
-    // Transform corporate data to employee data format
     const employeeList: EmployeeData[] = corporateList.map(
         (corporate: CorporateData) => ({
             id: corporate.kd_corp,
@@ -127,7 +122,6 @@ const GlobalDiscountDialog: React.FC<GlobalDiscountDialogProps> = ({
             selectedEmployee: selectedEmployeeData,
         });
 
-        // Reset form
         setActiveTab("Global");
         setDiscountPercentage(0);
         setSelectedEmployee(null);
@@ -197,7 +191,6 @@ const GlobalDiscountDialog: React.FC<GlobalDiscountDialogProps> = ({
                 </div>
 
                 <div className="p-6">
-                    {/* Tab Navigation */}
                     <div className="flex mb-6">
                         <button
                             onClick={() => handleTabClick("Global")}
@@ -221,7 +214,6 @@ const GlobalDiscountDialog: React.FC<GlobalDiscountDialogProps> = ({
                         </button>
                     </div>
 
-                    {/* Global Tab Content */}
                     {activeTab === "Global" && (
                         <div className="mb-6">
                             <label className="block text-sm font-medium text-gray-700 mb-3">
@@ -248,10 +240,8 @@ const GlobalDiscountDialog: React.FC<GlobalDiscountDialogProps> = ({
                         </div>
                     )}
 
-                    {/* Employee Tab Content */}
                     {activeTab === "Employee" && (
                         <div className="space-y-6">
-                            {/* Search Input */}
                             <div className="relative">
                                 <Input
                                     type="text"
@@ -268,7 +258,6 @@ const GlobalDiscountDialog: React.FC<GlobalDiscountDialogProps> = ({
                                 />
                             </div>
 
-                            {/* Employee Table */}
                             <div className="rounded-lg border border-gray-200 overflow-hidden">
                                 <table className="w-full">
                                     <thead className="sticky top-0 z-10">
@@ -396,7 +385,6 @@ const GlobalDiscountDialog: React.FC<GlobalDiscountDialogProps> = ({
                                 </table>
                             </div>
 
-                            {/* Pagination */}
                             {paginatedEmployees.length > 0 && (
                                 <div className="flex justify-between items-center">
                                     <div className="flex items-center gap-4">
@@ -550,7 +538,6 @@ const GlobalDiscountDialog: React.FC<GlobalDiscountDialogProps> = ({
                                 </div>
                             )}
 
-                            {/* Discount Input for Employee Tab */}
                             {selectedEmployee && (
                                 <div>
                                     <label className="block text-sm font-medium text-gray-700 mb-3">
@@ -580,7 +567,6 @@ const GlobalDiscountDialog: React.FC<GlobalDiscountDialogProps> = ({
                     )}
                 </div>
 
-                {/* Action Buttons */}
                 <div className="flex justify-end gap-3 p-6 border-t border-gray-200">
                     <Button
                         variant="outline"

@@ -1,4 +1,3 @@
-// app/create-order/choose-menu/_components/KeyboardShortcutGuide.tsx
 "use client";
 
 import React from "react";
