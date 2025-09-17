@@ -41,9 +41,22 @@ export default function PaymentSuccessDialog({
         return "Payment completed successfully!";
     };
 
-    const handleDone = () => {
-        setShowDialog(false);
-        onClose();
+    const handleDone = async () => {
+        try {
+            // Hit API next-invoice untuk update nomor invoice
+            console.log(
+                "🔄 Updating invoice number after payment completion..."
+            );
+            window.dispatchEvent(new CustomEvent("refetch-transaction-info"));
+
+            // Tunggu sebentar untuk memastikan API call selesai
+            await new Promise((resolve) => setTimeout(resolve, 500));
+        } catch (error) {
+            console.error("Error updating invoice number:", error);
+        } finally {
+            setShowDialog(false);
+            onClose();
+        }
     };
 
     if (!showDialog) return null;

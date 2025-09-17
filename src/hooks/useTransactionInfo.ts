@@ -1,4 +1,4 @@
-// hooks/useTransactionInfo.ts - UPDATED
+// hooks/useTransactionInfo.ts - ADDED EVENT LISTENER FOR REFETCH
 "use client";
 
 import { useState, useEffect, useCallback } from "react";
@@ -155,38 +155,35 @@ export const useTransactionInfo = (): UseTransactionInfoReturn => {
 
             const username = getUsername();
 
-            // Step 1: Get real device ID from system service
             const deviceId = await getSystemDeviceId();
 
             if (!deviceId) {
                 throw new Error("Could not obtain device ID from system");
             }
 
-            console.log("📄 Using device ID:", deviceId);
+            console.log("🔄 Using device ID:", deviceId);
 
-            // Step 2: Fetch all 3 APIs in parallel using the real device ID
             const [kassaResponse, queueResponse, invoiceResponse] =
                 await Promise.all([
-                    // 1. Get Kassa info by device ID
                     fetch(`/api/kassa/${deviceId}`, {
                         method: "GET",
                         headers: { "Content-Type": "application/json" },
                     }),
 
-                    // 2. Get next queue counter
                     fetch("/api/queue/next-counter", {
                         method: "GET",
                         headers: { "Content-Type": "application/json" },
                     }),
 
-                    // 3. Get next invoice number (NO MORE HARDCODED transaction_type)
-                    fetch("/api/transaction/next-invoice", {
+                    // 🔥 UPDATED: Add cache-busting to ensure fresh invoice number
+                    fetch(`/api/transaction/next-invoice?t=${Date.now()}`, {
                         method: "GET",
                         headers: { "Content-Type": "application/json" },
+                        // Disable caching
+                        cache: "no-store",
                     }),
                 ]);
 
-            // Process Kassa response
             let noKassa = "0";
             if (kassaResponse.ok) {
                 const kassaData: KassaApiResponse = await kassaResponse.json();
@@ -196,7 +193,7 @@ export const useTransactionInfo = (): UseTransactionInfoReturn => {
                         id_kassa: kassaData.data.id_kassa,
                         no_kassa: kassaData.data.no_kassa,
                         device_id: kassaData.data.device_id,
-                        default_jual: kassaData.data.default_jual, // Log default_jual
+                        default_jual: kassaData.data.default_jual,
                     });
                 }
             } else {
@@ -204,10 +201,9 @@ export const useTransactionInfo = (): UseTransactionInfoReturn => {
                 if (kassaResponse.status === 404) {
                     console.log("🔍 Kassa not found for device ID:", deviceId);
                 }
-                noKassa = "1"; // Default counter number
+                noKassa = "1";
             }
 
-            // Process Queue response
             if (queueResponse.ok) {
                 const queueData: QueueApiResponse = await queueResponse.json();
                 setQueueNumber(queueData.data.queue_number);
@@ -217,13 +213,12 @@ export const useTransactionInfo = (): UseTransactionInfoReturn => {
                 setQueueNumber(1);
             }
 
-            // Process Invoice response
             if (invoiceResponse.ok) {
                 const invoiceData: InvoiceApiResponse =
                     await invoiceResponse.json();
                 setInvoiceNumber(invoiceData.data.invoice_number);
                 console.log(
-                    "✅ Invoice number:",
+                    "🔄 Fresh invoice number:",
                     invoiceData.data.invoice_number
                 );
             } else {
@@ -231,7 +226,6 @@ export const useTransactionInfo = (): UseTransactionInfoReturn => {
                 setInvoiceNumber("S25080315");
             }
 
-            // Set counter info with username and no_kassa
             setCounterInfo(`#${username}/${noKassa}`);
         } catch (err) {
             console.error("❌ Error fetching transaction info:", err);
@@ -241,7 +235,6 @@ export const useTransactionInfo = (): UseTransactionInfoReturn => {
                     : "Failed to fetch transaction info"
             );
 
-            // Set fallback values
             const username = getUsername();
             setCounterInfo(`#${username}/0`);
             setQueueNumber(1);
@@ -253,6 +246,22 @@ export const useTransactionInfo = (): UseTransactionInfoReturn => {
 
     useEffect(() => {
         fetchTransactionInfo();
+
+        // 🔥 NEW: Add event listener for manual refetch
+        const handleRefetch = () => {
+            console.log("🔄 Manual refetch triggered via event");
+            fetchTransactionInfo();
+        };
+
+        window.addEventListener("refetch-transaction-info", handleRefetch);
+
+        // Cleanup event listener
+        return () => {
+            window.removeEventListener(
+                "refetch-transaction-info",
+                handleRefetch
+            );
+        };
     }, [fetchTransactionInfo]);
 
     const refetch = () => {

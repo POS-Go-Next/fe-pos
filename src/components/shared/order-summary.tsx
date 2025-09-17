@@ -1,4 +1,4 @@
-// components/shared/order-summary.tsx - FIXED CTRL+SPACE FLOW INTEGRATION
+// components/shared/order-summary.tsx - ADDED INVOICE REFETCH AND FORM RESET
 "use client";
 
 import { useState } from "react";
@@ -59,7 +59,6 @@ interface OrderSummaryProps {
     onPendingBill?: () => void;
     onPayNow?: (customerData?: CustomerData, doctorData?: DoctorData) => void;
     products?: ProductItem[];
-    // 🔥 NEW: Props for external dialog control from Ctrl+Space
     isCustomerDoctorDialogOpen?: boolean;
     onCustomerDoctorDialogClose?: () => void;
     triggerPaymentFlow?: boolean;
@@ -75,12 +74,10 @@ export default function OrderSummary({
     onPendingBill,
     onPayNow,
     products = [],
-    // 🔥 NEW: External dialog control props
     isCustomerDoctorDialogOpen = false,
     onCustomerDoctorDialogClose,
     triggerPaymentFlow = false,
 }: OrderSummaryProps) {
-    // 🔥 MODIFIED: Use external control or internal state
     const [internalDialogOpen, setInternalDialogOpen] = useState(false);
     const [isTransactionTypeDialogOpen, setIsTransactionTypeDialogOpen] =
         useState(false);
@@ -105,10 +102,23 @@ export default function OrderSummary({
     const [transactionTypeData, setTransactionTypeData] =
         useState<TransactionTypeData | null>(null);
 
+    // 🔥 NEW: Key state to force dialog re-render and reset
+    const [dialogKey, setDialogKey] = useState(0);
+
     const grandTotal = subtotal - discount + serviceCharge + misc - promo;
 
-    // 🔥 COMPUTED: Determine which dialog state to use
     const isDialogOpen = isCustomerDoctorDialogOpen || internalDialogOpen;
+
+    // 🔥 NEW: Function to refetch invoice number
+    const refetchInvoiceNumber = async () => {
+        try {
+            console.log("🔄 Refetching invoice number...");
+            // This will trigger the useTransactionInfo hook to refetch
+            window.dispatchEvent(new CustomEvent("refetch-transaction-info"));
+        } catch (error) {
+            console.error("Error refetching invoice:", error);
+        }
+    };
 
     const handlePendingBillClick = () => {
         if (products.length === 0) {
@@ -132,17 +142,24 @@ export default function OrderSummary({
         // Just close the dialog without doing anything
     };
 
-    const handlePayNowClick = () => {
+    const handlePayNowClick = async () => {
         if (products.length === 0) {
             alert("No products to process payment");
             return;
         }
 
-        // 🔥 FIXED: Use internal state for Pay Now button
+        // 🔥 NEW: Refetch invoice number when opening payment flow
+        await refetchInvoiceNumber();
+
+        // 🔥 NEW: Reset dialog key to force fresh form state
+        setDialogKey((prev) => prev + 1);
+
+        // Reset form states
+        resetAllStates();
+
         setInternalDialogOpen(true);
     };
 
-    // 🔥 FIXED: Unified handler for both flows (Pay Now button & Ctrl+Space)
     const handleCustomerDoctorSubmit = (
         customerData: CustomerData,
         doctorData?: DoctorData
@@ -154,21 +171,15 @@ export default function OrderSummary({
             isExternal: isCustomerDoctorDialogOpen,
         });
 
-        // Save the selected data
         setSelectedCustomer(customerData);
         setSelectedDoctor(doctorData || null);
 
-        // Close the customer/doctor dialog
         if (isCustomerDoctorDialogOpen && onCustomerDoctorDialogClose) {
-            // External control - close via parent
             onCustomerDoctorDialogClose();
         } else {
-            // Internal control - close internal dialog
             setInternalDialogOpen(false);
         }
 
-        // 🔥 FIXED: Always proceed to Transaction Type dialog when triggerPaymentFlow is true
-        // This should happen for BOTH Pay Now button and Ctrl+Space
         if (triggerPaymentFlow || !isCustomerDoctorDialogOpen) {
             console.log("🔥 Opening Transaction Type Dialog");
             setIsTransactionTypeDialogOpen(true);
@@ -194,7 +205,6 @@ export default function OrderSummary({
 
         setIsPaymentDialogOpen(false);
 
-        // Store change data for PaymentSuccessDialog
         if (changeData) {
             setChangeData(changeData);
         }
@@ -218,18 +228,16 @@ export default function OrderSummary({
         setSelectedDoctor(doctor);
     };
 
-    // 🔥 FIXED: Unified close handler
     const handleCustomerDoctorClose = () => {
         if (isCustomerDoctorDialogOpen && onCustomerDoctorDialogClose) {
-            // External control
             onCustomerDoctorDialogClose();
         } else {
-            // Internal control
             setInternalDialogOpen(false);
         }
 
-        // Reset states when closing
+        // 🔥 UPDATED: Reset states and increment key when closing
         resetAllStates();
+        setDialogKey((prev) => prev + 1);
     };
 
     const handleTransactionTypeClose = () => {
@@ -257,7 +265,6 @@ export default function OrderSummary({
     const handlePaymentSuccessClose = () => {
         setIsPaymentSuccessDialogOpen(false);
 
-        // Call the original onPayNow callback after closing success dialog
         if (onPayNow) {
             onPayNow(
                 selectedCustomer || undefined,
@@ -341,8 +348,9 @@ export default function OrderSummary({
                 onDone={handlePendingBillSavedDone}
             />
 
-            {/* 🔥 FIXED: Use unified dialog state and proper flow integration */}
+            {/* 🔥 UPDATED: Added key prop to force dialog reset */}
             <CustomerDoctorDialog
+                key={dialogKey}
                 isOpen={isDialogOpen}
                 onClose={handleCustomerDoctorClose}
                 onSelectCustomer={handleCustomerSelect}
@@ -380,7 +388,6 @@ export default function OrderSummary({
                 products={products}
             />
 
-            {/* 🔥 FIXED: PaymentSuccessDialog with change data */}
             <PaymentSuccessDialog
                 isOpen={isPaymentSuccessDialogOpen}
                 onClose={handlePaymentSuccessClose}

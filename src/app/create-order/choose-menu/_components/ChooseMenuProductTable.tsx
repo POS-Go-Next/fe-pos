@@ -984,9 +984,19 @@ export default function ChooseMenuProductTable({
             <PaymentDialog
                 isOpen={dialogStates.payment}
                 onClose={() => closeDialog("payment")}
-                onPaymentSuccess={() => {
+                onPaymentSuccess={(changeData) => {
                     closeDialog("payment");
                     console.log("Payment successful from Ctrl+Space flow");
+
+                    // 🔥 NEW: Clear cart after payment success from Ctrl+Space
+                    // Trigger clear all products
+                    if (onRemoveProduct) {
+                        // Clear all products by calling remove for each product
+                        products.forEach((p) => {
+                            if (p.name) onRemoveProduct(p.id);
+                        });
+                    }
+
                     toggleDialog("paymentSuccess");
                 }}
                 totalAmount={
@@ -1051,10 +1061,6 @@ export default function ChooseMenuProductTable({
             <PaymentSuccessDialog
                 isOpen={dialogStates.paymentSuccess}
                 onClose={() => closeDialog("paymentSuccess")}
-                onPrintBills={() => {
-                    console.log("Print bills requested");
-                    closeDialog("paymentSuccess");
-                }}
             />
 
             <FingerprintScanningDialog

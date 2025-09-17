@@ -1,4 +1,4 @@
-// app/create-order/choose-menu/page.tsx - FIXED VERSION - REMOVED DUPLICATE DIALOG
+// app/create-order/choose-menu/page.tsx - FINAL VERSION WITH CTRL+SPACE FIX
 "use client";
 
 import OrderSummary from "@/components/shared/order-summary";
@@ -513,9 +513,7 @@ export default function ChooseMenuPage() {
         customerData?: CustomerData,
         doctorData?: DoctorData
     ) => {
-        // 🔥 REMOVED: setIsPaymentSuccessDialogOpen(true);
-        // Payment success is now handled entirely by OrderSummary
-        console.log("Payment completed, clearing products");
+        console.log("Payment completed from OrderSummary flow - clearing cart");
         handleClearAllProducts();
     };
 
@@ -602,8 +600,6 @@ export default function ChooseMenuPage() {
                     </div>
                 </div>
             </div>
-
-            {/* 🔥 REMOVED: PaymentSuccessDialog - now handled in OrderSummary */}
 
             <TransactionHistoryDialog
                 isOpen={isTransactionHistoryOpen}
