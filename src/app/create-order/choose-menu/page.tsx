@@ -1,8 +1,7 @@
-// app/create-order/choose-menu/page.tsx - FINAL VERSION FOR PRESENTATION
+// app/create-order/choose-menu/page.tsx - FIXED VERSION - REMOVED DUPLICATE DIALOG
 "use client";
 
 import OrderSummary from "@/components/shared/order-summary";
-import PaymentSuccessDialog from "@/components/shared/payment-success-dialog";
 import TransactionInfo from "@/components/shared/transaction-info";
 import { Input } from "@/components/ui/input";
 import { useLogout } from "@/hooks/useLogout";
@@ -37,8 +36,6 @@ interface DoctorData {
 
 export default function ChooseMenuPage() {
     const [isClient, setIsClient] = useState(false);
-    const [isPaymentSuccessDialogOpen, setIsPaymentSuccessDialogOpen] =
-        useState(false);
     const [selectedCustomer, setSelectedCustomer] =
         useState<CustomerData | null>();
     const [selectedDoctor, setSelectedDoctor] = useState<DoctorData | null>(
@@ -516,11 +513,9 @@ export default function ChooseMenuPage() {
         customerData?: CustomerData,
         doctorData?: DoctorData
     ) => {
-        setIsPaymentSuccessDialogOpen(true);
-    };
-
-    const handlePaymentSuccessClose = () => {
-        setIsPaymentSuccessDialogOpen(false);
+        // 🔥 REMOVED: setIsPaymentSuccessDialogOpen(true);
+        // Payment success is now handled entirely by OrderSummary
+        console.log("Payment completed, clearing products");
         handleClearAllProducts();
     };
 
@@ -608,11 +603,7 @@ export default function ChooseMenuPage() {
                 </div>
             </div>
 
-            <PaymentSuccessDialog
-                isOpen={isPaymentSuccessDialogOpen}
-                onClose={handlePaymentSuccessClose}
-                onPrintBills={() => console.log("Print Bills")}
-            />
+            {/* 🔥 REMOVED: PaymentSuccessDialog - now handled in OrderSummary */}
 
             <TransactionHistoryDialog
                 isOpen={isTransactionHistoryOpen}

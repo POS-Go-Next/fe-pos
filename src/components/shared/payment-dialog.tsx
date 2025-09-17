@@ -1,4 +1,4 @@
-// components/shared/payment-dialog.tsx - UPDATED WITH FULL AMOUNT BUTTONS
+// components/shared/payment-dialog.tsx - REMOVED SWEETALERT SUCCESS
 "use client";
 
 import { useState, useMemo } from "react";
@@ -12,7 +12,7 @@ import {
     SelectTrigger,
     SelectValue,
 } from "@/components/ui/select";
-import { showSuccessAlert, showErrorAlert, showLoadingAlert } from "@/lib/swal";
+import { showErrorAlert, showLoadingAlert } from "@/lib/swal";
 import Swal from "sweetalert2";
 
 interface CustomerData {
@@ -60,7 +60,11 @@ interface ProductItem {
 interface PaymentDialogProps {
     isOpen: boolean;
     onClose: () => void;
-    onPaymentSuccess: () => void;
+    onPaymentSuccess: (changeData?: {
+        changeCash: number;
+        changeCC: number;
+        changeDC: number;
+    }) => void;
     totalAmount: number;
     orderDetails: {
         customer: string;
@@ -96,7 +100,6 @@ export default function PaymentDialog({
     const [creditCardType, setCreditCardType] = useState("");
     const [isProcessing, setIsProcessing] = useState(false);
 
-    // 🔥 FIXED: Calculate correct total amount from products data
     const correctTotalAmount = useMemo(() => {
         const subtotal = products.reduce(
             (sum, p) => sum + (p.subtotal || 0),
@@ -115,7 +118,6 @@ export default function PaymentDialog({
 
     if (!isOpen) return null;
 
-    // 🔥 NEW: Handler functions for full amount buttons
     const handleCashFullAmount = () => {
         setCashAmount(correctTotalAmount.toString());
     };
@@ -147,7 +149,6 @@ export default function PaymentDialog({
 
     const getNextInvoice = async () => {
         try {
-            // FIXED: Remove hardcoded transaction_type parameter
             const response = await fetch("/api/transaction/next-invoice");
             const data = await response.json();
             return data.data?.invoice_number || "S25080315";
@@ -371,19 +372,14 @@ export default function PaymentDialog({
                 grand_total: correctTotalAmount,
             };
 
-            console.log("🔥 Transaction Payload with need_print_invoice:", {
+            console.log("Transaction Payload:", {
                 deviceId: transactionPayload.device_id,
                 invoiceNumber: transactionPayload.invoice_number,
                 customerId: transactionPayload.customer_id,
-                needPrintInvoice: transactionPayload.need_print_invoice, // 🔥 Log the new field
+                needPrintInvoice: transactionPayload.need_print_invoice,
                 grandTotal: transactionPayload.grand_total,
                 itemsCount: transactionPayload.items.length,
             });
-
-            console.log(
-                "🚀 Sending transaction payload with need_print_invoice:",
-                JSON.stringify(transactionPayload, null, 2)
-            );
 
             const response = await fetch("/api/transaction", {
                 method: "POST",
@@ -395,7 +391,7 @@ export default function PaymentDialog({
 
             const result = await response.json();
 
-            Swal.close();
+            Swal.close(); // Always close loading alert
 
             if (!response.ok) {
                 console.error("Transaction API error:", {
@@ -421,18 +417,25 @@ export default function PaymentDialog({
                 return;
             }
 
-            console.log("✅ Transaction successful:", result);
-            showSuccessAlert(
-                "Payment Successful!",
-                `Transaction ${invoiceNumber} has been processed successfully. Invoice will be printed automatically.`,
-                2000
-            );
+            console.log("Transaction successful:", result);
+
+            // 🔥 REMOVED: showSuccessAlert - no more SweetAlert success popup
+            // showSuccessAlert(
+            //     "Payment Successful!",
+            //     `Transaction ${invoiceNumber} has been processed successfully. Invoice will be printed automatically.`,
+            //     2000
+            // );
 
             resetForm();
 
-            onPaymentSuccess();
+            // Pass change data to success callback
+            onPaymentSuccess({
+                changeCash: payment.changeCash,
+                changeCC: payment.changeCC,
+                changeDC: payment.changeDC,
+            });
         } catch (error) {
-            console.error("❌ Payment error:", error);
+            console.error("Payment error:", error);
             Swal.close();
 
             let errorMessage =
@@ -470,7 +473,7 @@ export default function PaymentDialog({
     const renderPaymentMethodContent = () => {
         return (
             <div className="space-y-6">
-                {/* 🔥 UPDATED: Cash Section with Full Amount Button */}
+                {/* Cash Section with Full Amount Button */}
                 <div className="border border-gray-300 rounded-2xl p-4">
                     <div className="flex items-center gap-3 mb-4">
                         <div className="w-10 h-10 bg-green-50 rounded-xl flex items-center justify-center">
@@ -485,7 +488,6 @@ export default function PaymentDialog({
                         <span className="font-medium text-gray-900 text-lg">
                             Cash
                         </span>
-                        {/* 🔥 NEW: Full Amount Button for Cash */}
                         <button
                             onClick={handleCashFullAmount}
                             disabled={isProcessing}
@@ -514,7 +516,7 @@ export default function PaymentDialog({
                     </div>
                 </div>
 
-                {/* 🔥 UPDATED: Debit Card Section with Full Amount Button */}
+                {/* Debit Card Section with Full Amount Button */}
                 <div className="border border-gray-300 rounded-2xl p-4">
                     <div className="flex items-center gap-3 mb-4">
                         <div className="w-10 h-10 bg-blue-50 rounded-xl flex items-center justify-center">
@@ -534,7 +536,6 @@ export default function PaymentDialog({
                         <span className="font-medium text-gray-900 text-lg">
                             Debit Card
                         </span>
-                        {/* 🔥 NEW: Full Amount Button for Debit */}
                         <button
                             onClick={handleDebitFullAmount}
                             disabled={isProcessing}
@@ -644,7 +645,7 @@ export default function PaymentDialog({
                     </div>
                 </div>
 
-                {/* 🔥 UPDATED: Credit Card Section with Full Amount Button */}
+                {/* Credit Card Section with Full Amount Button */}
                 <div className="border border-gray-300 rounded-2xl p-4">
                     <div className="flex items-center gap-3 mb-4">
                         <div className="w-10 h-10 bg-blue-50 rounded-xl flex items-center justify-center">
@@ -664,7 +665,6 @@ export default function PaymentDialog({
                         <span className="font-medium text-gray-900 text-lg">
                             Credit Card
                         </span>
-                        {/* 🔥 NEW: Full Amount Button for Credit */}
                         <button
                             onClick={handleCreditFullAmount}
                             disabled={isProcessing}
