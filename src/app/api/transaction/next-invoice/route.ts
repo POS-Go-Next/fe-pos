@@ -1,4 +1,3 @@
-// app/api/transaction/next-invoice/route.ts - CORRECTED VERSION
 import { NextRequest, NextResponse } from "next/server";
 import { cookies } from "next/headers";
 
@@ -16,7 +15,6 @@ interface InvoiceApiResponse {
 
 export async function GET(request: NextRequest) {
     try {
-        // FIXED: Use cookies() for better server-side handling
         const cookieStore = cookies();
         const authToken =
             cookieStore.get("auth-token")?.value ||
@@ -32,7 +30,6 @@ export async function GET(request: NextRequest) {
             );
         }
 
-        // Get transaction_type from query params
         const { searchParams } = new URL(request.url);
         const transactionType = searchParams.get("transaction_type") || "1";
 
@@ -40,7 +37,6 @@ export async function GET(request: NextRequest) {
             `🔄 Fetching next invoice number for transaction_type: ${transactionType}`
         );
 
-        // Call external API
         const response = await fetch(
             `${API_BASE_URL}/transaction/next-invoice?transaction_type=${transactionType}`,
             {
@@ -52,7 +48,6 @@ export async function GET(request: NextRequest) {
                         ? authToken
                         : `Bearer ${authToken}`,
                 },
-                // Don't cache invoice numbers
                 next: { revalidate: 0 },
             }
         );
@@ -86,7 +81,6 @@ export async function GET(request: NextRequest) {
             );
         }
 
-        // FIXED: Validate response data
         if (!data.data || !data.data.invoice_number) {
             return NextResponse.json(
                 {
@@ -97,7 +91,6 @@ export async function GET(request: NextRequest) {
             );
         }
 
-        // FIXED: Return consistent format with success flag
         return NextResponse.json({
             success: true,
             message: "Next invoice number retrieved successfully",

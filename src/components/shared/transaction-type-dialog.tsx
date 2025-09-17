@@ -1,4 +1,3 @@
-// components/shared/transaction-type-dialog.tsx - ORIGINAL DESIGN
 "use client";
 
 import React, { useState } from "react";

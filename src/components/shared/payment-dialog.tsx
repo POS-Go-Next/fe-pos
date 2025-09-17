@@ -1,4 +1,3 @@
-// components/shared/payment-dialog.tsx - REMOVED SWEETALERT SUCCESS
 "use client";
 
 import { useState, useMemo } from "react";
@@ -391,7 +390,7 @@ export default function PaymentDialog({
 
             const result = await response.json();
 
-            Swal.close(); // Always close loading alert
+            Swal.close();
 
             if (!response.ok) {
                 console.error("Transaction API error:", {
@@ -418,17 +417,7 @@ export default function PaymentDialog({
             }
 
             console.log("Transaction successful:", result);
-
-            // 🔥 REMOVED: showSuccessAlert - no more SweetAlert success popup
-            // showSuccessAlert(
-            //     "Payment Successful!",
-            //     `Transaction ${invoiceNumber} has been processed successfully. Invoice will be printed automatically.`,
-            //     2000
-            // );
-
             resetForm();
-
-            // Pass change data to success callback
             onPaymentSuccess({
                 changeCash: payment.changeCash,
                 changeCC: payment.changeCC,
@@ -473,7 +462,6 @@ export default function PaymentDialog({
     const renderPaymentMethodContent = () => {
         return (
             <div className="space-y-6">
-                {/* Cash Section with Full Amount Button */}
                 <div className="border border-gray-300 rounded-2xl p-4">
                     <div className="flex items-center gap-3 mb-4">
                         <div className="w-10 h-10 bg-green-50 rounded-xl flex items-center justify-center">
@@ -516,7 +504,6 @@ export default function PaymentDialog({
                     </div>
                 </div>
 
-                {/* Debit Card Section with Full Amount Button */}
                 <div className="border border-gray-300 rounded-2xl p-4">
                     <div className="flex items-center gap-3 mb-4">
                         <div className="w-10 h-10 bg-blue-50 rounded-xl flex items-center justify-center">
@@ -645,7 +632,6 @@ export default function PaymentDialog({
                     </div>
                 </div>
 
-                {/* Credit Card Section with Full Amount Button */}
                 <div className="border border-gray-300 rounded-2xl p-4">
                     <div className="flex items-center gap-3 mb-4">
                         <div className="w-10 h-10 bg-blue-50 rounded-xl flex items-center justify-center">

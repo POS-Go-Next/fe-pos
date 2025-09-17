@@ -987,11 +987,7 @@ export default function ChooseMenuProductTable({
                 onPaymentSuccess={(changeData) => {
                     closeDialog("payment");
                     console.log("Payment successful from Ctrl+Space flow");
-
-                    // 🔥 NEW: Clear cart after payment success from Ctrl+Space
-                    // Trigger clear all products
                     if (onRemoveProduct) {
-                        // Clear all products by calling remove for each product
                         products.forEach((p) => {
                             if (p.name) onRemoveProduct(p.id);
                         });

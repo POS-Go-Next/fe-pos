@@ -1,4 +1,3 @@
-// components/shared/customer-doctor-dialog.tsx - IMPROVED FORM RESET
 "use client";
 
 import { Button } from "@/components/ui/button";
@@ -47,7 +46,6 @@ interface CustomerDoctorDialogProps {
     triggerPaymentFlow?: boolean;
 }
 
-// 🔥 NEW: Default form states for clean reset
 const DEFAULT_CUSTOMER_FORM: CustomerData = {
     id: 0,
     name: "",
@@ -89,22 +87,17 @@ export default function CustomerDoctorDialog({
     >({});
     const [isCreatingCustomer, setIsCreatingCustomer] = useState(false);
     const [isCreatingDoctor, setIsCreatingDoctor] = useState(false);
-
-    // 🔥 UPDATED: Initialize with default states
     const [customerForm, setCustomerForm] = useState<CustomerData>({
         ...DEFAULT_CUSTOMER_FORM,
     });
-
     const [doctorForm, setDoctorForm] = useState<DoctorFormData>({
         ...DEFAULT_DOCTOR_FORM,
     });
-
     const [doctorSearch, setDoctorSearch] = useState("");
     const [selectedDoctorId, setSelectedDoctorId] = useState<number | null>(
         null
     );
     const [isDoctorDropdownOpen, setIsDoctorDropdownOpen] = useState(false);
-
     const [customerSearch, setCustomerSearch] = useState("");
     const [selectedCustomerId, setSelectedCustomerId] = useState<number | null>(
         null
@@ -139,35 +132,23 @@ export default function CustomerDoctorDialog({
         search: customerSearch,
     });
 
-    // 🔥 NEW: Complete form reset function
     const resetAllFormData = () => {
         console.log("🔄 Resetting all form data to defaults");
-
-        // Reset customer form
         setCustomerForm({ ...DEFAULT_CUSTOMER_FORM });
-
-        // Reset doctor form
         setDoctorForm({ ...DEFAULT_DOCTOR_FORM });
-
-        // Reset UI states
         setCurrentFocus(initialFocus);
         setViewMode("both");
         setValidationErrors({});
-
-        // Reset selection states
         setSelectedDoctorId(null);
         setDoctorSearch("");
         setIsDoctorDropdownOpen(false);
         setSelectedCustomerId(null);
         setCustomerSearch("");
         setIsCustomerDropdownOpen(false);
-
-        // Reset loading states
         setIsCreatingCustomer(false);
         setIsCreatingDoctor(false);
     };
 
-    // 🔥 NEW: Effect to reset when dialog opens
     useEffect(() => {
         if (isOpen) {
             console.log("🔄 Dialog opened - performing complete reset");

@@ -1,4 +1,3 @@
-// app/create-order/choose-menu/page.tsx - FINAL VERSION WITH CTRL+SPACE FIX
 "use client";
 
 import OrderSummary from "@/components/shared/order-summary";
@@ -50,7 +49,6 @@ export default function ChooseMenuPage() {
     const [isTransactionHistoryOpen, setIsTransactionHistoryOpen] =
         useState(false);
 
-    // Stock Warning Dialog States
     const [stockWarningDialog, setStockWarningDialog] = useState({
         isOpen: false,
         productName: "",
@@ -86,14 +84,13 @@ export default function ChooseMenuPage() {
         }
     };
 
-    // CRITICAL: Stock validation - only block products with q_akhir === 0
     const validateStock = (
         product: ProductTableItem,
         requestedQuantity: number
     ): boolean => {
         const stockData = product.stockData;
         if (!stockData) {
-            return true; // If no stock data, allow (fallback)
+            return true;
         }
 
         const availableStock = stockData.q_akhir;
@@ -104,7 +101,6 @@ export default function ChooseMenuPage() {
             requestedQuantity,
         });
 
-        // ONLY block if stock is exactly 0
         if (availableStock === 0) {
             console.log("❌ VALIDATION FAILED: Stock is exactly 0");
             setStockWarningDialog({
@@ -117,7 +113,6 @@ export default function ChooseMenuPage() {
             return false;
         }
 
-        // Check if requested quantity exceeds available stock (only for positive numbers)
         if (
             availableStock &&
             availableStock > 0 &&
@@ -151,7 +146,6 @@ export default function ChooseMenuPage() {
                         misc: (product.misc || 0) + miscAmount,
                     };
 
-                    // Recalculate total with new misc value
                     const dynamicSC = getSCValueByType(product.type || "");
                     updatedProduct.total =
                         (updatedProduct.subtotal || 0) +
@@ -332,19 +326,16 @@ export default function ChooseMenuPage() {
             }));
     }, [products, parameterData]);
 
-    // CRITICAL: Quantity change with stock validation
     const handleQuantityChange = (id: number, value: number) => {
         if (!isClient) return;
 
         const productToValidate = products.find((product) => product.id === id);
         if (!productToValidate) return;
 
-        // Validate stock before updating
         if (!validateStock(productToValidate, value)) {
-            return; // Don't update quantity if validation fails
+            return;
         }
 
-        // If validation passes, update the quantity
         setProducts(
             products.map((product) => {
                 if (product.id === id) {
@@ -471,7 +462,6 @@ export default function ChooseMenuPage() {
         };
     };
 
-    // CRITICAL: Product selection with stock validation
     const handleProductSelect = (
         selectedStockData: StockData,
         productId: number
@@ -481,7 +471,6 @@ export default function ChooseMenuPage() {
             stock: selectedStockData.q_akhir,
         });
 
-        // ONLY block if stock is exactly 0
         const availableStock = selectedStockData.q_akhir;
 
         if (availableStock === 0) {
@@ -493,10 +482,9 @@ export default function ChooseMenuPage() {
                 availableStock: 0,
                 requestedQuantity: 1,
             });
-            return; // STOP execution here
+            return;
         }
 
-        // Allow adding to cart for all other cases
         console.log("✅ ALLOWED: Adding product to cart");
         const newProduct = convertStockToProduct(selectedStockData);
         setProducts((prevProducts) => [...prevProducts, newProduct]);
@@ -608,7 +596,6 @@ export default function ChooseMenuPage() {
                 }}
             />
 
-            {/* CRITICAL: Stock Warning Dialog - shows when trying to add/modify products with insufficient stock */}
             <StockWarningDialog
                 isOpen={stockWarningDialog.isOpen}
                 onClose={handleStockWarningClose}

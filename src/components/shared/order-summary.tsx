@@ -1,4 +1,3 @@
-// components/shared/order-summary.tsx - ADDED INVOICE REFETCH AND FORM RESET
 "use client";
 
 import { useState } from "react";
@@ -101,19 +100,12 @@ export default function OrderSummary({
     );
     const [transactionTypeData, setTransactionTypeData] =
         useState<TransactionTypeData | null>(null);
-
-    // 🔥 NEW: Key state to force dialog re-render and reset
     const [dialogKey, setDialogKey] = useState(0);
-
     const grandTotal = subtotal - discount + serviceCharge + misc - promo;
-
     const isDialogOpen = isCustomerDoctorDialogOpen || internalDialogOpen;
-
-    // 🔥 NEW: Function to refetch invoice number
     const refetchInvoiceNumber = async () => {
         try {
             console.log("🔄 Refetching invoice number...");
-            // This will trigger the useTransactionInfo hook to refetch
             window.dispatchEvent(new CustomEvent("refetch-transaction-info"));
         } catch (error) {
             console.error("Error refetching invoice:", error);
@@ -138,25 +130,16 @@ export default function OrderSummary({
         resetAllStates();
     };
 
-    const handleCancelPendingBill = () => {
-        // Just close the dialog without doing anything
-    };
+    const handleCancelPendingBill = () => {};
 
     const handlePayNowClick = async () => {
         if (products.length === 0) {
             alert("No products to process payment");
             return;
         }
-
-        // 🔥 NEW: Refetch invoice number when opening payment flow
         await refetchInvoiceNumber();
-
-        // 🔥 NEW: Reset dialog key to force fresh form state
         setDialogKey((prev) => prev + 1);
-
-        // Reset form states
         resetAllStates();
-
         setInternalDialogOpen(true);
     };
 
@@ -234,8 +217,6 @@ export default function OrderSummary({
         } else {
             setInternalDialogOpen(false);
         }
-
-        // 🔥 UPDATED: Reset states and increment key when closing
         resetAllStates();
         setDialogKey((prev) => prev + 1);
     };
@@ -348,7 +329,6 @@ export default function OrderSummary({
                 onDone={handlePendingBillSavedDone}
             />
 
-            {/* 🔥 UPDATED: Added key prop to force dialog reset */}
             <CustomerDoctorDialog
                 key={dialogKey}
                 isOpen={isDialogOpen}

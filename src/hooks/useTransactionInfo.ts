@@ -1,4 +1,3 @@
-// hooks/useTransactionInfo.ts - ADDED EVENT LISTENER FOR REFETCH
 "use client";
 
 import { useState, useEffect, useCallback } from "react";
@@ -175,11 +174,9 @@ export const useTransactionInfo = (): UseTransactionInfoReturn => {
                         headers: { "Content-Type": "application/json" },
                     }),
 
-                    // 🔥 UPDATED: Add cache-busting to ensure fresh invoice number
                     fetch(`/api/transaction/next-invoice?t=${Date.now()}`, {
                         method: "GET",
                         headers: { "Content-Type": "application/json" },
-                        // Disable caching
                         cache: "no-store",
                     }),
                 ]);
@@ -247,7 +244,6 @@ export const useTransactionInfo = (): UseTransactionInfoReturn => {
     useEffect(() => {
         fetchTransactionInfo();
 
-        // 🔥 NEW: Add event listener for manual refetch
         const handleRefetch = () => {
             console.log("🔄 Manual refetch triggered via event");
             fetchTransactionInfo();
@@ -255,7 +251,6 @@ export const useTransactionInfo = (): UseTransactionInfoReturn => {
 
         window.addEventListener("refetch-transaction-info", handleRefetch);
 
-        // Cleanup event listener
         return () => {
             window.removeEventListener(
                 "refetch-transaction-info",
