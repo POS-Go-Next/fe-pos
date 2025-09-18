@@ -1,4 +1,3 @@
-// components/shared/FingerprintCard.tsx
 "use client";
 
 import { FC } from "react";

@@ -45,6 +45,7 @@ const KassaSetupDialog: FC<KassaSetupDialogProps> = ({
     const [isLoginDialogOpen, setIsLoginDialogOpen] = useState(false);
     const [isCheckingToken, setIsCheckingToken] = useState(true);
     const [isDataLoaded, setIsDataLoaded] = useState(false);
+    const [hasLoadedFromStorage, setHasLoadedFromStorage] = useState(false);
     const { logout } = useAuth();
 
     const {
@@ -93,14 +94,64 @@ const KassaSetupDialog: FC<KassaSetupDialogProps> = ({
     );
 
     useEffect(() => {
+        if (
+            typeof window !== "undefined" &&
+            deviceId &&
+            hasValidToken &&
+            !hasLoadedFromStorage
+        ) {
+            const savedData = localStorage.getItem(`kassa-setup-${deviceId}`);
+            if (savedData) {
+                try {
+                    const parsedData = JSON.parse(savedData);
+                    setFormData(parsedData.formData);
+                    setSelectedPrinterId(parsedData.selectedPrinterId);
+                    setHasLoadedFromStorage(true);
+                    console.log(
+                        "🔄 Loaded data from localStorage:",
+                        parsedData
+                    );
+                } catch (error) {
+                    console.error("Error parsing saved data:", error);
+                }
+            }
+        }
+    }, [deviceId, hasValidToken, hasLoadedFromStorage]);
+
+    useEffect(() => {
+        if (
+            typeof window !== "undefined" &&
+            deviceId &&
+            hasValidToken &&
+            hasLoadedFromStorage
+        ) {
+            const dataToSave = {
+                formData,
+                selectedPrinterId,
+            };
+            localStorage.setItem(
+                `kassa-setup-${deviceId}`,
+                JSON.stringify(dataToSave)
+            );
+            console.log("💾 Saved data to localStorage:", dataToSave);
+        }
+    }, [
+        formData,
+        selectedPrinterId,
+        deviceId,
+        hasValidToken,
+        hasLoadedFromStorage,
+    ]);
+
+    useEffect(() => {
         if (isOpen) {
             checkTokenStatus();
         }
     }, [isOpen]);
 
     useEffect(() => {
-        if (kassaData && deviceId && !isDataLoaded) {
-            console.log("🪟 Loading kassa data into form:", kassaData);
+        if (kassaData && deviceId && !isDataLoaded && !hasLoadedFromStorage) {
+            console.log("🪟 Loading kassa data from API:", kassaData);
 
             setFormData({
                 default_jual: kassaData.default_jual as "1" | "2",
@@ -115,18 +166,34 @@ const KassaSetupDialog: FC<KassaSetupDialogProps> = ({
                 setSelectedPrinterId(kassaData.printer.id);
             }
 
+            setHasLoadedFromStorage(true);
             setIsDataLoaded(true);
-        } else if (!kassaData && deviceId && hasValidToken && !isKassaLoading) {
-            console.log("🪟 Using system info for new kassa setup");
+        } else if (
+            !kassaData &&
+            deviceId &&
+            hasValidToken &&
+            !isKassaLoading &&
+            !isDataLoaded &&
+            !hasLoadedFromStorage
+        ) {
+            console.log("🪟 Using default values for new kassa setup");
 
             setFormData((prev) => ({
                 ...prev,
                 device_id: deviceId,
             }));
 
+            setHasLoadedFromStorage(true);
             setIsDataLoaded(true);
         }
-    }, [kassaData, deviceId, hasValidToken, isKassaLoading, isDataLoaded]);
+    }, [
+        kassaData,
+        deviceId,
+        hasValidToken,
+        isKassaLoading,
+        isDataLoaded,
+        hasLoadedFromStorage,
+    ]);
 
     useEffect(() => {
         if (printerSessionExpired) {
@@ -143,9 +210,10 @@ const KassaSetupDialog: FC<KassaSetupDialogProps> = ({
     }, [kassaSessionExpired]);
 
     const checkTokenStatus = async () => {
-        console.log("🔒 CHECKING TOKEN STATUS...");
+        console.log("🔑 CHECKING TOKEN STATUS...");
         setIsCheckingToken(true);
         setIsDataLoaded(false);
+        setHasLoadedFromStorage(false);
 
         try {
             const response = await fetch(`/api/kassa/${deviceId}`, {
@@ -155,7 +223,7 @@ const KassaSetupDialog: FC<KassaSetupDialogProps> = ({
                 },
             });
 
-            console.log("🔒 API Test Response status:", response.status);
+            console.log("🔑 API Test Response status:", response.status);
 
             if (response.ok) {
                 console.log("✅ API CALL SUCCESS: User is authenticated");
@@ -247,6 +315,7 @@ const KassaSetupDialog: FC<KassaSetupDialogProps> = ({
         setHasValidToken(true);
         setIsLoginDialogOpen(false);
         setIsDataLoaded(false);
+        setHasLoadedFromStorage(false);
     };
 
     const handleLoginClose = () => {
@@ -406,6 +475,10 @@ const KassaSetupDialog: FC<KassaSetupDialogProps> = ({
                 1500
             );
 
+            console.log(
+                "✅ Kassa setup submitted successfully - keeping localStorage data"
+            );
+
             onSubmit();
             handleLogoutAndClose();
         } catch (error) {
@@ -419,6 +492,11 @@ const KassaSetupDialog: FC<KassaSetupDialogProps> = ({
     };
 
     const handleCancel = async () => {
+        if (typeof window !== "undefined" && deviceId) {
+            localStorage.removeItem(`kassa-setup-${deviceId}`);
+            console.log("🗑️ Cleared localStorage on cancel");
+        }
+
         setFormData({
             default_jual: "1",
             status_aktif: true,
@@ -429,11 +507,15 @@ const KassaSetupDialog: FC<KassaSetupDialogProps> = ({
         });
         setSelectedPrinterId(null);
         setIsDataLoaded(false);
+        setHasLoadedFromStorage(false);
         handleLogoutAndClose();
     };
 
     const isLoading =
-        isKassaLoading || isSubmitting || !isDataLoaded || isPrinterLoading;
+        isKassaLoading ||
+        isSubmitting ||
+        !hasLoadedFromStorage ||
+        isPrinterLoading;
 
     return (
         <div className="fixed inset-0 flex items-center justify-center z-50">

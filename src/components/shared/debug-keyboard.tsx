@@ -1,4 +1,3 @@
-// components/shared/debug-keyboard.tsx - FIXED VERSION
 "use client";
 
 import { useState, useEffect } from "react";
