@@ -1,4 +1,3 @@
-// components/shared/AuthenticationManager.tsx - FIXED STATE MANAGEMENT
 "use client";
 
 import { useState, useCallback, useRef } from "react";

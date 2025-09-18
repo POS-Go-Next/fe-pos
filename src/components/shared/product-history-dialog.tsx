@@ -1,4 +1,3 @@
-// components/shared/product-history-dialog.tsx - FIXED PAGINATION AND SCROLL
 "use client";
 
 import React, { useState, useEffect, useRef } from "react";
@@ -140,7 +139,6 @@ export default function ProductHistoryDialog({
         }
     }, [searchInput]);
 
-    // FIXED: Simplified filtering - use API data directly for pagination
     const filteredHistoryData = React.useMemo(() => {
         if (!searchTerm) return historyData;
 
@@ -156,7 +154,6 @@ export default function ProductHistoryDialog({
         });
     }, [historyData, searchTerm]);
 
-    // FIXED: Use API pagination data properly
     const displayData = searchTerm ? filteredHistoryData : historyData;
     const displayTotalPages = searchTerm
         ? Math.ceil(filteredHistoryData.length / pageSize)
@@ -173,11 +170,9 @@ export default function ProductHistoryDialog({
 
     const handlePageChange = (page: number) => {
         if (searchTerm) {
-            // For local search, use client-side pagination
             const maxPages = Math.ceil(filteredHistoryData.length / pageSize);
             if (page < 1 || page > maxPages) return;
         } else {
-            // For API pagination
             if (page < 1 || page > totalPages) return;
         }
         setCurrentPage(page);
@@ -208,7 +203,6 @@ export default function ProductHistoryDialog({
     return (
         <div className="fixed inset-0 bg-black/50 z-50 flex items-center justify-center p-4">
             <div className="bg-white rounded-2xl w-full max-w-6xl max-h-[95vh] flex flex-col shadow-2xl">
-                {/* Header */}
                 <div className="flex items-center justify-between p-6 border-b border-gray-200 flex-shrink-0">
                     <h2 className="text-xl font-semibold text-gray-900">
                         History Product - {productName}
@@ -226,7 +220,6 @@ export default function ProductHistoryDialog({
                     </button>
                 </div>
 
-                {/* Search and Filter Controls */}
                 <div className="p-6 border-b border-gray-200 flex-shrink-0">
                     <div className="flex items-center gap-3">
                         <div className="relative flex-1">
@@ -261,7 +254,6 @@ export default function ProductHistoryDialog({
                     </div>
                 </div>
 
-                {/* Main Content Area */}
                 <div className="flex-1 min-h-0 flex flex-col p-6">
                     {error && (
                         <div className="bg-red-50 border border-red-200 rounded-lg p-4 mb-6 flex-shrink-0">
@@ -271,7 +263,6 @@ export default function ProductHistoryDialog({
                         </div>
                     )}
 
-                    {/* FIXED: Table Container with proper scroll and height */}
                     <div className="flex-1 min-h-0 border border-gray-200 rounded-lg overflow-hidden">
                         <div
                             ref={tableContainerRef}
@@ -279,7 +270,7 @@ export default function ProductHistoryDialog({
                             style={{
                                 scrollbarWidth: "thin",
                                 scrollbarColor: "#3b82f6 #f1f5f9",
-                                maxHeight: "400px", // Fixed height for scroll
+                                maxHeight: "400px",
                             }}
                         >
                             <table className="w-full border-collapse min-w-[1200px]">
@@ -332,7 +323,6 @@ export default function ProductHistoryDialog({
                                             </td>
                                         </tr>
                                     ) : displayData.length > 0 ? (
-                                        // FIXED: Show all data from API (should be 10 items per page)
                                         displayData.map((record, index) => (
                                             <tr
                                                 key={record.receipt_id}
@@ -397,7 +387,6 @@ export default function ProductHistoryDialog({
                         </div>
                     </div>
 
-                    {/* Pagination Controls */}
                     {displayData.length > 0 && (
                         <div className="mt-4 flex justify-between items-center flex-shrink-0">
                             <div className="flex items-center gap-4">
@@ -460,7 +449,6 @@ export default function ProductHistoryDialog({
                 </div>
             </div>
 
-            {/* Custom Scrollbar Styles */}
             <style jsx>{`
                 .table-scroll-container {
                     scrollbar-width: thin;

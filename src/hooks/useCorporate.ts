@@ -1,4 +1,3 @@
-// hooks/useCorporate.ts
 "use client";
 
 import { useState, useEffect } from "react";
@@ -36,10 +35,9 @@ export const useCorporate = (
             const queryParams = new URLSearchParams({
                 offset: offset.toString(),
                 limit: limit.toString(),
-                type, // Required parameter
+                type,
             });
 
-            // Add search parameter if provided
             if (search.trim()) {
                 queryParams.append("search", search.trim());
             }

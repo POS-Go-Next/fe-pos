@@ -1,4 +1,3 @@
-// components/shared/DataTable.tsx
 "use client";
 
 import React, { ReactNode, useState } from "react";
@@ -423,7 +422,6 @@ function DataTable<T = any>({
                 </table>
             </div>
 
-            {/* Pagination */}
             {pagination?.showPagination && (
                 <div className="p-4 border-t border-gray-200">
                     <Pagination

@@ -1,4 +1,3 @@
-// types/user.ts
 export interface UserData {
     id: number;
     fullname: string;
@@ -7,10 +6,8 @@ export interface UserData {
     phone?: string;
     role_id: number;
     position_id?: number;
-    // Updated field names to match API response
     fingerprint1Exist?: boolean;
     fingerprint2Exist?: boolean;
-    // Keep backward compatibility
     fingerprint1?: string;
     fingerprint2?: string;
 }

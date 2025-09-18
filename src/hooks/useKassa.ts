@@ -1,4 +1,3 @@
-// hooks/useKassa.ts
 "use client";
 
 import { useState } from "react";

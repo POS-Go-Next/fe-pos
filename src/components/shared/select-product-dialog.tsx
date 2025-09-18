@@ -1,4 +1,3 @@
-// components/shared/select-product-dialog.tsx - FIXED SYNTAX ERRORS
 "use client";
 
 import { Button } from "@/components/ui/button";
@@ -44,8 +43,6 @@ export default function SelectProductDialog({
         useState<string>("");
     const [selectedProductCodeForHistory, setSelectedProductCodeForHistory] =
         useState<string>("");
-
-    // Stock Warning Dialog States
     const [stockWarningDialog, setStockWarningDialog] = useState({
         isOpen: false,
         productName: "",
@@ -236,7 +233,6 @@ export default function SelectProductDialog({
         setApiParams({ offset: 0, limit: pageSize, search: "" });
     };
 
-    // CRITICAL: Stock validation - only block products with q_akhir === 0
     const handleSelectProduct = (product: StockData) => {
         console.log("🔥 SELECTING PRODUCT:", {
             name: product.nama_brg,
@@ -244,7 +240,6 @@ export default function SelectProductDialog({
             stock: product.q_akhir,
         });
 
-        // ONLY block if stock is exactly 0
         if (product.q_akhir === 0) {
             console.log("❌ BLOCKED: Stock is 0, showing warning");
             setStockWarningDialog({
@@ -254,10 +249,9 @@ export default function SelectProductDialog({
                 availableStock: 0,
                 requestedQuantity: 1,
             });
-            return; // Stop execution - don't add to cart
+            return;
         }
 
-        // Allow selection for all other cases
         console.log("✅ ALLOWED: Adding to cart");
         onSelectProduct(product);
         handleClose();
@@ -300,7 +294,6 @@ export default function SelectProductDialog({
         }
     };
 
-    // UPDATED: History click handler to pass both name and code
     const handleHistoryClick = () => {
         if (selectedIndex >= 0 && stockList[selectedIndex]) {
             const selectedProduct = stockList[selectedIndex];
@@ -518,7 +511,6 @@ export default function SelectProductDialog({
                                             </tr>
                                         ) : stockList.length > 0 ? (
                                             stockList.map((product, index) => {
-                                                // CRITICAL: Check if product is out of stock (q_akhir === 0)
                                                 const isOutOfStock =
                                                     product.q_akhir === 0;
 
@@ -566,7 +558,6 @@ export default function SelectProductDialog({
                                                             }
                                                         >
                                                             {product.nama_brg}
-                                                            {/* CRITICAL: Show HABIS label for out of stock products */}
                                                             {isOutOfStock && (
                                                                 <span className="ml-2 text-xs bg-red-100 text-red-600 px-2 py-1 rounded font-bold">
                                                                     HABIS
@@ -606,7 +597,6 @@ export default function SelectProductDialog({
                                                         <td className="h-[48px] px-4 text-sm font-medium text-green-600 whitespace-nowrap overflow-hidden text-ellipsis">
                                                             {product.q_bbs || 0}
                                                         </td>
-                                                        {/* FIXED: Stock column with proper q_akhir display */}
                                                         <td
                                                             className={`h-[48px] px-4 text-sm font-bold whitespace-nowrap overflow-hidden text-ellipsis ${
                                                                 product.q_akhir ===
@@ -620,7 +610,6 @@ export default function SelectProductDialog({
                                                                     : "text-green-600"
                                                             }`}
                                                         >
-                                                            {/* Display actual q_akhir value with proper formatting */}
                                                             {product.q_akhir !=
                                                             null
                                                                 ? product.q_akhir.toLocaleString(
@@ -737,7 +726,6 @@ export default function SelectProductDialog({
                 </div>
             </div>
 
-            {/* UPDATED: Pass both productName and productCode to ProductHistoryDialog */}
             <ProductHistoryDialog
                 isOpen={isHistoryDialogOpen}
                 onClose={handleHistoryDialogClose}
@@ -754,7 +742,6 @@ export default function SelectProductDialog({
                 requestedQuantity={stockWarningDialog.requestedQuantity}
             />
 
-            {/* UPDATED: Custom Scrollbar Styles - Same as History Product */}
             <style jsx>{`
                 div[ref] {
                     scrollbar-width: thin;

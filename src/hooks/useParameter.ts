@@ -1,4 +1,3 @@
-// hooks/useParameter.ts - FIXED VERSION
 "use client";
 
 import { useState, useEffect } from "react";
@@ -114,10 +113,8 @@ export const useParameter = (): UseParameterReturn => {
                 timestamp: new Date().toISOString(),
             });
 
-            // 🔥 FIX 1: Add cache-busting with timestamp AND random number to ensure fresh data
             const cacheBuster = `?_t=${Date.now()}&_r=${Math.random()}`;
 
-            // 🔥 FIX 2: Stronger cache control headers
             const response = await fetch(`/api/parameter/me${cacheBuster}`, {
                 method: "GET",
                 headers: {
@@ -126,11 +123,9 @@ export const useParameter = (): UseParameterReturn => {
                         "no-cache, no-store, must-revalidate, max-age=0",
                     Pragma: "no-cache",
                     Expires: "0",
-                    // 🔥 FIX 3: Add additional headers to prevent any caching
                     "If-None-Match": "*",
                     "If-Modified-Since": "Thu, 01 Jan 1970 00:00:00 GMT",
                 },
-                // 🔥 FIX 4: Disable Next.js caching completely
                 cache: "no-store",
             });
 
@@ -147,13 +142,11 @@ export const useParameter = (): UseParameterReturn => {
                 kd_area: result.data?.kd_area,
                 kd_cab: result.data?.kd_cab,
                 timestamp: new Date().toISOString(),
-                // 🔥 FIX 5: Log important fields to verify data freshness
                 service: result.data?.service,
                 roundup_resep: result.data?.roundup_resep,
             });
 
             if (result.data) {
-                // 🔥 FIX 6: Force re-render by creating new object reference
                 setParameterData({ ...result.data });
             } else {
                 throw new Error("Invalid response format");
@@ -184,7 +177,6 @@ export const useParameter = (): UseParameterReturn => {
                 method: "POST",
                 headers: {
                     "Content-Type": "application/json",
-                    // 🔥 FIX 7: Prevent caching of POST request
                     "Cache-Control": "no-cache, no-store, must-revalidate",
                 },
                 body: JSON.stringify(updatedData),
@@ -206,7 +198,6 @@ export const useParameter = (): UseParameterReturn => {
             const responseData = await response.json();
             console.log("✅ API Success Response:", responseData);
 
-            // 🔥 FIX 8: IMMEDIATELY update local state with merged data
             if (parameterData) {
                 const updatedParameterData = {
                     ...parameterData,
@@ -227,11 +218,10 @@ export const useParameter = (): UseParameterReturn => {
                 setParameterData(updatedParameterData);
             }
 
-            // 🔥 FIX 9: Force refresh from server after shorter delay
             setTimeout(async () => {
                 console.log("🔄 FORCED refresh from server after update...");
                 await fetchParameter(true);
-            }, 500); // Reduced from 1000ms to 500ms
+            }, 500);
 
             return true;
         } catch (err) {

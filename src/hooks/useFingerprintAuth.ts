@@ -1,4 +1,3 @@
-// hooks/useFingerprintAuth.ts
 "use client";
 
 import { useState } from "react";

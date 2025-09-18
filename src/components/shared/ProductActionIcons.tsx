@@ -1,4 +1,3 @@
-// components/shared/ProductActionIcons.tsx
 "use client";
 
 import React from "react";

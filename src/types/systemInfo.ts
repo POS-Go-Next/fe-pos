@@ -1,4 +1,3 @@
-// types/systemInfo.ts
 export interface NetworkInterface {
     name: string;
     ipAddress: string;

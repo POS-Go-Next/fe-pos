@@ -1,4 +1,3 @@
-// components/shared/card.tsx
 "use client";
 
 import React from "react";

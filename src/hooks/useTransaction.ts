@@ -1,4 +1,3 @@
-// hooks/useTransaction.ts - UPDATED WITH PRODUCT CODE FILTER
 "use client";
 
 import { useState, useEffect } from "react";

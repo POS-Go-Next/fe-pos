@@ -1,4 +1,3 @@
-// lib/sessionHandler.ts
 import { showErrorAlert } from "@/lib/swal";
 import Swal from "sweetalert2";
 
@@ -70,10 +69,8 @@ export const handleSessionExpired = () => {
     }
 };
 
-// Add new function to handle logout via API
 export const handleLogout = async (): Promise<void> => {
     try {
-        // Call logout API endpoint
         const response = await fetch("/api/auth/logout", {
             method: "POST",
             headers: {
@@ -88,7 +85,6 @@ export const handleLogout = async (): Promise<void> => {
     } catch (error) {
         console.warn("Logout API error, proceeding with local cleanup:", error);
     } finally {
-        // Always clean up local storage and redirect regardless of API response
         handleSessionExpired();
     }
 };

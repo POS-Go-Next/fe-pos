@@ -1,4 +1,3 @@
-// hooks/useMedicationDetail.ts
 "use client";
 
 import { useState, useEffect } from "react";
@@ -20,7 +19,6 @@ interface MedicationDetailData {
     moq: number;
     hna: number;
     tgl_berlaku_nie: string;
-    // Additional fields from with_info_obat
     info_obat?: {
         deskripsi?: string;
         indikasi?: string;
@@ -35,7 +33,6 @@ interface MedicationDetailData {
         nama_pabrik?: string;
         no_reg?: string;
     };
-    // Additional fields from with_product_images - Updated structure
     product_images?: Array<{
         id: number;
         kd_brgdg: string;
@@ -43,7 +40,7 @@ interface MedicationDetailData {
         gambar: string;
         main_display: boolean;
         created_at: string;
-        is_primary?: boolean; // Keep for backward compatibility
+        is_primary?: boolean;
     }>;
 }
 
@@ -85,13 +82,11 @@ export const useMedicationDetail = ({
             setIsLoading(true);
             setError(null);
 
-            // Build query parameters
             const queryParams = new URLSearchParams({
                 with_info_obat: "true",
                 with_product_images: "true",
             });
 
-            // Call our Next.js API route
             const response = await fetch(
                 `/api/stock/${kode_brg}?${queryParams.toString()}`,
                 {
@@ -104,7 +99,6 @@ export const useMedicationDetail = ({
 
             const data: MedicationDetailApiResponse = await response.json();
 
-            // Enhanced logging for debugging
             console.log("Frontend received medication detail:", {
                 success: data.success,
                 hasData: !!data.data,
@@ -124,7 +118,6 @@ export const useMedicationDetail = ({
             }
 
             if (data.success && data.data) {
-                // Process the data to ensure product_images have consistent structure
                 const processedData = { ...data.data };
                 if (
                     processedData.product_images &&
@@ -134,11 +127,11 @@ export const useMedicationDetail = ({
                         processedData.product_images.map((img: any) => ({
                             id: img.id,
                             kd_brgdg: img.kd_brgdg,
-                            url: img.url || img.gambar, // Ensure 'url' field exists
+                            url: img.url || img.gambar,
                             gambar: img.gambar,
                             main_display: img.main_display,
                             created_at: img.created_at,
-                            is_primary: img.main_display, // Map for backward compatibility
+                            is_primary: img.main_display,
                         }));
                 }
 

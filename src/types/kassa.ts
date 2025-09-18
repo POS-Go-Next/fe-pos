@@ -1,4 +1,3 @@
-// types/kassa.ts - EXTENDED VERSION
 export interface KassaSetupData {
     antrian: boolean;
     status_aktif: boolean;

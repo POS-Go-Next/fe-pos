@@ -1,4 +1,3 @@
-// components/shared/transaction-info.tsx - UPDATED WITH API INTEGRATION
 "use client";
 
 import { useState, useEffect } from "react";

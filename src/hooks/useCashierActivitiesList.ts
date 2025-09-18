@@ -1,4 +1,3 @@
-// hooks/useCashierActivitiesList.ts
 "use client";
 
 import { isSessionExpired } from "@/lib/sessionHandler";

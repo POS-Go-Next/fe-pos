@@ -1,4 +1,3 @@
-// types/promo.ts
 export interface PromoData {
     no_promo: string;
     jns_promo: string;
@@ -63,7 +62,6 @@ export interface PromoFormData {
     is_active?: boolean;
 }
 
-// Transformed interface for UI display
 export interface PromoDisplayData {
     id: string;
     promo_id: string;

@@ -1,4 +1,3 @@
-// hooks/useEmployeeSelection.ts - FINAL SIMPLIFIED VERSION
 "use client";
 
 import { useState, useEffect, useCallback, useRef } from "react";

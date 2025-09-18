@@ -1,4 +1,3 @@
-// components/shared/ReusableTable.tsx
 "use client";
 
 import React, { ReactNode } from "react";

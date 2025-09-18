@@ -1,4 +1,3 @@
-// types/corporate.ts
 export interface CorporateData {
     kd_corp: string;
     nm_corp: string;
@@ -54,10 +53,9 @@ export interface CorporateApiParams {
     offset?: number;
     limit?: number;
     search?: string;
-    type: "corporate"; // Required parameter
+    type: "corporate";
 }
 
-// Interface for simplified corporate data used in dialog
 export interface CorporateDialogData {
     idCorp: string;
     corporateName: string;
@@ -67,15 +65,14 @@ export interface CorporateDialogData {
     margin: boolean;
 }
 
-// Helper function to transform API data to dialog data
 export const transformCorporateApiToDialog = (
     corporate: CorporateData
 ): CorporateDialogData => {
     return {
         idCorp: corporate.kd_corp,
-        corporateName: corporate.nm_corp.trim(), // Remove trailing spaces
+        corporateName: corporate.nm_corp.trim(),
         rules: corporate.rules,
-        rules1: corporate.rules2, // Using rules2 as rules1
+        rules1: corporate.rules2,
         piutang: corporate.piutang,
         margin: corporate.margin || false,
     };

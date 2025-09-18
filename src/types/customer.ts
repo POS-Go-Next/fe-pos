@@ -1,81 +1,78 @@
-// types/customer.ts
 export interface CustomerData {
-  kd_cust: number;
-  nm_cust: string;
-  usia_cust: number;
-  gender: string;
-  telp_cust: string;
-  al_cust: string;
-  status: boolean;
-  created_at: string;
-  updated_at: string;
+    kd_cust: number;
+    nm_cust: string;
+    usia_cust: number;
+    gender: string;
+    telp_cust: string;
+    al_cust: string;
+    status: boolean;
+    created_at: string;
+    updated_at: string;
 }
 
 export interface CustomerPaginationData {
-  docs: CustomerData[];
-  totalDocs: number;
-  page: number;
-  totalPages: number;
+    docs: CustomerData[];
+    totalDocs: number;
+    page: number;
+    totalPages: number;
 }
 
 export interface CustomerApiResponse {
-  success: boolean;
-  message: string;
-  data?: CustomerPaginationData;
-  errors?: any;
+    success: boolean;
+    message: string;
+    data?: CustomerPaginationData;
+    errors?: any;
 }
 
 export interface CustomerExternalApiResponse {
-  message: string;
-  data: CustomerPaginationData;
+    message: string;
+    data: CustomerPaginationData;
 }
 
 export interface CustomerApiParams {
-  offset?: number;
-  limit?: number;
-  search?: string;
-  sort_by?: string;
-  sort_order?: "asc" | "desc";
+    offset?: number;
+    limit?: number;
+    search?: string;
+    sort_by?: string;
+    sort_order?: "asc" | "desc";
 }
 
 export interface CustomerFormData {
-  id: number;
-  name: string;
-  gender: string;
-  age: string;
-  phone: string;
-  address: string;
-  status: string;
+    id: number;
+    name: string;
+    gender: string;
+    age: string;
+    phone: string;
+    address: string;
+    status: string;
 }
 
-// Helper function to transform API data to form data
 export const transformCustomerApiToForm = (
-  customer: CustomerData
+    customer: CustomerData
 ): CustomerFormData => {
-  return {
-    id: customer.kd_cust,
-    name: customer.nm_cust,
-    gender: customer.gender === "male" ? "Male" : "Female",
-    age: customer.usia_cust.toString(),
-    phone: customer.telp_cust.startsWith("+62")
-      ? customer.telp_cust
-      : `+62 ${customer.telp_cust}`,
-    address: customer.al_cust,
-    status: customer.status ? "AKTIF" : "TIDAK AKTIF",
-  };
+    return {
+        id: customer.kd_cust,
+        name: customer.nm_cust,
+        gender: customer.gender === "male" ? "Male" : "Female",
+        age: customer.usia_cust.toString(),
+        phone: customer.telp_cust.startsWith("+62")
+            ? customer.telp_cust
+            : `+62 ${customer.telp_cust}`,
+        address: customer.al_cust,
+        status: customer.status ? "AKTIF" : "TIDAK AKTIF",
+    };
 };
 
-// Helper function to transform form data to API data
 export const transformCustomerFormToApi = (
-  form: CustomerFormData
+    form: CustomerFormData
 ): Partial<CustomerData> => {
-  return {
-    kd_cust: form.id,
-    nm_cust: form.name,
-    usia_cust: parseInt(form.age) || 0,
-    gender: form.gender.toLowerCase(),
-    telp_cust: form.phone.replace("+62 ", ""),
-    al_cust: form.address,
-    status: form.status === "AKTIF",
-  };
+    return {
+        kd_cust: form.id,
+        nm_cust: form.name,
+        usia_cust: parseInt(form.age) || 0,
+        gender: form.gender.toLowerCase(),
+        telp_cust: form.phone.replace("+62 ", ""),
+        al_cust: form.address,
+        status: form.status === "AKTIF",
+    };
 };

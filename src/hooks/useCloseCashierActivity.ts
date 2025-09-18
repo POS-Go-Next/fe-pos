@@ -1,4 +1,3 @@
-// hooks/useCloseCashierActivity.ts
 "use client";
 
 import { isSessionExpired } from "@/lib/sessionHandler";

@@ -1,4 +1,3 @@
-// hooks/useSystemInfo.ts
 "use client";
 
 import type { SystemInfoData, SystemInfoResponse } from "@/types/systemInfo";
@@ -57,7 +56,6 @@ export const useSystemInfo = (): UseSystemInfoReturn => {
 
             setSystemInfo(result.data);
 
-            // Set device ID if available
             if (result.data.deviceConfig && result.data.deviceConfig.deviceId) {
                 setDeviceId(result.data.deviceConfig.deviceId);
                 console.log("🆔 Device ID:", result.data.deviceConfig.deviceId);

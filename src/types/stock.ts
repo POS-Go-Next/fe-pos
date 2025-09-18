@@ -1,4 +1,3 @@
-// types/stock.ts
 export interface StockData {
     kode_brg: string;
     nama_brg: string;
@@ -19,7 +18,7 @@ export interface StockData {
     hna: number;
     moq?: number;
     min_bulan_ed?: number;
-    q_akhir?: number; // 🔥 NEW: Field for remaining stock
+    q_akhir?: number;
 }
 
 export interface StockPaginationData {

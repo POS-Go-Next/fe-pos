@@ -1,4 +1,3 @@
-// components/shared/stock-warning-dialog.tsx
 import React from "react";
 import { AlertTriangle, X } from "lucide-react";
 

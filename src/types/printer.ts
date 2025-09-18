@@ -1,4 +1,3 @@
-// types/printer.ts
 export interface PrinterData {
     id: number;
     nm_printer: string;

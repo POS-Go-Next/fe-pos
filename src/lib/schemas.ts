@@ -1,7 +1,5 @@
-// lib/schemas.ts
 import { z } from "zod";
 
-// Login schema - Base schema for form validation
 export const loginSchema = z.object({
     username: z
         .string()
@@ -15,7 +13,6 @@ export const loginSchema = z.object({
 
 export type LoginData = z.infer<typeof loginSchema>;
 
-// Extended login schema for API payload (includes device ID)
 export const loginApiPayloadSchema = z.object({
     username: z.string().min(1).max(50),
     password: z.string().min(1).max(100),
@@ -25,7 +22,6 @@ export const loginApiPayloadSchema = z.object({
 
 export type LoginApiPayload = z.infer<typeof loginApiPayloadSchema>;
 
-// Device ID validation schema  
 export const deviceIdSchema = z
     .string()
     .regex(
@@ -33,7 +29,6 @@ export const deviceIdSchema = z
         "Invalid device ID format"
     );
 
-// MAC address validation schema (keeping for backwards compatibility)
 export const macAddressSchema = z
     .string()
     .regex(
@@ -41,7 +36,6 @@ export const macAddressSchema = z
         "Invalid MAC address format"
     );
 
-// API Response schemas - Updated to match actual API response
 export const loginResponseSchema = z.object({
     message: z.string(),
     data: z
@@ -62,13 +56,11 @@ export const loginResponseSchema = z.object({
 
 export type LoginResponse = z.infer<typeof loginResponseSchema>;
 
-// Error response schema
 export const errorResponseSchema = z.object({
     message: z.string(),
     errors: z.record(z.array(z.string())).optional(),
 });
 
-// System info response schema - Updated to match actual API structure
 export const systemInfoResponseSchema = z.object({
     success: z.boolean(),
     message: z.string().optional(),

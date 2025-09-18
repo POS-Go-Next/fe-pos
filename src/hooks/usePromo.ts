@@ -1,12 +1,7 @@
-// hooks/usePromo.ts
 "use client";
 
-import { useState, useEffect } from "react";
-import type {
-    PromoData,
-    PromoPaginationData,
-    PromoApiResponse,
-} from "@/types/promo";
+import type { PromoApiResponse, PromoData } from "@/types/promo";
+import { useEffect, useState } from "react";
 
 interface UsePromoReturn {
     promoList: PromoData[];
@@ -45,13 +40,10 @@ export const usePromo = (params: UsePromoParams = {}): UsePromoReturn => {
             setIsLoading(true);
             setError(null);
 
-            // Only send offset and limit parameters as per API requirement
             const queryParams = new URLSearchParams({
                 offset: offset.toString(),
                 limit: limit.toString(),
             });
-
-            // Remove search, sort_by, sort_order parameters
 
             const response = await fetch(
                 `/api/promo?${queryParams.toString()}`,
@@ -98,7 +90,7 @@ export const usePromo = (params: UsePromoParams = {}): UsePromoReturn => {
 
     useEffect(() => {
         fetchPromos();
-    }, [limit, offset]); // Remove search, sort_by, sort_order dependencies
+    }, [limit, offset]);
 
     const refetch = () => {
         fetchPromos();

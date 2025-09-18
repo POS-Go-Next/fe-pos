@@ -1,4 +1,3 @@
-// hooks/useBranchWideStock.ts
 "use client";
 
 import { useState, useEffect } from "react";
@@ -46,7 +45,6 @@ export const useBranchWideStock = ({
 
             console.log("Fetching branch wide stock for:", kode_brg);
 
-            // Call our Next.js API route
             const response = await fetch(`/api/stock/${kode_brg}/branch-wide`, {
                 method: "GET",
                 headers: {
@@ -76,7 +74,6 @@ export const useBranchWideStock = ({
             if (data.success && data.data) {
                 setBranchStockData(data.data);
 
-                // ✅ FIXED: Add proper error handling for stock_details mapping
                 if (
                     data.data.stock_details &&
                     Array.isArray(data.data.stock_details)
@@ -84,7 +81,6 @@ export const useBranchWideStock = ({
                     const tableData: BranchStockTableData[] =
                         data.data.stock_details
                             .filter((detail) => {
-                                // Filter out invalid entries
                                 if (!detail || !detail.kd_cab) {
                                     console.warn(
                                         "Invalid stock detail entry:",
@@ -95,7 +91,6 @@ export const useBranchWideStock = ({
                                 return true;
                             })
                             .map((detail) => {
-                                // ✅ FIXED: Safe access to cabang properties with fallbacks
                                 const branchName =
                                     detail.cabang?.nama_cabang ||
                                     detail.kd_cab ||
@@ -129,7 +124,6 @@ export const useBranchWideStock = ({
                         "branches"
                     );
                 } else {
-                    // Handle case where stock_details is empty or invalid
                     console.warn("No valid stock_details found in response");
                     setBranchTableData([]);
                 }
@@ -150,14 +144,12 @@ export const useBranchWideStock = ({
         }
     };
 
-    // Helper function untuk format tanggal
     const formatDateForDisplay = (dateString: string): string => {
         try {
             if (!dateString) return "-";
 
             const date = new Date(dateString);
 
-            // Check if date is valid
             if (isNaN(date.getTime())) {
                 return dateString;
             }

@@ -1,4 +1,3 @@
-// components/shared/medication-details-dialog.tsx
 "use client";
 
 import { useMedicationDetail } from "@/hooks/useMedicationDetail";

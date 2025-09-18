@@ -1,4 +1,3 @@
-// hooks/usePrinter.ts
 "use client";
 
 import { isSessionExpired } from "@/lib/sessionHandler";

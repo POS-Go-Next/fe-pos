@@ -1,4 +1,3 @@
-// components/shared/EmployeeDropdown.tsx - WITH INFINITE SCROLL
 "use client";
 
 import { FC, useCallback, useRef, useEffect } from "react";
