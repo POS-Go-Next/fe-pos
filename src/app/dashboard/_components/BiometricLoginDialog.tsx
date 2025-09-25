@@ -129,7 +129,7 @@ const BiometricLoginDialog: React.FC<BiometricLoginDialogProps> = ({
       const result = await fingerprintLogin({
         device_id: deviceId,
         need_generate_token: true,
-        type: loginType === "sales" ? "sales" : undefined,
+        ...(loginType === "sales" && { type: "sales" }),
       });
 
       clearInterval(progressInterval);
