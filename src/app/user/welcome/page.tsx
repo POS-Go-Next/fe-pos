@@ -26,14 +26,12 @@ export default function UserWelcomePage() {
     setMounted(true);
   }, []);
 
-  // Banner images array - 3 banner yang sama
   const bannerImages = [
     "/images/banner-1.png",
     "/images/banner-1.png",
     "/images/banner-1.png",
   ];
 
-  // Auto scroll untuk banner utama setiap 5 detik
   useEffect(() => {
     if (!mounted || !isClient) return;
 
@@ -41,16 +39,11 @@ export default function UserWelcomePage() {
       setCurrentBannerIndex((prevIndex) =>
         prevIndex === bannerImages.length - 1 ? 0 : prevIndex + 1
       );
-    }, 5000); // 5 detik delay
+    }, 5000);
 
     return () => clearInterval(interval);
   }, [mounted, isClient, bannerImages.length]);
 
-  // const handleViewReceipt = () => {
-  //   router.push("/user/receipt");
-  // };
-
-  // Fungsi format harga yang konsisten
   const formatPrice = (price: number): string => {
     if (typeof window === "undefined") {
       return price.toString();
@@ -157,7 +150,6 @@ export default function UserWelcomePage() {
     },
   ];
 
-  // Tampilan loading yang konsisten
   if (!mounted || !isClient) {
     return (
       <div className="min-h-screen bg-gray-100">
@@ -165,7 +157,7 @@ export default function UserWelcomePage() {
           <div className="flex p-12 gap-8">
             <div
               className="w-[60%] bg-gray-200 rounded-xl flex items-center justify-center"
-              style={{ minHeight: "400px" }}
+              style={{ minHeight: "500px" }}
             ></div>
             <div className="w-[40%] flex flex-col justify-center items-center">
               <div className="mb-6">
@@ -194,13 +186,13 @@ export default function UserWelcomePage() {
           </div>
         </div>
 
-        {/* Product Slider Banner - Loading state */}
-        <div className="bg-gradient-to-r from-blue-900 to-purple-900 p-8 overflow-hidden relative">
-          {/* Gray overlay dengan opacity 80% */}
+        <div
+          className="bg-gradient-to-r from-blue-900 to-purple-900 p-8 overflow-hidden relative"
+          style={{ height: "500px" }}
+        >
           <div className="absolute inset-0 bg-gray-500 opacity-80 z-10"></div>
 
           <div className="space-y-4 relative">
-            {/* Row 1 */}
             <div className="flex space-x-4 overflow-hidden">
               {Array.from({ length: 7 }).map((_, index) => (
                 <div
@@ -219,7 +211,6 @@ export default function UserWelcomePage() {
                 </div>
               ))}
             </div>
-            {/* Row 2 */}
             <div className="flex space-x-4 overflow-hidden">
               {Array.from({ length: 7 }).map((_, index) => (
                 <div
@@ -240,7 +231,6 @@ export default function UserWelcomePage() {
             </div>
           </div>
 
-          {/* Overlay Banner - Loading state */}
           <div className="absolute top-1/2 left-1/2 transform -translate-x-1/2 -translate-y-1/2 z-20 w-[70%]">
             <div className="bg-gray-200 rounded-xl h-[312px] flex items-center justify-center shadow-lg">
               <div className="text-gray-400">Loading banner...</div>
@@ -253,16 +243,13 @@ export default function UserWelcomePage() {
 
   return (
     <div className="min-h-screen bg-gray-100">
-      {/* Main Content */}
       <div>
         <div className="flex p-12 gap-8">
-          {/* Left side - Video/Image placeholder - 60% */}
           <div
             className="w-[60%] bg-gray-200 rounded-xl flex items-center justify-center"
-            style={{ minHeight: "400px" }}
+            style={{ minHeight: "500px" }}
           ></div>
 
-          {/* Right side - Welcome content - 40% */}
           <div className="w-[40%] flex flex-col justify-center items-center bg-white rounded-xl">
             <div className="mb-6">
               <Image
@@ -288,30 +275,29 @@ export default function UserWelcomePage() {
               </div>
             </div>
 
-            <Button
-              // onClick={handleViewReceipt}
-              className="bg-teal-500 hover:bg-teal-600 text-white px-8 py-3 rounded-lg text-sm font-medium"
-            >
+            <Button className="bg-teal-500 hover:bg-teal-600 text-white px-8 py-3 rounded-lg text-sm font-medium">
               Suka Pelayanannya? Dukung Kami disini!
             </Button>
           </div>
         </div>
       </div>
 
-      {/* Product Slider Banner dengan overlay banner di tengah */}
-      <div className="bg-gradient-to-r from-blue-900 to-purple-900 p-8 overflow-hidden relative">
-        {/* Gray overlay dengan opacity 80% */}
+      <div
+        className="bg-gradient-to-r from-blue-900 to-purple-900 p-8 relative mb-8"
+        style={{ height: "280px" }}
+      >
         <div className="absolute inset-0 bg-gray-500 opacity-80 z-10"></div>
 
-        <div className="space-y-4 relative">
-          {/* Row 1 */}
+        <div
+          className="space-y-4 relative overflow-hidden"
+          style={{ height: "100%" }}
+        >
           <div
             className="flex space-x-4 animate-scroll-right"
             style={{
               width: `${products.length * 240}px`,
             }}
           >
-            {/* Render products twice untuk seamless loop */}
             {[...products, ...products].map((product, index) => (
               <div
                 key={`row1-${product.id}-${index}`}
@@ -319,14 +305,12 @@ export default function UserWelcomePage() {
                 style={{ width: "220px" }}
               >
                 <div className="flex items-start space-x-3">
-                  {/* Icon Section - Left */}
                   <div
                     className={`w-10 h-10 ${product.bgColor} rounded-lg flex items-center justify-center flex-shrink-0`}
                   >
                     {product.icon}
                   </div>
 
-                  {/* Description Section - Right */}
                   <div className="flex-1 min-w-0">
                     <h3 className="text-sm font-semibold text-gray-800 mb-1 truncate">
                       {product.name}
@@ -343,14 +327,12 @@ export default function UserWelcomePage() {
             ))}
           </div>
 
-          {/* Row 2 */}
           <div
             className="flex space-x-4 animate-scroll-left"
             style={{
               width: `${products.length * 240}px`,
             }}
           >
-            {/* Render products twice untuk seamless loop */}
             {[...products, ...products].map((product, index) => (
               <div
                 key={`row2-${product.id}-${index}`}
@@ -358,14 +340,12 @@ export default function UserWelcomePage() {
                 style={{ width: "220px" }}
               >
                 <div className="flex items-start space-x-3">
-                  {/* Icon Section - Left */}
                   <div
                     className={`w-10 h-10 ${product.bgColor} rounded-lg flex items-center justify-center flex-shrink-0`}
                   >
                     {product.icon}
                   </div>
 
-                  {/* Description Section - Right */}
                   <div className="flex-1 min-w-0">
                     <h3 className="text-sm font-semibold text-gray-800 mb-1 truncate">
                       {product.name}
@@ -383,8 +363,7 @@ export default function UserWelcomePage() {
           </div>
         </div>
 
-        {/* Overlay Banner - Posisi di tengah dengan z-index lebih tinggi */}
-        <div className="absolute top-1/2 left-1/2 transform -translate-x-1/2 -translate-y-1/2 z-20 w-[80%]">
+        <div className="absolute top-1/2 left-1/2 transform -translate-x-1/2 -translate-y-1/2 z-20 w-[70%]">
           <div
             className="relative overflow-hidden rounded-xl shadow-2xl"
             style={{ height: "312px" }}
@@ -393,7 +372,6 @@ export default function UserWelcomePage() {
               className="flex transition-transform duration-500 ease-in-out h-full"
               style={{
                 transform: `translateX(-${currentBannerIndex * 100}%)`,
-                // width: `${bannerImages.length * 100}%`,
               }}
             >
               {bannerImages.map((banner, index) => (
@@ -410,7 +388,6 @@ export default function UserWelcomePage() {
               ))}
             </div>
 
-            {/* Dots indicator */}
             <div className="absolute bottom-4 left-1/2 transform -translate-x-1/2 flex space-x-2">
               {bannerImages.map((_, index) => (
                 <button
