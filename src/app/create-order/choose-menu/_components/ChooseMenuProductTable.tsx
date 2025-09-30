@@ -268,7 +268,11 @@ export default function ChooseMenuProductTable({
       },
       showTransactionList: () => {
         console.log("Ctrl+Shift+F7: Opening Transaction History");
-        toggleDialog("transactionHistory");
+        if (selectedRowId !== null && selectedProduct) {
+          toggleDialog("transactionHistory");
+        } else {
+          console.log("No product selected for transaction history");
+        }
       },
       showTransactionCorrection: () => {
         console.log("Ctrl+Shift+F8: Opening Transaction Correction");
@@ -900,6 +904,8 @@ export default function ChooseMenuProductTable({
       <TransactionHistoryDialog
         isOpen={dialogStates.transactionHistory}
         onClose={() => closeDialog("transactionHistory")}
+        productName={selectedProduct?.name}
+        productCode={selectedProduct?.stockData?.kode_brg}
       />
 
       <TransactionCorrectionDialog
