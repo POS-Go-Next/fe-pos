@@ -6,8 +6,11 @@ import { Input } from "@/components/ui/input";
 import Pagination from "@/components/shared/pagination";
 import { DateRangePicker } from "@/components/ui/date-range-picker";
 import { useTransaction } from "@/hooks/useTransaction";
-import { useTransactionDetail } from "@/hooks/useTransactionDetail";
-import type { TransactionData, TransactionItem } from "@/types/transaction";
+import { useSystemInfo } from "@/hooks/useSystemInfo";
+import { usePrintTransaction } from "@/hooks/usePrintTransaction";
+import { showSuccessAlert, showErrorAlert, showLoadingAlert } from "@/lib/swal";
+import type { TransactionData } from "@/types/transaction";
+import Swal from "sweetalert2";
 
 interface DateRange {
   from?: Date;
@@ -19,6 +22,67 @@ interface TransactionHistoryDialogProps {
   onClose: () => void;
   productName?: string;
   productCode?: string;
+}
+
+interface TransactionDetailItem {
+  product_code: string;
+  quantity: number;
+  prescription_code: string;
+  sub_total: number;
+  nominal_discount: number;
+  discount: number;
+  service_fee: number;
+  misc: number;
+  disc_promo: number;
+  value_promo: number;
+  no_promo: string;
+  promo_type: string;
+  up_selling: string;
+  total: number;
+  round_up: number;
+}
+
+interface TransactionDetailData {
+  id: string;
+  invoice_number: string;
+  customer_id: string;
+  doctor_id: number;
+  corporate_code: string;
+  transaction_type: string;
+  transaction_action: string;
+  compounded: boolean;
+  full_prescription: boolean;
+  availability: boolean;
+  notes: string;
+  transaction_date: string;
+  shift: string;
+  kd_kasir: string;
+  kd_kassa: string;
+  retur_reason: string | null;
+  confirmation_retur_by: string | null;
+  retur_information: string | null;
+  cash: number;
+  change_cash: number;
+  change_cc: number;
+  change_dc: number;
+  credit_card: number;
+  debit_card: number;
+  no_cc: string;
+  no_dc: string;
+  edc_cc: string;
+  edc_dc: string;
+  publisher_cc: string;
+  publisher_dc: string;
+  type_cc: string;
+  type_dc: string;
+  sub_total: number;
+  misc: number;
+  service_fee: number;
+  discount: number;
+  promo: number;
+  round_up: number;
+  grand_total: number;
+  items: TransactionDetailItem[];
 }
 
 const TransactionHistoryDialog: React.FC<TransactionHistoryDialogProps> = ({
@@ -34,6 +98,10 @@ const TransactionHistoryDialog: React.FC<TransactionHistoryDialogProps> = ({
   const [isPageSizeOpen, setIsPageSizeOpen] = useState(false);
   const [selectedTransaction, setSelectedTransaction] =
     useState<TransactionData | null>(null);
+  const [transactionDetail, setTransactionDetail] =
+    useState<TransactionDetailData | null>(null);
+  const [isDetailLoading, setIsDetailLoading] = useState(false);
+  const [detailError, setDetailError] = useState<string | null>(null);
 
   const [appliedDateRange, setAppliedDateRange] = useState<
     DateRange | undefined
@@ -46,6 +114,9 @@ const TransactionHistoryDialog: React.FC<TransactionHistoryDialogProps> = ({
   const pageSizeOptions = [5, 10, 25, 50];
 
   const offset = (currentPage - 1) * pageSize;
+
+  const { deviceId } = useSystemInfo();
+  const { printTransaction } = usePrintTransaction();
 
   const formatDateForAPI = (date: Date): string => {
     const year = date.getFullYear();
@@ -71,14 +142,76 @@ const TransactionHistoryDialog: React.FC<TransactionHistoryDialogProps> = ({
     bought_product_code: productCode,
   });
 
-  const {
-    transactionDetail,
-    isLoading: isDetailLoading,
-    error: detailError,
-  } = useTransactionDetail({
-    invoice_number: selectedTransaction?.invoice_number || null,
-    enabled: !!selectedTransaction,
-  });
+  const fetchTransactionDetail = async (invoiceNumber: string) => {
+    try {
+      setIsDetailLoading(true);
+      setDetailError(null);
+
+      const response = await fetch(
+        `/api/transaction/invoice?invoice_number=${encodeURIComponent(
+          invoiceNumber.trim()
+        )}`,
+        {
+          method: "GET",
+          headers: { "Content-Type": "application/json" },
+        }
+      );
+
+      const data = await response.json();
+
+      if (!response.ok) {
+        throw new Error(data.message || `HTTP ${response.status}`);
+      }
+
+      if (data.data) {
+        setTransactionDetail(data.data);
+      } else {
+        throw new Error("Invalid response format");
+      }
+    } catch (err: any) {
+      console.error("Error fetching transaction detail:", err);
+      setDetailError(err.message || "Failed to fetch transaction detail");
+      setTransactionDetail(null);
+    } finally {
+      setIsDetailLoading(false);
+    }
+  };
+
+  const handlePrintTransaction = async () => {
+    if (!selectedTransaction || !transactionDetail) {
+      showErrorAlert(
+        "No Transaction Selected",
+        "Please select a transaction to print."
+      );
+      return;
+    }
+
+    if (!deviceId) {
+      showErrorAlert(
+        "Device ID Not Found",
+        "Unable to get device ID from system."
+      );
+      return;
+    }
+
+    try {
+      showLoadingAlert("Printing Transaction", "Please wait...");
+
+      await printTransaction(transactionDetail.invoice_number.trim(), deviceId);
+
+      Swal.close();
+      showSuccessAlert(
+        "Print Success",
+        "Transaction detail has been sent to printer."
+      );
+    } catch (err: any) {
+      Swal.close();
+      showErrorAlert(
+        "Print Failed",
+        err.message || "Failed to print transaction detail."
+      );
+    }
+  };
 
   const transactionItems = transactionDetail?.items || [];
   const itemTotalPages = Math.ceil(transactionItems.length / productPageSize);
@@ -101,6 +234,7 @@ const TransactionHistoryDialog: React.FC<TransactionHistoryDialogProps> = ({
       setSearchInput("");
       setSearchTerm("");
       setSelectedTransaction(null);
+      setTransactionDetail(null);
       setAppliedDateRange(undefined);
       setProductCurrentPage(1);
       setProductPageSize(5);
@@ -122,6 +256,29 @@ const TransactionHistoryDialog: React.FC<TransactionHistoryDialogProps> = ({
       setCurrentPage(1);
     }
   }, [searchInput]);
+
+  useEffect(() => {
+    if (selectedTransaction) {
+      fetchTransactionDetail(selectedTransaction.invoice_number);
+      setProductCurrentPage(1);
+    } else {
+      setTransactionDetail(null);
+    }
+  }, [selectedTransaction]);
+
+  useEffect(() => {
+    if (!isOpen) return;
+
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if (e.ctrlKey && e.shiftKey && e.key === "P") {
+        e.preventDefault();
+        handlePrintTransaction();
+      }
+    };
+
+    document.addEventListener("keydown", handleKeyDown);
+    return () => document.removeEventListener("keydown", handleKeyDown);
+  }, [isOpen, selectedTransaction, transactionDetail, deviceId]);
 
   const filteredTransactions = React.useMemo(() => {
     if (!searchTerm) return transactionList;
@@ -199,7 +356,6 @@ const TransactionHistoryDialog: React.FC<TransactionHistoryDialogProps> = ({
         ? null
         : transaction
     );
-    setProductCurrentPage(1);
   };
 
   const handlePageChange = (page: number) => {
@@ -297,30 +453,24 @@ const TransactionHistoryDialog: React.FC<TransactionHistoryDialogProps> = ({
                   <th className="text-left h-[48px] px-4 text-sm font-medium text-gray-600 w-[80px]">
                     Time
                   </th>
-                  <th className="text-left h-[48px] px-4 text-sm font-medium text-gray-600 w-[120px]">
-                    Customer
-                  </th>
-                  <th className="text-left h-[48px] px-4 text-sm font-medium text-gray-600 w-[120px]">
-                    Doctor
+                  <th className="text-left h-[48px] px-4 text-sm font-medium text-gray-600 w-[80px]">
+                    Shift
                   </th>
                   <th className="text-left h-[48px] px-4 text-sm font-medium text-gray-600 w-[100px]">
                     Cashier
                   </th>
                   <th className="text-left h-[48px] px-4 text-sm font-medium text-gray-600 w-[80px]">
-                    Items
+                    Kassa
                   </th>
                   <th className="text-left h-[48px] px-4 text-sm font-medium text-gray-600 w-[120px]">
                     Grand Total
-                  </th>
-                  <th className="text-left h-[48px] px-4 text-sm font-medium text-gray-600 w-[100px]">
-                    Payment
                   </th>
                 </tr>
               </thead>
               <tbody>
                 {isLoading ? (
                   <tr>
-                    <td colSpan={9} className="text-center py-20">
+                    <td colSpan={7} className="text-center py-20">
                       <div className="flex items-center justify-center">
                         <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-500"></div>
                         <span className="ml-2 text-gray-600">
@@ -350,29 +500,23 @@ const TransactionHistoryDialog: React.FC<TransactionHistoryDialogProps> = ({
                       <td className="h-[48px] px-4 text-sm text-gray-600">
                         {formatTimeForDisplay(transaction.transaction_date)}
                       </td>
-                      <td className="h-[48px] px-4 text-sm text-gray-900">
-                        {cleanString(transaction.customer_name) || "-"}
+                      <td className="h-[48px] px-4 text-sm text-gray-600">
+                        {cleanString(transaction.shift)}
                       </td>
                       <td className="h-[48px] px-4 text-sm text-gray-600">
-                        {cleanString(transaction.doctor_name) || "-"}
+                        {cleanString(transaction.kd_kasir)}
                       </td>
                       <td className="h-[48px] px-4 text-sm text-gray-600">
-                        {cleanString(transaction.cashier)}
-                      </td>
-                      <td className="h-[48px] px-4 text-sm text-gray-600">
-                        {transaction.total_items}
+                        {cleanString(transaction.kd_kassa)}
                       </td>
                       <td className="h-[48px] px-4 text-sm font-semibold text-gray-900">
                         {formatCurrency(transaction.grand_total)}
-                      </td>
-                      <td className="h-[48px] px-4 text-sm text-gray-600">
-                        {transaction.payment_type}
                       </td>
                     </tr>
                   ))
                 ) : (
                   <tr>
-                    <td colSpan={9} className="p-8 text-center text-gray-500">
+                    <td colSpan={7} className="p-8 text-center text-gray-500">
                       {searchTerm && searchInput.trim().length >= 3
                         ? "No transactions found for your search."
                         : searchTerm &&
@@ -438,11 +582,18 @@ const TransactionHistoryDialog: React.FC<TransactionHistoryDialogProps> = ({
 
           {selectedTransaction && (
             <div className="rounded-lg border border-gray-200 overflow-hidden">
-              <div className="bg-gray-50 px-4 py-3 border-b border-gray-200">
+              <div className="bg-gray-50 px-4 py-3 border-b border-gray-200 flex justify-between items-center">
                 <h3 className="text-lg font-semibold text-gray-900">
                   Transaction Details -{" "}
                   {cleanString(selectedTransaction.invoice_number)}
                 </h3>
+                <div className="text-xs text-gray-500">
+                  Press{" "}
+                  <kbd className="px-2 py-1 bg-gray-200 rounded">Ctrl</kbd> +{" "}
+                  <kbd className="px-2 py-1 bg-gray-200 rounded">Shift</kbd> +{" "}
+                  <kbd className="px-2 py-1 bg-gray-200 rounded">P</kbd> to
+                  print
+                </div>
               </div>
 
               {isDetailLoading && (
@@ -477,26 +628,29 @@ const TransactionHistoryDialog: React.FC<TransactionHistoryDialogProps> = ({
                           <th className="text-left h-[40px] px-4 text-sm font-medium text-gray-600 w-[120px]">
                             Product Code
                           </th>
-                          <th className="text-left h-[40px] px-4 text-sm font-medium text-gray-600 min-w-[250px]">
-                            Product Name
-                          </th>
                           <th className="text-left h-[40px] px-4 text-sm font-medium text-gray-600 w-[80px]">
                             Qty
                           </th>
                           <th className="text-left h-[40px] px-4 text-sm font-medium text-gray-600 w-[120px]">
-                            Unit Price
+                            Sub Total
                           </th>
                           <th className="text-left h-[40px] px-4 text-sm font-medium text-gray-600 w-[100px]">
                             Discount
                           </th>
+                          <th className="text-left h-[40px] px-4 text-sm font-medium text-gray-600 w-[80px]">
+                            SC
+                          </th>
+                          <th className="text-left h-[40px] px-4 text-sm font-medium text-gray-600 w-[80px]">
+                            Misc
+                          </th>
                           <th className="text-left h-[40px] px-4 text-sm font-medium text-gray-600 w-[120px]">
-                            Sub Total
+                            Total
                           </th>
                         </tr>
                       </thead>
                       <tbody>
                         {paginatedItems.map(
-                          (item: TransactionItem, index: number) => (
+                          (item: TransactionDetailItem, index: number) => (
                             <tr
                               key={`${item.product_code}-${index}`}
                               className="border-b border-gray-100"
@@ -507,22 +661,29 @@ const TransactionHistoryDialog: React.FC<TransactionHistoryDialogProps> = ({
                               <td className="h-[40px] px-4 text-sm font-medium text-gray-900">
                                 {cleanString(item.product_code)}
                               </td>
-                              <td className="h-[40px] px-4 text-sm text-gray-900">
-                                {cleanString(item.product_name)}
-                              </td>
                               <td className="h-[40px] px-4 text-sm text-gray-600">
                                 {item.quantity}
                               </td>
                               <td className="h-[40px] px-4 text-sm text-gray-900">
-                                {formatCurrency(item.price)}
+                                {formatCurrency(item.sub_total)}
                               </td>
                               <td className="h-[40px] px-4 text-sm text-gray-600">
-                                {item.discount > 0
-                                  ? formatCurrency(item.discount)
+                                {item.nominal_discount > 0
+                                  ? formatCurrency(item.nominal_discount)
+                                  : "-"}
+                              </td>
+                              <td className="h-[40px] px-4 text-sm text-gray-600">
+                                {item.service_fee > 0
+                                  ? formatCurrency(item.service_fee)
+                                  : "-"}
+                              </td>
+                              <td className="h-[40px] px-4 text-sm text-gray-600">
+                                {item.misc > 0
+                                  ? formatCurrency(item.misc)
                                   : "-"}
                               </td>
                               <td className="h-[40px] px-4 text-sm font-semibold text-gray-900">
-                                {formatCurrency(item.sub_total)}
+                                {formatCurrency(item.total)}
                               </td>
                             </tr>
                           )

@@ -118,6 +118,7 @@ interface ChooseMenuProductTableProps {
   onTypeChange?: (id: number, type: string) => void;
   onDiscountChange?: (id: number, discount: number) => void;
   onMiscChange?: (id: number, miscAmount: number) => void;
+  onUpsellingChange?: (id: number) => void;
   className?: string;
 }
 
@@ -132,6 +133,7 @@ export default function ChooseMenuProductTable({
   onTypeChange,
   onDiscountChange,
   onMiscChange,
+  onUpsellingChange,
   className = "",
 }: ChooseMenuProductTableProps) {
   const [isClient, setIsClient] = useState(false);
@@ -260,7 +262,7 @@ export default function ChooseMenuProductTable({
       },
       showUpSelling: () => {
         console.log("Ctrl+Shift+F6: Opening Up Selling Dialog");
-        if (selectedRowId !== null) {
+        if (selectedRowId !== null && selectedProduct) {
           toggleDialog("upsell");
         } else {
           console.log("No product selected for upselling");
@@ -821,8 +823,8 @@ export default function ChooseMenuProductTable({
         isOpen={dialogStates.upsell}
         onClose={() => closeDialog("upsell")}
         onConfirm={() => {
-          if (selectedRowId !== null) {
-            console.log(`Product ${selectedRowId} marked as upselling product`);
+          if (selectedRowId !== null && onUpsellingChange) {
+            onUpsellingChange(selectedRowId);
           }
           closeDialog("upsell");
         }}

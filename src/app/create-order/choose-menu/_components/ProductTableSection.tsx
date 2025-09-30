@@ -5,49 +5,52 @@ import { ChooseMenuProductTable } from "./";
 import type { ProductTableItem } from "@/types/stock";
 
 interface ProductTableSectionProps {
-    products: ProductTableItem[];
-    onQuantityChange: (id: number, value: number) => void;
-    onQuantityBlur?: () => void;
-    onQuantityKeyPress?: (e: React.KeyboardEvent) => void;
-    onRemoveProduct: (id: number) => void;
-    onProductNameClick: (id: number) => void;
-    onProductSelect: (product: any, productId: number) => void;
-    onTypeChange: (id: number, type: string) => void;
-    onDiscountChange?: (id: number, discount: number) => void;
-    onMiscChange?: (id: number, miscAmount: number) => void;
-    className?: string;
+  products: ProductTableItem[];
+  onQuantityChange: (id: number, value: number) => void;
+  onQuantityBlur?: () => void;
+  onQuantityKeyPress?: (e: React.KeyboardEvent) => void;
+  onRemoveProduct: (id: number) => void;
+  onProductNameClick: (id: number) => void;
+  onProductSelect: (product: any, productId: number) => void;
+  onTypeChange: (id: number, type: string) => void;
+  onDiscountChange?: (id: number, discount: number) => void;
+  onMiscChange?: (id: number, miscAmount: number) => void;
+  onUpsellingChange?: (id: number) => void;
+  className?: string;
 }
 
 const ProductTableSection: FC<ProductTableSectionProps> = ({
-    products,
-    onQuantityChange,
-    onQuantityBlur,
-    onQuantityKeyPress,
-    onRemoveProduct,
-    onProductNameClick,
-    onProductSelect,
-    onTypeChange,
-    onDiscountChange,
-    onMiscChange,
-    className = "",
+  products,
+  onQuantityChange,
+  onQuantityBlur,
+  onQuantityKeyPress,
+  onRemoveProduct,
+  onProductNameClick,
+  onProductSelect,
+  onTypeChange,
+  onDiscountChange,
+  onMiscChange,
+  onUpsellingChange,
+  className = "",
 }) => {
-    return (
-        <div className={className}>
-            <ChooseMenuProductTable
-                products={products}
-                onQuantityChange={onQuantityChange}
-                onQuantityBlur={onQuantityBlur}
-                onQuantityKeyPress={onQuantityKeyPress}
-                onRemoveProduct={onRemoveProduct}
-                onProductNameClick={onProductNameClick}
-                onProductSelect={onProductSelect}
-                onTypeChange={onTypeChange}
-                onDiscountChange={onDiscountChange}
-                onMiscChange={onMiscChange}
-                className="h-full"
-            />
-        </div>
-    );
+  return (
+    <div className={className}>
+      <ChooseMenuProductTable
+        products={products}
+        onQuantityChange={onQuantityChange}
+        onQuantityBlur={onQuantityBlur}
+        onQuantityKeyPress={onQuantityKeyPress}
+        onRemoveProduct={onRemoveProduct}
+        onProductNameClick={onProductNameClick}
+        onProductSelect={onProductSelect}
+        onTypeChange={onTypeChange}
+        onDiscountChange={onDiscountChange}
+        onMiscChange={onMiscChange}
+        onUpsellingChange={onUpsellingChange}
+        className="h-full"
+      />
+    </div>
+  );
 };
 
 export default ProductTableSection;

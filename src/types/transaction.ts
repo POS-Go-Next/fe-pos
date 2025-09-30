@@ -184,3 +184,13 @@ export interface CreateTransactionResponse {
   };
   errors?: any;
 }
+
+export interface PrintTransactionPayload {
+  device_id: string;
+}
+
+export interface PrintTransactionResponse {
+  success: boolean;
+  message: string;
+  data?: any;
+}
