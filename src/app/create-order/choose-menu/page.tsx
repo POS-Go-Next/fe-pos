@@ -97,14 +97,14 @@ export default function ChooseMenuPage() {
 
     const availableStock = stockData.q_akhir;
 
-    console.log("🔍 VALIDATING STOCK:", {
+    console.log("Validating stock:", {
       productName: product.name,
       availableStock,
       requestedQuantity,
     });
 
     if (availableStock === 0) {
-      console.log("❌ VALIDATION FAILED: Stock is exactly 0");
+      console.log("Validation failed: Stock is exactly 0");
       setStockWarningDialog({
         isOpen: true,
         productName: product.name,
@@ -120,7 +120,7 @@ export default function ChooseMenuPage() {
       availableStock > 0 &&
       requestedQuantity > availableStock
     ) {
-      console.log("❌ VALIDATION FAILED: Requested quantity exceeds stock");
+      console.log("Validation failed: Requested quantity exceeds stock");
       setStockWarningDialog({
         isOpen: true,
         productName: product.name,
@@ -131,7 +131,7 @@ export default function ChooseMenuPage() {
       return false;
     }
 
-    console.log("✅ VALIDATION PASSED: Stock is available");
+    console.log("Validation passed: Stock is available");
     return true;
   };
 
@@ -160,6 +160,31 @@ export default function ChooseMenuPage() {
         return product;
       })
     );
+  };
+
+  const handleUpsellingChange = (productId: number) => {
+    if (!isClient) return;
+
+    console.log("Updating upselling for product:", productId);
+
+    setProducts((prevProducts) => {
+      const updated = prevProducts.map((product) => {
+        if (product.id === productId) {
+          const newUpValue = product.up === "Y" ? "N" : "Y";
+          console.log(
+            `Product ${productId} UP: ${product.up} -> ${newUpValue}`
+          );
+          return {
+            ...product,
+            up: newUpValue,
+          };
+        }
+        return product;
+      });
+
+      console.log("Updated products:", updated);
+      return updated;
+    });
   };
 
   useEffect(() => {
@@ -206,7 +231,7 @@ export default function ChooseMenuPage() {
   }, [shouldFocusQuantity, lastAddedProductId, isClient, products]);
 
   const handleClearAllProducts = () => {
-    console.log("🧹 Clearing all products and localStorage");
+    console.log("Clearing all products and localStorage");
     isClearingRef.current = true;
 
     setProducts([]);
@@ -229,7 +254,7 @@ export default function ChooseMenuPage() {
   };
 
   const handleShowCustomerDoctorDialogViaShortcut = () => {
-    console.log("⌨️ Ctrl+Space pressed - triggering Pay Now flow");
+    console.log("Ctrl+Space pressed - triggering Pay Now flow");
 
     if (products.length === 0 || !products.some((p) => p.name)) {
       alert("Please add products to cart before proceeding with payment");
@@ -241,7 +266,7 @@ export default function ChooseMenuPage() {
 
   useEffect(() => {
     if (triggerPayNow && payNowButtonRef.current) {
-      console.log("🎯 Triggering Pay Now button click");
+      console.log("Triggering Pay Now button click");
       payNowButtonRef.current.click();
       setTriggerPayNow(false);
     }
@@ -287,6 +312,7 @@ export default function ChooseMenuPage() {
 
   useEffect(() => {
     if (isClient && !isClearingRef.current) {
+      console.log("Saving products to localStorage:", products);
       localStorage.setItem("pos-products", JSON.stringify(products));
       localStorage.setItem("pos-next-id", nextId.toString());
     }
@@ -498,7 +524,7 @@ export default function ChooseMenuPage() {
     selectedStockData: StockData,
     productId: number
   ) => {
-    console.log("🛒 ADDING PRODUCT TO CART:", {
+    console.log("Adding product to cart:", {
       productName: selectedStockData.nama_brg,
       stock: selectedStockData.q_akhir,
     });
@@ -506,7 +532,7 @@ export default function ChooseMenuPage() {
     const availableStock = selectedStockData.q_akhir;
 
     if (availableStock === 0) {
-      console.log("❌ BLOCKED: Cannot add product with zero stock");
+      console.log("Blocked: Cannot add product with zero stock");
       setStockWarningDialog({
         isOpen: true,
         productName: selectedStockData.nama_brg,
@@ -517,7 +543,7 @@ export default function ChooseMenuPage() {
       return;
     }
 
-    console.log("✅ ALLOWED: Adding product to cart");
+    console.log("Allowed: Adding product to cart");
     const newProduct = convertStockToProduct(selectedStockData);
     setProducts((prevProducts) => [...prevProducts, newProduct]);
     setLastAddedProductId(nextId);
@@ -530,7 +556,7 @@ export default function ChooseMenuPage() {
   };
 
   const handlePaymentComplete = () => {
-    console.log("✅ Payment complete - clearing cart now");
+    console.log("Payment complete - clearing cart now");
     handleClearAllProducts();
   };
 
@@ -591,6 +617,7 @@ export default function ChooseMenuPage() {
             onTypeChange={handleTypeChange}
             onDiscountChange={handleDiscountChange}
             onMiscChange={handleMiscChange}
+            onUpsellingChange={handleUpsellingChange}
             className="mb-6"
           />
         </div>
