@@ -32,7 +32,7 @@ export async function POST(
       return NextResponse.json(
         {
           success: false,
-          message: "Invoice number is required",
+          message: "Transaction ID is required",
         },
         { status: 400 }
       );
@@ -51,7 +51,7 @@ export async function POST(
     }
 
     console.log("🖨️ Printing transaction:", {
-      invoice_number: id,
+      transaction_id: id,
       device_id: body.device_id,
     });
 

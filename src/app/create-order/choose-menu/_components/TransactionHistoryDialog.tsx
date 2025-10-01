@@ -197,7 +197,7 @@ const TransactionHistoryDialog: React.FC<TransactionHistoryDialogProps> = ({
     try {
       showLoadingAlert("Printing Transaction", "Please wait...");
 
-      await printTransaction(transactionDetail.invoice_number.trim(), deviceId);
+      await printTransaction(transactionDetail.id.trim(), deviceId);
 
       Swal.close();
       showSuccessAlert(

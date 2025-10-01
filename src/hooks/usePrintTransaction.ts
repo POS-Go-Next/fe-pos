@@ -8,7 +8,7 @@ import type {
 
 interface UsePrintTransactionReturn {
   printTransaction: (
-    invoiceNumber: string,
+    transactionId: string,
     deviceId: string
   ) => Promise<PrintTransactionResponse>;
   isLoading: boolean;
@@ -20,7 +20,7 @@ export const usePrintTransaction = (): UsePrintTransactionReturn => {
   const [error, setError] = useState<string | null>(null);
 
   const printTransaction = async (
-    invoiceNumber: string,
+    transactionId: string,
     deviceId: string
   ): Promise<PrintTransactionResponse> => {
     try {
@@ -28,7 +28,7 @@ export const usePrintTransaction = (): UsePrintTransactionReturn => {
       setError(null);
 
       console.log("🖨️ Printing transaction:", {
-        invoiceNumber,
+        transactionId,
         deviceId,
       });
 
@@ -37,7 +37,7 @@ export const usePrintTransaction = (): UsePrintTransactionReturn => {
       };
 
       const response = await fetch(
-        `/api/transaction/${invoiceNumber.trim()}/print`,
+        `/api/transaction/${transactionId.trim()}/print`,
         {
           method: "POST",
           headers: {
