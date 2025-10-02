@@ -314,7 +314,7 @@ export default function PaymentDialog({
         corporate_code: null,
         transaction_type: transactionType,
         transaction_action: "1",
-        need_print_invoice: false,
+        need_print_invoice: true,
 
         items: buildTransactionItems(transactionType),
         cash: payment.cash,
