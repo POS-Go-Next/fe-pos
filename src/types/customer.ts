@@ -54,7 +54,7 @@ export const transformCustomerApiToForm = (
         id: customer.kd_cust,
         name: customer.nm_cust,
         gender: customer.gender === "male" ? "Male" : "Female",
-        age: customer.usia_cust.toString(),
+        age: customer.usia_cust?.toString(),
         phone: customer.telp_cust.startsWith("+62")
             ? customer.telp_cust
             : `+62 ${customer.telp_cust}`,

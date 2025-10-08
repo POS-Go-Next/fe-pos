@@ -112,7 +112,6 @@ export default function ChooseMenuPage() {
         availableStock: 0,
         requestedQuantity,
       });
-      return false;
     }
 
     if (
@@ -128,7 +127,6 @@ export default function ChooseMenuPage() {
         availableStock,
         requestedQuantity,
       });
-      return false;
     }
 
     console.log("Validation passed: Stock is available");
@@ -540,7 +538,6 @@ export default function ChooseMenuPage() {
         availableStock: 0,
         requestedQuantity: 1,
       });
-      return;
     }
 
     console.log("Allowed: Adding product to cart");

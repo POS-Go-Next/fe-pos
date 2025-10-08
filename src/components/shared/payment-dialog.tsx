@@ -90,13 +90,13 @@ export default function PaymentDialog({
   const [debitAmount, setDebitAmount] = useState("");
   const [debitBank, setDebitBank] = useState("BCA");
   const [debitAccountNumber, setDebitAccountNumber] = useState("");
-  const [debitEDCMachine, setDebitEDCMachine] = useState("BCA");
-  const [debitCardType, setDebitCardType] = useState("");
+  const [debitEDCMachine, setDebitEDCMachine] = useState("OVO");
+  const [debitCardType, setDebitCardType] = useState("Visa");
   const [creditAmount, setCreditAmount] = useState("");
   const [creditBank, setCreditBank] = useState("BCA");
   const [creditAccountNumber, setCreditAccountNumber] = useState("");
-  const [creditEDCMachine, setCreditEDCMachine] = useState("BCA");
-  const [creditCardType, setCreditCardType] = useState("");
+  const [creditEDCMachine, setCreditEDCMachine] = useState("OVO");
+  const [creditCardType, setCreditCardType] = useState("Visa");
   const [isProcessing, setIsProcessing] = useState(false);
 
   const correctTotalAmount = useMemo(() => {
@@ -422,13 +422,13 @@ export default function PaymentDialog({
     setDebitAmount("");
     setDebitBank("BCA");
     setDebitAccountNumber("");
-    setDebitEDCMachine("BCA");
-    setDebitCardType("");
+    setDebitEDCMachine("OVO");
+    setDebitCardType("Visa");
     setCreditAmount("");
     setCreditBank("BCA");
     setCreditAccountNumber("");
-    setCreditEDCMachine("BCA");
-    setCreditCardType("");
+    setCreditEDCMachine("OVO");
+    setCreditCardType("Visa");
   };
 
   const handleClose = () => {
@@ -555,8 +555,12 @@ export default function PaymentDialog({
                 </label>
                 <Input
                   type="text"
-                  value={debitAccountNumber}
-                  onChange={(e) => setDebitAccountNumber(e.target.value)}
+                    value={debitAccountNumber}
+                    onChange={(e) =>
+                      setDebitAccountNumber(e.target.value.slice(0, 16))
+                    }
+                    maxLength={16}
+                    inputMode="numeric"
                   placeholder="Enter Number"
                   className="bg-gray-50 border-gray-300 rounded-xl h-12"
                   disabled={isProcessing}
@@ -575,9 +579,11 @@ export default function PaymentDialog({
                     <SelectValue />
                   </SelectTrigger>
                   <SelectContent>
-                    <SelectItem value="BCA">BCA</SelectItem>
-                    <SelectItem value="Mandiri">Mandiri</SelectItem>
-                    <SelectItem value="BRI">BRI</SelectItem>
+                    <SelectItem value="OVO">OVO</SelectItem>
+                    <SelectItem value="SHOPEE">SHOPEE</SelectItem>
+                    <SelectItem value="LINKAJA">LINKAJA</SelectItem>
+                    <SelectItem value="YOUTAP">YOUTAP</SelectItem>
+                    <SelectItem value="GAJA">GAJA</SelectItem>
                   </SelectContent>
                 </Select>
               </div>
@@ -585,14 +591,22 @@ export default function PaymentDialog({
                 <label className="block text-base font-medium text-gray-700 mb-3">
                   Card Type
                 </label>
-                <Input
-                  type="text"
+                <Select
                   value={debitCardType}
-                  onChange={(e) => setDebitCardType(e.target.value)}
-                  placeholder="Enter/Select"
-                  className="bg-gray-50 border-gray-300 rounded-xl h-12"
+                  onValueChange={setDebitCardType}
                   disabled={isProcessing}
-                />
+                >
+                  <SelectTrigger className="bg-gray-50 border-gray-300 rounded-xl h-12">
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="Visa">Visa</SelectItem>
+                    <SelectItem value="MasterCard">MasterCard</SelectItem>
+                    <SelectItem value="JCB">JCB</SelectItem>
+                    <SelectItem value="Amex">Amex</SelectItem>
+                    <SelectItem value="Other">Other</SelectItem>
+                  </SelectContent>
+                </Select>
               </div>
             </div>
           </div>
@@ -674,7 +688,11 @@ export default function PaymentDialog({
                 <Input
                   type="text"
                   value={creditAccountNumber}
-                  onChange={(e) => setCreditAccountNumber(e.target.value)}
+                  onChange={(e) =>
+                    setCreditAccountNumber(e.target.value.slice(0, 16))
+                  }
+                  maxLength={16}
+                  inputMode="numeric"
                   placeholder="Enter Number"
                   className="bg-gray-50 border-gray-300 rounded-xl h-12"
                   disabled={isProcessing}
@@ -693,9 +711,11 @@ export default function PaymentDialog({
                     <SelectValue />
                   </SelectTrigger>
                   <SelectContent>
-                    <SelectItem value="BCA">BCA</SelectItem>
-                    <SelectItem value="Mandiri">Mandiri</SelectItem>
-                    <SelectItem value="BRI">BRI</SelectItem>
+                    <SelectItem value="OVO">OVO</SelectItem>
+                    <SelectItem value="SHOPEE">SHOPEE</SelectItem>
+                    <SelectItem value="LINKAJA">LINKAJA</SelectItem>
+                    <SelectItem value="YOUTAP">YOUTAP</SelectItem>
+                    <SelectItem value="GAJA">GAJA</SelectItem>
                   </SelectContent>
                 </Select>
               </div>
@@ -703,14 +723,22 @@ export default function PaymentDialog({
                 <label className="block text-base font-medium text-gray-700 mb-3">
                   Card Type
                 </label>
-                <Input
-                  type="text"
+                <Select
                   value={creditCardType}
-                  onChange={(e) => setCreditCardType(e.target.value)}
-                  placeholder="Enter/Select"
-                  className="bg-gray-50 border-gray-300 rounded-xl h-12"
+                  onValueChange={setCreditCardType}
                   disabled={isProcessing}
-                />
+                >
+                  <SelectTrigger className="bg-gray-50 border-gray-300 rounded-xl h-12">
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="Visa">Visa</SelectItem>
+                    <SelectItem value="MasterCard">MasterCard</SelectItem>
+                    <SelectItem value="JCB">JCB</SelectItem>
+                    <SelectItem value="Amex">Amex</SelectItem>
+                    <SelectItem value="Other">Other</SelectItem>
+                  </SelectContent>
+                </Select>
               </div>
             </div>
           </div>

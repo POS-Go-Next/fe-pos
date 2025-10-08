@@ -268,7 +268,7 @@ export const CustomerSection: React.FC<CustomerSectionProps> = ({
 
                     <div>
                         <label className="block text-sm font-medium text-gray-700 mb-2">
-                            Age <span className="text-red-500">*</span>
+                            Age
                         </label>
                         <Input
                             type="text"

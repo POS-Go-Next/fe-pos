@@ -534,10 +534,10 @@ const KassaSetupDialog: FC<KassaSetupDialogProps> = ({
               <div className="flex bg-gray-100 rounded-lg p-1">
                 <button
                   type="button"
-                  onClick={() => handleToggle("default_jual", "1")}
+                  onClick={() => handleToggle("default_jual", "2")}
                   disabled={isLoading}
                   className={`flex-1 py-2 px-3 rounded-md text-sm font-medium transition-colors ${
-                    formData.default_jual === "1"
+                    formData.default_jual === "2"
                       ? "bg-blue-600 text-white shadow-sm"
                       : "text-gray-700 hover:text-gray-900"
                   }`}
@@ -546,10 +546,10 @@ const KassaSetupDialog: FC<KassaSetupDialogProps> = ({
                 </button>
                 <button
                   type="button"
-                  onClick={() => handleToggle("default_jual", "2")}
+                  onClick={() => handleToggle("default_jual", "1")}
                   disabled={isLoading}
                   className={`flex-1 py-2 px-3 rounded-md text-sm font-medium transition-colors ${
-                    formData.default_jual === "2"
+                    formData.default_jual === "1"
                       ? "bg-blue-600 text-white shadow-sm"
                       : "text-gray-700 hover:text-gray-900"
                   }`}

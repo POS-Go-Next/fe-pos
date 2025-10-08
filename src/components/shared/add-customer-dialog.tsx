@@ -124,7 +124,7 @@ export default function AddCustomerDialog({
                 id: data.data.kd_cust,
                 name: data.data.nm_cust,
                 gender: data.data.gender === "male" ? "Male" : "Female",
-                age: data.data.usia_cust.toString(),
+                age: data.data.usia_cust?.toString(),
                 phone: `+${data.data.telp_cust}`,
                 address: data.data.al_cust,
                 status: data.data.status ? "AKTIF" : "TIDAK AKTIF",
@@ -253,7 +253,7 @@ export default function AddCustomerDialog({
 
                             <div>
                                 <label className="block text-sm font-medium text-gray-700 mb-2">
-                                    Age <span className="text-red-500">*</span>
+                                    Age
                                 </label>
                                 <Input
                                     type="number"

@@ -249,7 +249,6 @@ export default function SelectProductDialog({
                 availableStock: 0,
                 requestedQuantity: 1,
             });
-            return;
         }
 
         console.log("✅ ALLOWED: Adding to cart");

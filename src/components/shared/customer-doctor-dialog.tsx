@@ -163,7 +163,7 @@ export default function CustomerDoctorDialog({
             errors.customerName = "Customer name is required";
         }
 
-        if (!customerForm.age || parseInt(customerForm.age) <= 0) {
+        if (!customerForm.age && parseInt(customerForm.age) <= 0) {
             errors.customerAge = "Valid age is required";
         }
 
@@ -188,10 +188,6 @@ export default function CustomerDoctorDialog({
 
         if (!doctorForm.fullname.trim()) {
             errors.doctorFullname = "Doctor name is required";
-        }
-
-        if (!doctorForm.sip.trim()) {
-            errors.doctorSip = "SIP is required";
         }
 
         if (!doctorForm.phone || doctorForm.phone.length < 10) {
@@ -256,7 +252,7 @@ export default function CustomerDoctorDialog({
             id: customer.kd_cust,
             name: customer.nm_cust,
             gender: customer.gender,
-            age: customer.usia_cust.toString(),
+            age: customer.usia_cust?.toString(),
             phone: customer.telp_cust,
             address: customer.al_cust,
             status: customer.status ? "true" : "false",
@@ -364,7 +360,7 @@ export default function CustomerDoctorDialog({
                 id: data.data.kd_cust,
                 name: data.data.nm_cust,
                 gender: data.data.gender,
-                age: data.data.usia_cust.toString(),
+                age: data.data.usia_cust?.toString(),
                 phone: data.data.telp_cust,
                 address: data.data.al_cust,
                 status: data.data.status ? "true" : "false",

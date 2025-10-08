@@ -24,7 +24,7 @@ export default function StockWarningDialog({
         if (warningType === "out-of-stock") {
             return {
                 title: "Stok Habis",
-                message: `Produk "${productName}" saat ini stoknya kosong dan tidak tersedia untuk dijual.`,
+                message: `Anda menambahkan produk "${productName}" yang saat ini stoknya kosong.`,
                 icon: "error",
             };
         } else {
@@ -75,34 +75,14 @@ export default function StockWarningDialog({
                         <p className="text-gray-700 leading-relaxed">
                             {warning.message}
                         </p>
-
-                        {warningType === "insufficient-stock" && (
-                            <div className="mt-4 p-3 bg-blue-50 border border-blue-200 rounded-lg">
-                                <p className="text-sm text-blue-800">
-                                    <span className="font-medium">Saran:</span>{" "}
-                                    Ubah quantity menjadi maksimal{" "}
-                                    {availableStock} unit atau kurang.
-                                </p>
-                            </div>
-                        )}
-
-                        {warningType === "out-of-stock" && (
-                            <div className="mt-4 p-3 bg-red-50 border border-red-200 rounded-lg">
-                                <p className="text-sm text-red-800">
-                                    <span className="font-medium">Info:</span>{" "}
-                                    Silakan pilih produk lain atau tunggu
-                                    restock produk ini.
-                                </p>
-                            </div>
-                        )}
                     </div>
 
                     <div className="flex justify-end gap-3">
                         <button
                             onClick={onClose}
-                            className="px-6 py-2 bg-gray-500 text-white rounded-lg hover:bg-gray-600 transition-colors font-medium"
+                            className="px-6 py-2 bg-red-500 text-white rounded-lg hover:bg-red-600 transition-colors font-medium"
                         >
-                            OK, Mengerti
+                            Ya, Saya Paham
                         </button>
                     </div>
                 </div>
