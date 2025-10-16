@@ -141,9 +141,9 @@ export const useTransactionInfo = (): UseTransactionInfoReturn => {
     }
   };
 
-  const getTransactionType = (): string => {
+  const getTransactionType = (deviceId: string): string => {
     try {
-      const kassaSetup = localStorage.getItem("kassa-setup-agung");
+      const kassaSetup = localStorage.getItem(`kassa-setup-${deviceId}`);
       if (kassaSetup) {
         const parsedData = JSON.parse(kassaSetup);
         const defaultJual = parsedData.formData?.default_jual;
@@ -155,7 +155,7 @@ export const useTransactionInfo = (): UseTransactionInfoReturn => {
       console.log("No default_jual found, using fallback: 1");
       return "1";
     } catch (error) {
-      console.error("Error parsing kassa-setup-agung:", error);
+      console.error(`Error parsing kassa-setup-${deviceId}:`, error);
       return "1";
     }
   };
@@ -166,13 +166,13 @@ export const useTransactionInfo = (): UseTransactionInfoReturn => {
       setError(null);
 
       const username = getUsername();
-      const transactionType = getTransactionType();
-
       const deviceId = await getSystemDeviceId();
 
       if (!deviceId) {
         throw new Error("Could not obtain device ID from system");
       }
+
+      const transactionType = getTransactionType(deviceId);
 
       console.log("Using device ID:", deviceId);
       console.log("Using transaction_type:", transactionType);
