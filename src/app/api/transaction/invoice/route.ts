@@ -47,7 +47,6 @@ export async function GET(request: NextRequest) {
             invoiceNumber
         )}`;
 
-        console.log("Fetching transaction detail from:", apiUrl);
 
         // Call external API
         const response = await fetch(apiUrl, {
@@ -63,13 +62,6 @@ export async function GET(request: NextRequest) {
 
         const responseData: TransactionDetailExternalApiResponse =
             await response.json();
-        console.log("Transaction Detail API Response:", {
-            status: response.status,
-            message: responseData.message,
-            invoiceNumber: responseData.data?.invoice_number || "N/A",
-            itemsCount: responseData.data?.items?.length || 0,
-        });
-
         if (!response.ok) {
             if (response.status === 401) {
                 return NextResponse.json(

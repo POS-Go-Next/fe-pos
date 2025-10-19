@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, useCallback } from "react";
 
 interface AreaData {
     id_area: string;
@@ -16,7 +16,7 @@ interface AreaApiResponse {
         page: number;
         totalPages: number;
     };
-    errors?: any;
+    errors?: Record<string, string[]>;
 }
 
 interface UseAreaReturn {
@@ -43,7 +43,7 @@ export const useArea = (params: UseAreaParams = {}): UseAreaReturn => {
     const [totalPages, setTotalPages] = useState<number>();
     const [totalDocs, setTotalDocs] = useState<number>();
 
-    const fetchArea = async () => {
+    const fetchArea = useCallback(async () => {
         try {
             setIsLoading(true);
             setError(null);
@@ -96,11 +96,11 @@ export const useArea = (params: UseAreaParams = {}): UseAreaReturn => {
         } finally {
             setIsLoading(false);
         }
-    };
+    }, [limit, offset, search]);
 
     useEffect(() => {
         fetchArea();
-    }, [limit, offset, search]);
+    }, [limit, offset, search, fetchArea]);
 
     const refetch = () => {
         fetchArea();

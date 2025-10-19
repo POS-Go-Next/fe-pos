@@ -63,7 +63,7 @@ export default function TransactionInfo({
     const displayBadge =
         queueNumber || (isClient && userData?.id ? userData.id : "??");
 
-    const getUserInitials = () => {
+    const _getUserInitials = () => {
         if (!userData?.fullname) return "??";
         return userData.fullname
             .split(" ")

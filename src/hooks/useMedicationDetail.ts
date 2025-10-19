@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, useCallback } from "react";
 
 interface MedicationDetailData {
     kode_brg: string;
@@ -48,7 +48,7 @@ interface MedicationDetailApiResponse {
     success: boolean;
     message: string;
     data?: MedicationDetailData;
-    errors?: any;
+    errors?: Record<string, string[]>;
 }
 
 interface UseMedicationDetailReturn {
@@ -72,7 +72,7 @@ export const useMedicationDetail = ({
     const [isLoading, setIsLoading] = useState(false);
     const [error, setError] = useState<string | null>(null);
 
-    const fetchMedicationDetail = async () => {
+    const fetchMedicationDetail = useCallback(async () => {
         if (!kode_brg || !enabled) {
             setMedicationDetail(null);
             return;
@@ -98,16 +98,7 @@ export const useMedicationDetail = ({
             );
 
             const data: MedicationDetailApiResponse = await response.json();
-
-            console.log("Frontend received medication detail:", {
-                success: data.success,
-                hasData: !!data.data,
-                hasProductImages: !!data.data?.product_images,
-                productImagesCount: data.data?.product_images?.length || 0,
-                productImages: data.data?.product_images,
-                hasInfoObat: !!data.data?.info_obat,
-            });
-
+            
             if (!response.ok) {
                 if (response.status === 401) {
                     throw new Error("Session expired. Please login again.");
@@ -124,7 +115,14 @@ export const useMedicationDetail = ({
                     Array.isArray(processedData.product_images)
                 ) {
                     processedData.product_images =
-                        processedData.product_images.map((img: any) => ({
+                        processedData.product_images.map((img: {
+                            id: number;
+                            kd_brgdg: string;
+                            url?: string;
+                            gambar: string;
+                            main_display: boolean;
+                            created_at: string;
+                        }) => ({
                             id: img.id,
                             kd_brgdg: img.kd_brgdg,
                             url: img.url || img.gambar,
@@ -150,11 +148,11 @@ export const useMedicationDetail = ({
         } finally {
             setIsLoading(false);
         }
-    };
+    }, [kode_brg, enabled]);
 
     useEffect(() => {
         fetchMedicationDetail();
-    }, [kode_brg, enabled]);
+    }, [fetchMedicationDetail]);
 
     const refetch = () => {
         fetchMedicationDetail();

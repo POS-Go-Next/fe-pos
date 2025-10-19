@@ -103,17 +103,10 @@ export const useParameter = (): UseParameterReturn => {
     const [isLoading, setIsLoading] = useState(true);
     const [error, setError] = useState<string | null>(null);
 
-    const fetchParameter = async (force: boolean = false) => {
+    const fetchParameter = async (_force: boolean = false) => {
         try {
             setIsLoading(true);
-            setError(null);
-
-            console.log("🔄 Fetching parameter data...", {
-                force,
-                timestamp: new Date().toISOString(),
-            });
-
-            const cacheBuster = `?_t=${Date.now()}&_r=${Math.random()}`;
+            setError(null);const cacheBuster = `?_t=${Date.now()}&_r=${Math.random()}`;
 
             const response = await fetch(`/api/parameter/me${cacheBuster}`, {
                 method: "GET",
@@ -136,17 +129,7 @@ export const useParameter = (): UseParameterReturn => {
                 throw new Error(`HTTP error! status: ${response.status}`);
             }
 
-            const result: ParameterApiResponse = await response.json();
-
-            console.log("✅ Parameter data fetched successfully:", {
-                kd_area: result.data?.kd_area,
-                kd_cab: result.data?.kd_cab,
-                timestamp: new Date().toISOString(),
-                service: result.data?.service,
-                roundup_resep: result.data?.roundup_resep,
-            });
-
-            if (result.data) {
+            const result: ParameterApiResponse = await response.json();if (result.data) {
                 setParameterData({ ...result.data });
             } else {
                 throw new Error("Invalid response format");
@@ -168,59 +151,32 @@ export const useParameter = (): UseParameterReturn => {
         updatedData: Partial<ParameterData>
     ): Promise<boolean> => {
         try {
-            setError(null);
-
-            console.log("🔄 UPDATE PARAMETER HOOK - Starting update...");
-            console.log("📤 Data being sent to API:", updatedData);
-
-            const response = await fetch("/api/parameter/upsert", {
+            setError(null);const response = await fetch("/api/parameter/upsert", {
                 method: "POST",
                 headers: {
                     "Content-Type": "application/json",
                     "Cache-Control": "no-cache, no-store, must-revalidate",
                 },
                 body: JSON.stringify(updatedData),
-            });
-
-            console.log("📡 API Response Status:", response.status);
-
-            if (!response.ok) {
+            });if (!response.ok) {
                 if (response.status === 401) {
                     throw new Error("Session expired. Please login again.");
                 }
-                const errorData = await response.json();
-                console.log("❌ API Error Response:", errorData);
-                throw new Error(
+                const errorData = await response.json();throw new Error(
                     errorData.message || "Failed to update parameter"
                 );
             }
 
-            const responseData = await response.json();
-            console.log("✅ API Success Response:", responseData);
-
+            await response.json();
+            
             if (parameterData) {
                 const updatedParameterData = {
                     ...parameterData,
                     ...updatedData,
-                };
-                console.log("🔄 Updating local state IMMEDIATELY:", {
-                    before: {
-                        kd_area: parameterData.kd_area,
-                        kd_cab: parameterData.kd_cab,
-                        service: parameterData.service,
-                    },
-                    after: {
-                        kd_area: updatedParameterData.kd_area,
-                        kd_cab: updatedParameterData.kd_cab,
-                        service: updatedParameterData.service,
-                    },
-                });
-                setParameterData(updatedParameterData);
+                };setParameterData(updatedParameterData);
             }
 
-            setTimeout(async () => {
-                console.log("🔄 FORCED refresh from server after update...");
-                await fetchParameter(true);
+            setTimeout(async () => {await fetchParameter(true);
             }, 500);
 
             return true;
@@ -239,9 +195,7 @@ export const useParameter = (): UseParameterReturn => {
         fetchParameter();
     }, []);
 
-    const refetch = () => {
-        console.log("🔄 Manual refetch triggered");
-        fetchParameter(true);
+    const refetch = () => {fetchParameter(true);
     };
 
     return {

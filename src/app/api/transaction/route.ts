@@ -3,7 +3,6 @@ import { NextRequest, NextResponse } from "next/server";
 import { cookies } from "next/headers";
 import type {
   TransactionExternalApiResponse,
-  TransactionApiResponse,
 } from "@/types/transaction";
 
 export const runtime = "nodejs";
@@ -30,14 +29,7 @@ export async function POST(request: NextRequest) {
     }
 
     // Get request body
-    const body = await request.json();
-
-    console.log(
-      "🚀 Creating transaction with payload:",
-      JSON.stringify(body, null, 2)
-    );
-
-    // Validate required fields
+    const body = await request.json();// Validate required fields
     if (!body.device_id) {
       return NextResponse.json(
         {
@@ -91,14 +83,7 @@ export async function POST(request: NextRequest) {
       body: JSON.stringify(body),
     });
 
-    const responseData = await response.json();
-
-    console.log("📡 Transaction API Response:", {
-      status: response.status,
-      message: responseData.message,
-    });
-
-    if (!response.ok) {
+    const responseData = await response.json();if (!response.ok) {
       if (response.status === 401) {
         return NextResponse.json(
           {
@@ -188,11 +173,7 @@ export async function GET(request: NextRequest) {
     if (dateGte) apiUrl.searchParams.set("date_gte", dateGte);
     if (dateLte) apiUrl.searchParams.set("date_lte", dateLte);
     if (boughtProductCode)
-      apiUrl.searchParams.set("bought_product_code", boughtProductCode);
-
-    console.log("API URL:", apiUrl.toString());
-
-    // Call external API with timeout
+      apiUrl.searchParams.set("bought_product_code", boughtProductCode);// Call external API with timeout
     const controller = new AbortController();
     const timeoutId = setTimeout(() => controller.abort(), 25000);
 
@@ -234,29 +215,23 @@ export async function GET(request: NextRequest) {
       );
     }
 
-    const responseData: TransactionExternalApiResponse = await response.json();
-    console.log(
-      "Success:",
-      responseData.data?.docs?.length || 0,
-      "transactions"
-    );
-
-    return NextResponse.json({
+    const responseData: TransactionExternalApiResponse = await response.json();return NextResponse.json({
       success: true,
       message: "Transactions retrieved successfully",
       data: responseData.data,
     });
-  } catch (error: any) {
-    console.error("Transaction API error:", error.message);
+  } catch (error: unknown) {
+    const errorMessage = error instanceof Error ? error.message : 'Unknown error';
+    console.error("Transaction API error:", errorMessage);
 
-    if (error.name === "AbortError") {
+    if (error instanceof Error && error.name === "AbortError") {
       return NextResponse.json(
         { success: false, message: "Request timeout" },
         { status: 504 }
       );
     }
 
-    if (error.message?.includes("fetch")) {
+    if (error instanceof Error && error.message?.includes("fetch")) {
       return NextResponse.json(
         {
           success: false,

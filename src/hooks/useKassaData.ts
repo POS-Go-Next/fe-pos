@@ -2,7 +2,7 @@
 
 import { isSessionExpired } from "@/lib/sessionHandler";
 import type { KassaResponse } from "@/types/kassa";
-import { useEffect, useState } from "react";
+import { useEffect, useState, useCallback } from "react";
 
 interface UseKassaDataParams {
     deviceId: string | null;
@@ -26,7 +26,7 @@ export const useKassaData = ({
     const [error, setError] = useState<string | null>(null);
     const [isSessionExpiredState, setIsSessionExpiredState] = useState(false);
 
-    const fetchKassaData = async () => {
+    const fetchKassaData = useCallback(async () => {
         if (!deviceId || !enabled) {
             return;
         }
@@ -36,8 +36,6 @@ export const useKassaData = ({
         setIsSessionExpiredState(false);
 
         try {
-            console.log(`🔄 Fetching kassa data for device ID: ${deviceId}`);
-
             const response = await fetch(`/api/kassa/${deviceId}`, {
                 method: "GET",
                 headers: {
@@ -62,7 +60,6 @@ export const useKassaData = ({
 
             if (result.data) {
                 setKassaData(result.data);
-                console.log("✅ Kassa data fetched:", result.data);
             } else {
                 setError("No kassa data found for this device ID");
             }
@@ -84,13 +81,13 @@ export const useKassaData = ({
         } finally {
             setIsLoading(false);
         }
-    };
+    }, [deviceId, enabled]);
 
     useEffect(() => {
         if (deviceId && enabled) {
             fetchKassaData();
         }
-    }, [deviceId, enabled]);
+    }, [fetchKassaData, deviceId, enabled]);
 
     return {
         kassaData,

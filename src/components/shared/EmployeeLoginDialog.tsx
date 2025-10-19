@@ -100,7 +100,7 @@ export default function EmployeeLoginDialog({
     setIsBiometricOpen(true);
   };
 
-  const handleBiometricSuccess = (userData: any) => {
+  const handleBiometricSuccess = (userData: { id: number; fullname: string; username: string; email: string; phone?: string; role_id?: number; position_id?: number }) => {
     setIsBiometricOpen(false);
 
     const transformedUserData: UserData = {

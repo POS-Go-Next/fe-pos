@@ -18,18 +18,7 @@ export async function GET(request: NextRequest) {
 
         if (authToken?.startsWith("Bearer ")) {
             authToken = authToken.substring(7);
-        }
-
-        console.log("🔐 Auth check:", {
-            hasHeaderAuth: !!request.headers.get("authorization"),
-            hasCookieAuth: !!cookieStore.get("auth-token")?.value,
-            tokenLength: authToken?.length || 0,
-            tokenPrefix: authToken?.substring(0, 10) || "none",
-        });
-
-        if (!authToken || authToken === "null" || authToken === "undefined") {
-            console.log("❌ No valid auth token found");
-            return NextResponse.json(
+        }if (!authToken || authToken === "null" || authToken === "undefined") {return NextResponse.json(
                 {
                     success: false,
                     message: "Authentication required. Please login first.",
@@ -50,14 +39,7 @@ export async function GET(request: NextRequest) {
 
         if (search) {
             queryParams.append("search", search);
-        }
-
-        console.log("📤 Making request to external API:", {
-            url: `${API_BASE_URL}/user?${queryParams.toString()}`,
-            hasAuthToken: !!authToken,
-        });
-
-        const response = await fetch(
+        }const response = await fetch(
             `${API_BASE_URL}/user?${queryParams.toString()}`,
             {
                 method: "GET",
@@ -69,23 +51,7 @@ export async function GET(request: NextRequest) {
             }
         );
 
-        const responseData = await response.json();
-        console.log("📥 User API Response:", {
-            status: response.status,
-            ok: response.ok,
-            message: responseData.message,
-            hasData: !!responseData.data,
-            dataLength: responseData.data?.docs?.length || 0,
-        });
-
-        if (!response.ok) {
-            console.log(
-                "❌ External API error:",
-                response.status,
-                responseData.message
-            );
-
-            if (response.status === 401) {
+        const responseData = await response.json();if (!response.ok) {if (response.status === 401) {
                 return NextResponse.json(
                     {
                         success: false,
@@ -109,9 +75,7 @@ export async function GET(request: NextRequest) {
         if (
             responseData.message !== "Get paginated user successful" ||
             !responseData.data
-        ) {
-            console.log("❌ Invalid response structure:", responseData.message);
-            return NextResponse.json(
+        ) {return NextResponse.json(
                 {
                     success: false,
                     message:
@@ -120,16 +84,7 @@ export async function GET(request: NextRequest) {
                 },
                 { status: 400 }
             );
-        }
-
-        console.log("✅ User data retrieved successfully:", {
-            totalDocs: responseData.data.totalDocs,
-            docsCount: responseData.data.docs?.length,
-            page: responseData.data.page,
-            totalPages: responseData.data.totalPages,
-        });
-
-        return NextResponse.json({
+        }return NextResponse.json({
             success: true,
             message: "User data retrieved successfully",
             data: responseData.data,

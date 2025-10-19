@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect, useCallback, useRef } from "react";
+import { useState, useEffect, useCallback } from "react";
 import { UserData } from "@/types/user";
 import { useEmployeesInfinite } from "@/hooks/useEmployeesInfinite";
 
@@ -41,9 +41,7 @@ export const useEmployeeSelection = (isAuthenticated: boolean) => {
         }
     }, [employeeState.searchTerm, currentSearchTerm, setSearchTerm]);
 
-    const selectEmployee = useCallback((employee: UserData) => {
-        console.log("Employee selected:", employee.fullname);
-        setEmployeeState((prev) => ({
+    const selectEmployee = useCallback((employee: UserData) => {setEmployeeState((prev) => ({
             ...prev,
             selectedEmployeeId: employee.id,
             selectedEmployeeName: employee.fullname,
@@ -65,9 +63,7 @@ export const useEmployeeSelection = (isAuthenticated: boolean) => {
         setEmployeeState((prev) => ({ ...prev, searchTerm: term }));
     }, []);
 
-    const resetEmployee = useCallback(() => {
-        console.log("Resetting employee selection");
-        setEmployeeState({
+    const resetEmployee = useCallback(() => {setEmployeeState({
             selectedEmployeeId: null,
             selectedEmployeeName: "",
             showDropdown: false,
@@ -76,9 +72,7 @@ export const useEmployeeSelection = (isAuthenticated: boolean) => {
     }, []);
 
     const controlledRefetch = useCallback(() => {
-        if (isAuthenticated && !isLoading) {
-            console.log("Manual refetch triggered");
-            refetch();
+        if (isAuthenticated && !isLoading) {refetch();
         }
     }, [isAuthenticated, isLoading, refetch]);
 

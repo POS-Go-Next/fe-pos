@@ -43,7 +43,6 @@ export async function GET(
         );
 
         const responseData = await response.json();
-        console.log("Branch wide stock API Response:", responseData);
 
         if (!response.ok) {
             if (response.status === 401) {

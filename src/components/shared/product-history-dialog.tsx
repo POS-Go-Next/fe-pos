@@ -66,7 +66,7 @@ export default function ProductHistoryDialog({
     error,
     totalPages = 1,
     totalDocs = 0,
-    refetch,
+    refetch: _refetch,
   } = useTransaction({
     offset,
     limit: pageSize,
@@ -103,14 +103,7 @@ export default function ProductHistoryDialog({
   );
 
   useEffect(() => {
-    if (isOpen) {
-      console.log(
-        "📋 Product History Dialog opened for:",
-        productName,
-        "Code:",
-        productCode
-      );
-      setCurrentPage(1);
+    if (isOpen) {setCurrentPage(1);
       setPageSize(10);
       setSearchInput("");
       setSearchTerm("");
@@ -159,9 +152,7 @@ export default function ProductHistoryDialog({
 
   const handleDateRangeChange = (range: DateRange | undefined) => {
     setAppliedDateRange(range);
-    setCurrentPage(1);
-    console.log("✅ Date range applied:", range);
-  };
+    setCurrentPage(1);};
 
   const handlePageChange = (page: number) => {
     if (searchTerm) {

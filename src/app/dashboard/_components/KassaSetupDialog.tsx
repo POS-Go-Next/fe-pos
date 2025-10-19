@@ -15,10 +15,11 @@ import { useSystemInfo } from "@/hooks/useSystemInfo";
 import { useKassaData } from "@/hooks/useKassaData";
 import { usePrinter } from "@/hooks/usePrinter";
 import { useAuth } from "@/hooks/useAuth";
+import { UserData } from "@/types/user";
 import { showErrorAlert, showSuccessAlert } from "@/lib/swal";
 import { X, Loader2, AlertCircle } from "lucide-react";
 import Image from "next/image";
-import { FC, useEffect, useState } from "react";
+import { FC, useEffect, useState, useCallback } from "react";
 import Swal from "sweetalert2";
 
 interface KassaSetupDialogProps {
@@ -58,8 +59,8 @@ const KassaSetupDialog: FC<KassaSetupDialogProps> = ({
   const {
     kassaData,
     isLoading: isKassaLoading,
-    error: kassaError,
-    refetch: refetchKassaData,
+    error: _kassaError,
+    refetch: _refetchKassaData,
     isSessionExpired: kassaSessionExpired,
   } = useKassaData({
     deviceId,
@@ -70,7 +71,7 @@ const KassaSetupDialog: FC<KassaSetupDialogProps> = ({
     printers,
     isLoading: isPrinterLoading,
     error: printerError,
-    refetch: refetchPrinters,
+    refetch: _refetchPrinters,
     isSessionExpired: printerSessionExpired,
   } = usePrinter({
     offset: 0,
@@ -93,11 +94,41 @@ const KassaSetupDialog: FC<KassaSetupDialogProps> = ({
     null
   );
 
+  const checkTokenStatus = useCallback(async () => {
+    setIsCheckingToken(true);
+
+    try {
+      const response = await fetch(`/api/kassa/${deviceId}`, {
+        method: "GET",
+        headers: {
+          "Content-Type": "application/json",
+        },
+      });
+      
+      if (response.ok) {
+        setHasValidToken(true);
+        setIsCheckingToken(false);
+      } else if (response.status === 401) {
+        setHasValidToken(false);
+        setIsCheckingToken(false);
+        showSessionExpiredPopup();
+      } else {
+        setHasValidToken(false);
+        setIsCheckingToken(false);
+        showSessionExpiredPopup();
+      }
+    } catch (_error) {
+      setHasValidToken(false);
+      setIsCheckingToken(false);
+      showSessionExpiredPopup();
+    }
+  }, [deviceId]);
+
   useEffect(() => {
     if (isOpen) {
       checkTokenStatus();
     }
-  }, [isOpen]);
+  }, [isOpen, checkTokenStatus]);
 
   // Reset states when dialog opens
   useEffect(() => {
@@ -109,10 +140,7 @@ const KassaSetupDialog: FC<KassaSetupDialogProps> = ({
 
   // Load data from API when available
   useEffect(() => {
-    if (kassaData && deviceId && hasValidToken && !isDataLoaded) {
-      console.log("🪟 Loading kassa data from API:", kassaData);
-
-      setFormData({
+    if (kassaData && deviceId && hasValidToken && !isDataLoaded) {setFormData({
         default_jual: kassaData.default_jual as "1" | "2",
         status_aktif: kassaData.status_aktif,
         antrian: kassaData.antrian,
@@ -146,19 +174,15 @@ const KassaSetupDialog: FC<KassaSetupDialogProps> = ({
         try {
           const parsedData = JSON.parse(savedData);
           setFormData(parsedData.formData);
-          setSelectedPrinterId(parsedData.selectedPrinterId);
-          console.log("📄 Loaded data from localStorage:", parsedData);
-        } catch (error) {
-          console.error("Error parsing saved data:", error);
+          setSelectedPrinterId(parsedData.selectedPrinterId);} catch (_error) {
+          console.error("Error parsing saved data:", _error);
         }
       } else {
         // Set default values with deviceId
         setFormData((prev) => ({
           ...prev,
           device_id: deviceId,
-        }));
-        console.log("🪟 Using default values for new kassa setup");
-      }
+        }));}
       setHasLoadedFromStorage(true);
       setIsDataLoaded(true);
     }
@@ -186,9 +210,7 @@ const KassaSetupDialog: FC<KassaSetupDialogProps> = ({
       localStorage.setItem(
         `kassa-setup-${deviceId}`,
         JSON.stringify(dataToSave)
-      );
-      console.log("💾 Saved data to localStorage:", dataToSave);
-    }
+      );}
   }, [formData, selectedPrinterId, deviceId, hasValidToken, isDataLoaded]);
 
   useEffect(() => {
@@ -205,47 +227,9 @@ const KassaSetupDialog: FC<KassaSetupDialogProps> = ({
     }
   }, [kassaSessionExpired]);
 
-  const checkTokenStatus = async () => {
-    console.log("🔑 CHECKING TOKEN STATUS...");
-    setIsCheckingToken(true);
 
-    try {
-      const response = await fetch(`/api/kassa/${deviceId}`, {
-        method: "GET",
-        headers: {
-          "Content-Type": "application/json",
-        },
-      });
 
-      console.log("🔑 API Test Response status:", response.status);
-
-      if (response.ok) {
-        console.log("✅ API CALL SUCCESS: User is authenticated");
-        setHasValidToken(true);
-        setIsCheckingToken(false);
-      } else if (response.status === 401) {
-        console.log("❌ API CALL 401: Not authenticated");
-        setHasValidToken(false);
-        setIsCheckingToken(false);
-        showSessionExpiredPopup();
-      } else {
-        console.log("❌ API CALL ERROR:", response.status);
-        setHasValidToken(false);
-        setIsCheckingToken(false);
-        showSessionExpiredPopup();
-      }
-    } catch (error) {
-      console.log("❌ API CALL FAILED:", error);
-      setHasValidToken(false);
-      setIsCheckingToken(false);
-      showSessionExpiredPopup();
-    }
-  };
-
-  const showSessionExpiredPopup = () => {
-    console.log("⚠️ Showing session expired popup");
-
-    let timerInterval: NodeJS.Timeout;
+  const showSessionExpiredPopup = () => {let timerInterval: NodeJS.Timeout;
 
     Swal.fire({
       icon: "warning",
@@ -291,36 +275,25 @@ const KassaSetupDialog: FC<KassaSetupDialogProps> = ({
       willClose: () => {
         clearInterval(timerInterval);
       },
-    }).then((result) => {
-      console.log("🔥 Session expired popup result:", result);
-
-      if (result.isConfirmed || result.dismiss === Swal.DismissReason.timer) {
-        console.log("➡️ Opening login dialog");
-        setIsLoginDialogOpen(true);
+    }).then((result) => {if (result.isConfirmed || result.dismiss === Swal.DismissReason.timer) {setIsLoginDialogOpen(true);
       }
     });
   };
 
-  const handleLoginSuccess = (userData: any) => {
-    console.log("✅ Login successful:", userData);
-    setHasValidToken(true);
+  const handleLoginSuccess = (_userData: UserData) => {setHasValidToken(true);
     setIsLoginDialogOpen(false);
     setIsDataLoaded(false);
     setHasLoadedFromStorage(false);
   };
 
-  const handleLoginClose = () => {
-    console.log("❌ Login dialog closed without login");
-    setIsLoginDialogOpen(false);
+  const handleLoginClose = () => {setIsLoginDialogOpen(false);
     onClose();
   };
 
   const handleLogoutAndClose = async () => {
     try {
-      await logout();
-      console.log("✅ User logged out successfully");
-    } catch (error) {
-      console.error("❌ Logout error:", error);
+      await logout();} catch (_error) {
+      console.error("❌ Logout error:", _error);
     }
     onClose();
   };
@@ -403,12 +376,7 @@ const KassaSetupDialog: FC<KassaSetupDialogProps> = ({
   };
 
   const handleSubmit = async () => {
-    try {
-      console.log("🚀 Submitting kassa setup:", formData);
-      console.log("🪟 Device ID used:", deviceId);
-      console.log("🖨️ Selected Printer ID:", selectedPrinterId);
-
-      if (!hasValidToken) {
+    try {if (!hasValidToken) {
         showSessionExpiredPopup();
         return;
       }
@@ -429,11 +397,7 @@ const KassaSetupDialog: FC<KassaSetupDialogProps> = ({
         finger: formData.finger,
         device_id: formData.device_id,
         printer_id: selectedPrinterId,
-      };
-
-      console.log("📤 Final submit data:", submitData);
-
-      const result = await updateKassa(deviceId, submitData);
+      };const result = await updateKassa(deviceId, submitData);
 
       if (result.isSessionExpired) {
         setHasValidToken(false);
@@ -451,22 +415,16 @@ const KassaSetupDialog: FC<KassaSetupDialogProps> = ({
         return;
       }
 
-      // Refetch fresh data from API to update cache
-      console.log("🔄 Refetching kassa data after successful update...");
-      await refetchKassaData();
+      // Refetch fresh data from API to update cacheawait refetchKassaData();
 
       await showSuccessAlert(
         "Success!",
         "Kassa setup saved successfully",
         1500
-      );
-
-      console.log("✅ Kassa setup submitted successfully");
-
-      onSubmit();
+      );onSubmit();
       handleLogoutAndClose();
-    } catch (error) {
-      console.error("❌ Error in kassa setup:", error);
+    } catch (_error) {
+      console.error("❌ Error in kassa setup:", _error);
       await showErrorAlert(
         "Unexpected Error",
         "An unexpected error occurred. Please try again.",
@@ -477,9 +435,7 @@ const KassaSetupDialog: FC<KassaSetupDialogProps> = ({
 
   const handleCancel = async () => {
     if (typeof window !== "undefined" && deviceId) {
-      localStorage.removeItem(`kassa-setup-${deviceId}`);
-      console.log("🗑️ Cleared localStorage on cancel");
-    }
+      localStorage.removeItem(`kassa-setup-${deviceId}`);}
 
     setFormData({
       default_jual: "1",

@@ -27,7 +27,7 @@ interface FingerprintLoginResponse {
     sessionId: string;
     expiresAt: string;
   };
-  errors?: any;
+  errors?: Record<string, string[]>;
 }
 
 interface UseFingerprintAuthReturn {
@@ -48,15 +48,7 @@ export const useFingerprintAuth = (): UseFingerprintAuthReturn => {
     setIsLoading(true);
     setError(null);
 
-    try {
-      console.log("🔍 Starting fingerprint login:", {
-        device_id: request.device_id,
-        need_generate_token: request.need_generate_token,
-        type: request.type,
-        timestamp: new Date().toISOString(),
-      });
-
-      const response = await fetch("/api/auth/fingerprint", {
+    try {const response = await fetch("/api/auth/fingerprint", {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
@@ -65,16 +57,7 @@ export const useFingerprintAuth = (): UseFingerprintAuthReturn => {
         body: JSON.stringify(request),
       });
 
-      const data: FingerprintLoginResponse = await response.json();
-
-      console.log("🔍 Fingerprint login response:", {
-        success: data.success,
-        message: data.message,
-        hasUser: !!data.data?.user,
-        hasToken: !!data.data?.token,
-      });
-
-      if (!response.ok) {
+      const data: FingerprintLoginResponse = await response.json();if (!response.ok) {
         setError(data.message || "Fingerprint login failed");
         return {
           success: false,
@@ -87,14 +70,7 @@ export const useFingerprintAuth = (): UseFingerprintAuthReturn => {
         // Save user data and token to localStorage for client-side access
         try {
           localStorage.setItem("user-data", JSON.stringify(data.data.user));
-          localStorage.setItem("auth-token", data.data.token);
-
-          console.log("✅ Fingerprint login successful - User data saved:", {
-            username: data.data.user.username,
-            fullname: data.data.user.fullname,
-            id: data.data.user.id,
-          });
-        } catch (storageError) {
+          localStorage.setItem("auth-token", data.data.token);} catch (storageError) {
           console.error(
             "❌ Failed to save user data to localStorage:",
             storageError

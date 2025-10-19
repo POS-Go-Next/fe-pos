@@ -20,5 +20,5 @@ export interface PrinterInternalResponse {
     success: boolean;
     message: string;
     data?: PrinterPaginationData;
-    errors?: any;
+    errors?: Record<string, string[]>;
 }

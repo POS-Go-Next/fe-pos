@@ -2,6 +2,7 @@
 
 import { FC, useEffect, useState } from "react";
 
+// eslint-disable-next-line @typescript-eslint/no-empty-object-type
 interface TimeDisplayProps {}
 
 const TimeDisplay: FC<TimeDisplayProps> = () => {

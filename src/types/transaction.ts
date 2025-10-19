@@ -62,7 +62,7 @@ export interface TransactionApiResponse {
   success: boolean;
   message: string;
   data?: TransactionPaginationData;
-  errors?: any;
+  errors?: Record<string, string[]>;
 }
 
 export interface TransactionExternalApiResponse {
@@ -119,7 +119,7 @@ export interface TransactionDetailApiResponse {
   success: boolean;
   message: string;
   data?: TransactionDetailData;
-  errors?: any;
+  errors?: Record<string, string[]>;
 }
 
 export interface TransactionDetailExternalApiResponse {
@@ -182,7 +182,7 @@ export interface CreateTransactionResponse {
     grand_total: number;
     created_at: string;
   };
-  errors?: any;
+  errors?: Record<string, string[]>;
 }
 
 export interface PrintTransactionPayload {
@@ -192,5 +192,5 @@ export interface PrintTransactionPayload {
 export interface PrintTransactionResponse {
   success: boolean;
   message: string;
-  data?: any;
+  data?: unknown;
 }

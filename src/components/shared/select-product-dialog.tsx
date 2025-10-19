@@ -5,7 +5,7 @@ import { Input } from "@/components/ui/input";
 import { useStock } from "@/hooks/useStock";
 import type { StockData } from "@/types/stock";
 import { ChevronDown, Clock, Search, X } from "lucide-react";
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useRef, useState, useCallback } from "react";
 import Pagination from "./pagination";
 import ProductHistoryDialog from "./product-history-dialog";
 import StockWarningDialog from "./stock-warning-dialog";
@@ -23,7 +23,7 @@ export default function SelectProductDialog({
     onClose,
     onSelectProduct,
     initialSearchQuery = "",
-    autoSearch = false,
+    autoSearch: _autoSearch = false,
 }: SelectProductDialogProps) {
     const [searchInput, setSearchInput] = useState("");
     const [searchTerm, setSearchTerm] = useState("");
@@ -71,6 +71,40 @@ export default function SelectProductDialog({
             });
         }
     };
+
+    const handleClose = useCallback(() => {
+        setSearchInput("");
+        setSearchTerm("");
+        setIsSearchActive(false);
+        setCurrentPage(1);
+        setSelectedIndex(-1);
+        setApiParams({ offset: 0, limit: 10, search: "" });
+        setIsHistoryDialogOpen(false);
+        setSelectedProductForHistory("");
+        setSelectedProductCodeForHistory("");
+        setStockWarningDialog({
+            isOpen: false,
+            productName: "",
+            warningType: "out-of-stock",
+            availableStock: 0,
+            requestedQuantity: 0,
+        });
+        onClose();
+    }, [onClose]);
+
+    const handleSelectProduct = useCallback((product: StockData) => {
+        if (product.q_akhir === 0) {
+            setStockWarningDialog({
+                isOpen: true,
+                productName: product.nama_brg,
+                warningType: "out-of-stock",
+                availableStock: 0,
+                requestedQuantity: 1,
+            });
+        }
+        onSelectProduct(product);
+        handleClose();
+    }, [onSelectProduct, handleClose]);
 
     useEffect(() => {
         if (!isOpen) return;
@@ -152,7 +186,7 @@ export default function SelectProductDialog({
 
         document.addEventListener("keydown", handleKeyDown);
         return () => document.removeEventListener("keydown", handleKeyDown);
-    }, [isOpen, stockList, selectedIndex]);
+    }, [isOpen, stockList, selectedIndex, handleClose, handleSelectProduct]);
 
     useEffect(() => {
         if (stockList.length > 0) {
@@ -233,29 +267,6 @@ export default function SelectProductDialog({
         setApiParams({ offset: 0, limit: pageSize, search: "" });
     };
 
-    const handleSelectProduct = (product: StockData) => {
-        console.log("🔥 SELECTING PRODUCT:", {
-            name: product.nama_brg,
-            code: product.kode_brg,
-            stock: product.q_akhir,
-        });
-
-        if (product.q_akhir === 0) {
-            console.log("❌ BLOCKED: Stock is 0, showing warning");
-            setStockWarningDialog({
-                isOpen: true,
-                productName: product.nama_brg,
-                warningType: "out-of-stock",
-                availableStock: 0,
-                requestedQuantity: 1,
-            });
-        }
-
-        console.log("✅ ALLOWED: Adding to cart");
-        onSelectProduct(product);
-        handleClose();
-    };
-
     const handleRowClick = (product: StockData, index: number) => {
         setSelectedIndex(index);
         handleSelectProduct(product);
@@ -319,26 +330,6 @@ export default function SelectProductDialog({
             ...prev,
             isOpen: false,
         }));
-    };
-
-    const handleClose = () => {
-        setSearchInput("");
-        setSearchTerm("");
-        setIsSearchActive(false);
-        setCurrentPage(1);
-        setSelectedIndex(-1);
-        setApiParams({ offset: 0, limit: 10, search: "" });
-        setIsHistoryDialogOpen(false);
-        setSelectedProductForHistory("");
-        setSelectedProductCodeForHistory("");
-        setStockWarningDialog({
-            isOpen: false,
-            productName: "",
-            warningType: "out-of-stock",
-            availableStock: 0,
-            requestedQuantity: 0,
-        });
-        onClose();
     };
 
     if (!isOpen) return null;

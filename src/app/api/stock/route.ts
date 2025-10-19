@@ -59,8 +59,7 @@ export async function GET(request: NextRequest) {
             }
         );
 
-        const responseData = await response.json();
-        console.log("Stock API Response:", responseData); // Debug log
+        const responseData = await response.json();// Debug log
 
         // Handle API response based on actual structure
         if (!response.ok) {

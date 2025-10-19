@@ -106,9 +106,7 @@ export default function OrderSummary({
   const isDialogOpen = isCustomerDoctorDialogOpen || internalDialogOpen;
 
   const refetchInvoiceNumber = async () => {
-    try {
-      console.log("Refetching invoice number...");
-      window.dispatchEvent(new CustomEvent("refetch-transaction-info"));
+    try {window.dispatchEvent(new CustomEvent("refetch-transaction-info"));
     } catch (error) {
       console.error("Error refetching invoice:", error);
     }
@@ -138,9 +136,7 @@ export default function OrderSummary({
     if (products.length === 0) {
       alert("No products to process payment");
       return;
-    }
-    console.log("💳 Pay Now clicked - starting payment flow");
-    await refetchInvoiceNumber();
+    }await refetchInvoiceNumber();
     setDialogKey((prev) => prev + 1);
     resetAllStates();
     setInternalDialogOpen(true);
@@ -149,15 +145,7 @@ export default function OrderSummary({
   const handleCustomerDoctorSubmit = (
     customerData: CustomerData,
     doctorData?: DoctorData
-  ) => {
-    console.log("CustomerDoctorSubmit called:", {
-      customerData,
-      doctorData,
-      triggerPaymentFlow,
-      isExternal: isCustomerDoctorDialogOpen,
-    });
-
-    setSelectedCustomer(customerData);
+  ) => {setSelectedCustomer(customerData);
     setSelectedDoctor(doctorData || null);
 
     if (isCustomerDoctorDialogOpen && onCustomerDoctorDialogClose) {
@@ -166,18 +154,13 @@ export default function OrderSummary({
       setInternalDialogOpen(false);
     }
 
-    if (triggerPaymentFlow || !isCustomerDoctorDialogOpen) {
-      console.log("Opening Transaction Type Dialog");
-      setIsTransactionTypeDialogOpen(true);
+    if (triggerPaymentFlow || !isCustomerDoctorDialogOpen) {setIsTransactionTypeDialogOpen(true);
     }
   };
 
   const handleTransactionTypeSubmit = (
     transactionData: TransactionTypeData
-  ) => {
-    console.log("Transaction type selected:", transactionData);
-
-    setTransactionTypeData(transactionData);
+  ) => {setTransactionTypeData(transactionData);
     setIsTransactionTypeDialogOpen(false);
     setIsPaymentDialogOpen(true);
   };
@@ -186,10 +169,7 @@ export default function OrderSummary({
     changeCash: number;
     changeCC: number;
     changeDC: number;
-  }) => {
-    console.log("Payment successful with change data:", changeData);
-
-    setIsPaymentDialogOpen(false);
+  }) => {setIsPaymentDialogOpen(false);
 
     if (changeData) {
       setChangeData(changeData);

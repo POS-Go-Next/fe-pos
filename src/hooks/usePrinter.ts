@@ -2,7 +2,7 @@
 
 import { isSessionExpired } from "@/lib/sessionHandler";
 import type { PrinterData } from "@/types/printer";
-import { useEffect, useState } from "react";
+import { useEffect, useState, useCallback } from "react";
 
 interface UsePrinterParams {
     offset?: number;
@@ -34,7 +34,7 @@ export const usePrinter = ({
     const [error, setError] = useState<string | null>(null);
     const [isSessionExpiredState, setIsSessionExpiredState] = useState(false);
 
-    const fetchPrinters = async () => {
+    const fetchPrinters = useCallback(async () => {
         if (!enabled) {
             return;
         }
@@ -44,10 +44,6 @@ export const usePrinter = ({
         setIsSessionExpiredState(false);
 
         try {
-            console.log(
-                `🔄 Fetching printers with offset: ${offset}, limit: ${limit}`
-            );
-
             const response = await fetch(
                 `/api/printer?offset=${offset}&limit=${limit}`,
                 {
@@ -78,7 +74,6 @@ export const usePrinter = ({
                 setTotalDocs(result.data.totalDocs || 0);
                 setTotalPages(result.data.totalPages || 0);
                 setCurrentPage(result.data.page || 1);
-                console.log("✅ Printers fetched:", result.data);
             } else {
                 setError("Invalid printer data format");
             }
@@ -100,13 +95,13 @@ export const usePrinter = ({
         } finally {
             setIsLoading(false);
         }
-    };
+    }, [offset, limit, enabled]);
 
     useEffect(() => {
         if (enabled) {
             fetchPrinters();
         }
-    }, [offset, limit, enabled]);
+    }, [fetchPrinters, enabled]);
 
     return {
         printers,

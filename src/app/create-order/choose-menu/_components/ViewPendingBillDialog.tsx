@@ -14,7 +14,7 @@ import {
     FileText,
 } from "lucide-react";
 import { Input } from "@/components/ui/input";
-import { Button } from "@/components/ui/button";
+
 import Pagination from "@/components/shared/pagination";
 
 interface PendingBillData {
@@ -22,7 +22,7 @@ interface PendingBillData {
     customerName: string;
     customerPhone: string;
     notes: string;
-    products: any[];
+    products: Record<string, unknown>[];
     totalAmount: number;
     savedAt: string;
     createdDate: string;
@@ -48,11 +48,11 @@ const ViewPendingBillDialog: React.FC<ViewPendingBillDialogProps> = ({
     const [pageSize, setPageSize] = useState(10);
     const [isPageSizeOpen, setIsPageSizeOpen] = useState(false);
     const [selectedBill, setSelectedBill] = useState<string | null>(null);
-    const [isLoading, setIsLoading] = useState(false);
+    const [isLoading, _setIsLoading] = useState(false);
     const searchInputRef = useRef<HTMLInputElement>(null);
     const tableContainerRef = useRef<HTMLDivElement>(null);
     const pageSizeOptions = [5, 10, 25, 50];
-    const mockPendingBills: PendingBillData[] = [
+    const mockPendingBills: PendingBillData[] = React.useMemo(() => [
         {
             id: "PB001",
             customerName: "Andi Wijaya",
@@ -94,11 +94,10 @@ const ViewPendingBillDialog: React.FC<ViewPendingBillDialogProps> = ({
             createdDate: "13/01/2025",
             createdTime: "09:45:20",
         },
-    ];
+    ], []);
 
     useEffect(() => {
         if (isOpen) {
-            console.log("View Pending Bills Dialog opened");
             setCurrentPage(1);
             setPageSize(10);
             setSearchInput("");
@@ -185,7 +184,6 @@ const ViewPendingBillDialog: React.FC<ViewPendingBillDialogProps> = ({
         if (onLoadBill) {
             onLoadBill(bill);
         }
-        console.log("Loading pending bill:", bill);
         handleClose();
     };
 
@@ -194,7 +192,6 @@ const ViewPendingBillDialog: React.FC<ViewPendingBillDialogProps> = ({
             if (onDeleteBill) {
                 onDeleteBill(billId);
             }
-            console.log("Deleting pending bill:", billId);
         }
     };
 

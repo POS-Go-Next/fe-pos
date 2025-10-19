@@ -16,24 +16,7 @@ interface KassaUpsertData {
     printer_id: number | null;
 }
 
-interface KassaResponse {
-    id_kassa: number;
-    kd_cab: string;
-    no_kassa: number;
-    type_jual: string;
-    antrian: boolean;
-    status_aktif: boolean;
-    status_operasional: string;
-    user_operasional: number;
-    tanggal_update: string;
-    user_update: string;
-    status: string;
-    finger: string;
-    default_jual: string;
-    device_id: string;
-    is_deleted: number;
-    deleted_at: string;
-}
+
 
 export async function POST(
     request: NextRequest,
@@ -68,17 +51,6 @@ export async function POST(
         }
 
         const body: KassaUpsertData = await request.json();
-
-        console.log("📥 Received request body:", body);
-        console.log("📥 Body types:", {
-            default_jual: typeof body.default_jual,
-            status_aktif: typeof body.status_aktif,
-            antrian: typeof body.antrian,
-            finger: typeof body.finger,
-            device_id: typeof body.device_id,
-            printer_id: typeof body.printer_id,
-        });
-
         // Convert string values to proper types
         const processedBody = {
             default_jual: body.default_jual,
@@ -89,7 +61,6 @@ export async function POST(
             printer_id: body.printer_id ? Number(body.printer_id) : null,
         };
 
-        console.log("Processed body for API:", processedBody);
 
         if (
             !processedBody.default_jual ||
@@ -113,13 +84,6 @@ export async function POST(
                 { status: 400 }
             );
         }
-
-        console.log("Kassa upsert request:", {
-            deviceId,
-            body: processedBody,
-            timestamp: new Date().toISOString(),
-        });
-
         const response = await fetch(
             `${API_BASE_URL}/kassa/${deviceId}/upsert`,
             {
@@ -136,7 +100,6 @@ export async function POST(
         );
 
         const responseData = await response.json();
-        console.log("Kassa API Response:", responseData);
 
         if (!response.ok) {
             if (response.status === 401) {

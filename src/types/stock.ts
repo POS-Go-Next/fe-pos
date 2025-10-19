@@ -1,3 +1,12 @@
+export interface ProductImage {
+    id: number;
+    kd_brgdg: string;
+    url: string;
+    gambar: string;
+    main_display?: number | boolean;
+    created_at?: string;
+}
+
 export interface StockData {
     kode_brg: string;
     nama_brg: string;
@@ -19,6 +28,8 @@ export interface StockData {
     moq?: number;
     min_bulan_ed?: number;
     q_akhir?: number;
+    product_images?: ProductImage[];
+    info_obat?: Record<string, unknown>;
 }
 
 export interface StockPaginationData {
@@ -32,7 +43,7 @@ export interface StockApiResponse {
     success: boolean;
     message: string;
     data?: StockPaginationData;
-    errors?: any;
+    errors?: Record<string, string[]>;
 }
 
 export interface StockExternalApiResponse {

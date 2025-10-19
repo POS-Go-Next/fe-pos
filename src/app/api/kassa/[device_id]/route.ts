@@ -65,12 +65,6 @@ export async function GET(
                 { status: 400 }
             );
         }
-
-        console.log("Fetching kassa data for device ID:", {
-            deviceId,
-            timestamp: new Date().toISOString(),
-        });
-
         const response = await fetch(`${API_BASE_URL}/kassa/${deviceId}`, {
             method: "GET",
             headers: {
@@ -83,7 +77,6 @@ export async function GET(
         });
 
         const responseData: KassaExternalApiResponse = await response.json();
-        console.log("Kassa API Response:", responseData);
 
         if (!response.ok) {
             if (response.status === 401) {

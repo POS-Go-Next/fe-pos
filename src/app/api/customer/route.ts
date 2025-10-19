@@ -54,11 +54,7 @@ export async function GET(request: NextRequest) {
             }
         );
 
-        const responseData = await response.json();
-        console.log("Customer API Response:", responseData);
-        console.log("Customer API Status:", response.status);
-
-        if (!response.ok) {
+        const responseData = await response.json();if (!response.ok) {
             console.error("Customer API Error Details:", {
                 status: response.status,
                 statusText: response.statusText,
@@ -86,10 +82,7 @@ export async function GET(request: NextRequest) {
             );
         }
 
-        // Log the actual message to see what we're getting
-        console.log("Customer API Success Message:", responseData.message);
-
-        // More flexible response validation
+        // Log the actual message to see what we're getting// More flexible response validation
         if (!responseData.data) {
             return NextResponse.json(
                 {
@@ -163,10 +156,7 @@ export async function POST(request: NextRequest) {
             body: JSON.stringify(body),
         });
 
-        const responseData = await response.json();
-        console.log("Create Customer API Response:", responseData);
-
-        if (!response.ok) {
+        const responseData = await response.json();if (!response.ok) {
             console.error("Create Customer API Error:", {
                 status: response.status,
                 data: responseData,

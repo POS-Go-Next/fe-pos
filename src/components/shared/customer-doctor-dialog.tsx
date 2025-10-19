@@ -7,7 +7,7 @@ import { showErrorAlert } from "@/lib/swal";
 import type { CustomerData as CustomerApiData } from "@/types/customer";
 import type { DoctorData } from "@/types/doctor";
 import { X } from "lucide-react";
-import React, { useEffect, useState } from "react";
+import React, { useEffect, useState, useCallback } from "react";
 import { CustomerSection } from "./customer-section";
 import { DoctorSection } from "./doctor-section";
 
@@ -71,16 +71,16 @@ export default function CustomerDoctorDialog({
     onSelectCustomer,
     onSelectDoctor,
     onSubmit,
-    initialCustomer,
-    initialDoctor,
-    mode = "both",
+    initialCustomer: _initialCustomer,
+    initialDoctor: _initialDoctor,
+    mode: _mode = "both",
     initialFocus = "customer",
     triggerPaymentFlow = false,
 }: CustomerDoctorDialogProps) {
-    const [currentFocus, setCurrentFocus] = useState<"customer" | "doctor">(
+    const [_currentFocus, setCurrentFocus] = useState<"customer" | "doctor">(
         initialFocus
     );
-    const [isClient, setIsClient] = useState(false);
+    const [_isClient, setIsClient] = useState(false);
     const [viewMode, setViewMode] = useState<ViewMode>("both");
     const [validationErrors, setValidationErrors] = useState<
         Record<string, string>
@@ -132,8 +132,7 @@ export default function CustomerDoctorDialog({
         search: customerSearch,
     });
 
-    const resetAllFormData = () => {
-        console.log("🔄 Resetting all form data to defaults");
+    const resetAllFormData = useCallback(() => {
         setCustomerForm({ ...DEFAULT_CUSTOMER_FORM });
         setDoctorForm({ ...DEFAULT_DOCTOR_FORM });
         setCurrentFocus(initialFocus);
@@ -147,14 +146,12 @@ export default function CustomerDoctorDialog({
         setIsCustomerDropdownOpen(false);
         setIsCreatingCustomer(false);
         setIsCreatingDoctor(false);
-    };
+    }, [initialFocus]);
 
     useEffect(() => {
-        if (isOpen) {
-            console.log("🔄 Dialog opened - performing complete reset");
-            resetAllFormData();
+        if (isOpen) {resetAllFormData();
         }
-    }, [isOpen, initialFocus]);
+    }, [isOpen, initialFocus, resetAllFormData]);
 
     const validateCustomerForm = (): boolean => {
         const errors: Record<string, string> = {};
@@ -507,9 +504,7 @@ export default function CustomerDoctorDialog({
         }
     };
 
-    const handleClose = () => {
-        console.log("🔄 Dialog closing - performing complete reset");
-        resetAllFormData();
+    const handleClose = () => {resetAllFormData();
         onClose();
     };
 

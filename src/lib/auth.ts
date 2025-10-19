@@ -17,25 +17,25 @@ export interface AppUser {
 
 class SimpleAdapter implements Adapter {
     async getSessionAndUser(
-        sessionId: string
+        _sessionId: string
     ): Promise<[DatabaseSession | null, DatabaseUser | null]> {
         return [null, null];
     }
 
-    async getUserSessions(userId: string): Promise<DatabaseSession[]> {
+    async getUserSessions(_userId: string): Promise<DatabaseSession[]> {
         return [];
     }
 
-    async setSession(session: DatabaseSession): Promise<void> {}
+    async setSession(_session: DatabaseSession): Promise<void> {}
 
     async updateSessionExpiration(
-        sessionId: string,
-        expiresAt: Date
+        _sessionId: string,
+        _expiresAt: Date
     ): Promise<void> {}
 
-    async deleteSession(sessionId: string): Promise<void> {}
+    async deleteSession(_sessionId: string): Promise<void> {}
 
-    async deleteUserSessions(userId: string): Promise<void> {}
+    async deleteUserSessions(_userId: string): Promise<void> {}
 
     async deleteExpiredSessions(): Promise<void> {}
 }

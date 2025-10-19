@@ -61,15 +61,7 @@ export const useRecloseActivity = (): UseRecloseActivityReturn => {
         setIsLoading(true);
         setError(null);
 
-        try {
-            console.log(
-                "🔄 Reclosing cashier activity for device ID:",
-                deviceId,
-                "with kode:",
-                kode
-            );
-
-            const response = await fetch(
+        try {const response = await fetch(
                 `/api/cashier-activity/${deviceId}/reclose/${kode}`,
                 {
                     method: "PATCH",
@@ -101,12 +93,7 @@ export const useRecloseActivity = (): UseRecloseActivityReturn => {
             }
 
             if (result.data) {
-                setLastResponse(result.data);
-                console.log(
-                    "✅ Cashier activity reclosed successfully:",
-                    result.data
-                );
-                return {
+                setLastResponse(result.data);return {
                     success: true,
                     isSessionExpired: false,
                     data: result.data,

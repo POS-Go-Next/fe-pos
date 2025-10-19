@@ -79,15 +79,7 @@ export const useCashierActivitiesList = (): UseCashierActivitiesListReturn => {
         setIsLoading(true);
         setError(null);
 
-        try {
-            console.log(
-                "🔄 Getting cashier activities list with limit:",
-                limit,
-                "offset:",
-                offset
-            );
-
-            const response = await fetch(
+        try {const response = await fetch(
                 `/api/cashier-activities?limit=${limit}&offset=${offset}`,
                 {
                     method: "GET",
@@ -120,12 +112,7 @@ export const useCashierActivitiesList = (): UseCashierActivitiesListReturn => {
             }
 
             if (result.data) {
-                setLastResponse(result.data);
-                console.log(
-                    "✅ Cashier activities list retrieved successfully:",
-                    result.data
-                );
-                return {
+                setLastResponse(result.data);return {
                     success: true,
                     isSessionExpired: false,
                     data: result.data,

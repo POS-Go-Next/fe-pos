@@ -22,7 +22,7 @@ export interface DoctorApiResponse {
     success: boolean;
     message: string;
     data?: DoctorPaginationData;
-    errors?: any;
+    errors?: Record<string, string[]>;
 }
 
 export interface DoctorExternalApiResponse {

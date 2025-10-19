@@ -1,7 +1,6 @@
 "use client";
 
 import { Button } from "@/components/ui/button";
-import { useRouter } from "next/navigation";
 import { useRealTimeClock } from "@/lib/useRealTimeClock";
 import { Activity, Droplets, Heart, Leaf, Pill, Shield } from "lucide-react";
 import Image from "next/image";
@@ -17,8 +16,7 @@ interface ProductCard {
 }
 
 export default function UserWelcomePage() {
-  const router = useRouter();
-  const { time, date, isClient } = useRealTimeClock();
+  const { isClient } = useRealTimeClock();
   const [mounted, setMounted] = useState(false);
   const [currentBannerIndex, setCurrentBannerIndex] = useState(0);
 

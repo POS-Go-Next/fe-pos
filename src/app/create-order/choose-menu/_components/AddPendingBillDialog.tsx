@@ -16,7 +16,7 @@ interface PendingBillData {
     customerName: string;
     customerPhone: string;
     notes: string;
-    products: any[];
+    products: Array<{ name: string; quantity: number; price: number }>;
     totalAmount: number;
     savedAt: string;
     createdDate: string;
@@ -27,16 +27,16 @@ interface AddPendingBillDialogProps {
     isOpen: boolean;
     onClose: () => void;
     onSubmit?: (pendingBillData: PendingBillData) => void;
-    currentProducts?: any[];
+    currentProducts?: Array<{ name: string; quantity: number; price: number }>;
     currentTotal?: number;
 }
 
 export default function AddPendingBillDialog({
     isOpen,
     onClose,
-    onSubmit,
-    currentProducts = [],
-    currentTotal = 0,
+    onSubmit: _onSubmit,
+    currentProducts: _currentProducts = [],
+    currentTotal: _currentTotal = 0,
 }: AddPendingBillDialogProps) {
     const [searchInput, setSearchInput] = useState("");
     const [searchTerm, setSearchTerm] = useState("");
@@ -47,12 +47,12 @@ export default function AddPendingBillDialog({
         DateRange | undefined
     >(undefined);
     const [selectedBill, setSelectedBill] = useState<string | null>(null);
-    const [isLoading, setIsLoading] = useState(false);
+    const [isLoading, _setIsLoading] = useState(false);
     const searchInputRef = useRef<HTMLInputElement>(null);
     const tableContainerRef = useRef<HTMLDivElement>(null);
     const pageSizeOptions = [5, 10, 25, 50, 100];
 
-    const mockPendingBills: PendingBillData[] = [
+    const mockPendingBills: PendingBillData[] = React.useMemo(() => [
         {
             id: "PB001",
             customerName: "Andi Wijaya",
@@ -81,17 +81,16 @@ export default function AddPendingBillDialog({
             createdDate: "14/01/2025",
             createdTime: "14:15:32",
         },
-    ];
+    ], []);
 
-    const offset = (currentPage - 1) * pageSize;
+    const _offset = (currentPage - 1) * pageSize;
 
-    const formatDateForAPI = (date: Date): string => {
+    const _formatDateForAPI = (date: Date): string => {
         return date.toISOString().split("T")[0];
     };
 
     useEffect(() => {
         if (isOpen) {
-            console.log("Add Pending Bill Dialog opened");
             setCurrentPage(1);
             setPageSize(10);
             setSearchInput("");
@@ -153,7 +152,6 @@ export default function AddPendingBillDialog({
     const handleDateRangeChange = (range: DateRange | undefined) => {
         setAppliedDateRange(range);
         setCurrentPage(1);
-        console.log("Date range applied:", range);
     };
 
     const handlePageChange = (page: number) => {

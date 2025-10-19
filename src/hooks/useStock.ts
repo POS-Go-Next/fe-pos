@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, useCallback } from "react";
 import type {
     StockData,
     StockApiResponse,
@@ -27,7 +27,7 @@ export const useStock = (params: StockApiParams = {}): UseStockReturn => {
     const [totalDocs, setTotalDocs] = useState<number>();
     const [currentPage, setCurrentPage] = useState<number>();
 
-    const fetchStock = async () => {
+    const fetchStock = useCallback(async () => {
         try {
             setIsLoading(true);
             setError(null);
@@ -84,11 +84,11 @@ export const useStock = (params: StockApiParams = {}): UseStockReturn => {
         } finally {
             setIsLoading(false);
         }
-    };
+    }, [limit, offset, search]);
 
     useEffect(() => {
         fetchStock();
-    }, [limit, offset, search]);
+    }, [fetchStock]);
 
     const refetch = () => {
         fetchStock();

@@ -3,7 +3,7 @@
 import { isSessionExpired } from "@/lib/sessionHandler";
 import { useState } from "react";
 
-interface CashierActivityData {
+export interface CashierActivityData {
     kode: string;
     tanggal: string;
     tgl_trans: string;
@@ -18,6 +18,10 @@ interface CashierActivityData {
     user_update: string;
     status: string;
     tot_setor: number;
+    cashier?: {
+        fullname?: string;
+        username?: string;
+    };
 }
 
 interface CashierActivityApiResponse {
@@ -59,13 +63,7 @@ export const useCashierActivity = (): UseCashierActivityReturn => {
         setIsLoading(true);
         setError(null);
 
-        try {
-            console.log(
-                "🔄 Checking cashier activity for device ID:",
-                deviceId
-            );
-
-            const response = await fetch(
+        try {const response = await fetch(
                 `/api/cashier-activity/${deviceId}/active`,
                 {
                     method: "GET",
@@ -97,12 +95,7 @@ export const useCashierActivity = (): UseCashierActivityReturn => {
             }
 
             if (result.data) {
-                setLastResponse(result.data);
-                console.log(
-                    "✅ Cashier activity checked successfully:",
-                    result.data
-                );
-                return {
+                setLastResponse(result.data);return {
                     success: true,
                     isSessionExpired: false,
                     data: result.data,

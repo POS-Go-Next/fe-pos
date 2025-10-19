@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, useCallback } from "react";
 import type {
     BranchWideStockData,
     BranchWideStockApiResponse,
@@ -32,7 +32,7 @@ export const useBranchWideStock = ({
     const [isLoading, setIsLoading] = useState(false);
     const [error, setError] = useState<string | null>(null);
 
-    const fetchBranchWideStock = async () => {
+    const fetchBranchWideStock = useCallback(async () => {
         if (!kode_brg || !enabled) {
             setBranchStockData(null);
             setBranchTableData([]);
@@ -41,28 +41,14 @@ export const useBranchWideStock = ({
 
         try {
             setIsLoading(true);
-            setError(null);
-
-            console.log("Fetching branch wide stock for:", kode_brg);
-
-            const response = await fetch(`/api/stock/${kode_brg}/branch-wide`, {
+            setError(null);const response = await fetch(`/api/stock/${kode_brg}/branch-wide`, {
                 method: "GET",
                 headers: {
                     "Content-Type": "application/json",
                 },
             });
 
-            const data: BranchWideStockApiResponse = await response.json();
-
-            console.log("Branch wide stock hook response:", {
-                status: response.status,
-                success: data.success,
-                message: data.message,
-                dataExists: !!data.data,
-                stockDetailsLength: data.data?.stock_details?.length || 0,
-            });
-
-            if (!response.ok) {
+            const data: BranchWideStockApiResponse = await response.json();if (!response.ok) {
                 if (response.status === 401) {
                     throw new Error("Session expired. Please login again.");
                 }
@@ -117,13 +103,7 @@ export const useBranchWideStock = ({
                                 };
                             });
 
-                    setBranchTableData(tableData);
-                    console.log(
-                        "Branch wide stock data loaded successfully:",
-                        tableData.length,
-                        "branches"
-                    );
-                } else {
+                    setBranchTableData(tableData);} else {
                     console.warn("No valid stock_details found in response");
                     setBranchTableData([]);
                 }
@@ -142,7 +122,7 @@ export const useBranchWideStock = ({
         } finally {
             setIsLoading(false);
         }
-    };
+    }, [kode_brg, enabled]);
 
     const formatDateForDisplay = (dateString: string): string => {
         try {
@@ -175,7 +155,7 @@ export const useBranchWideStock = ({
 
     useEffect(() => {
         fetchBranchWideStock();
-    }, [kode_brg, enabled]);
+    }, [kode_brg, enabled, fetchBranchWideStock]);
 
     const refetch = () => {
         fetchBranchWideStock();

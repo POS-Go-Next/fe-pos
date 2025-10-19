@@ -48,22 +48,9 @@ interface UseAuthReturn {
 }
 
 const getSystemDeviceId = async (): Promise<string | null> => {
-  try {
-    console.log("🔍 Fetching system info for device ID...");
-
-    const response = await fetch("http://localhost:8321/api/system/info");
-    const data = await response.json();
-
-    console.log("📡 System info response:", {
-      success: data.success,
-      hasData: !!data.data,
-      hasDeviceConfig: !!data.data?.deviceConfig,
-    });
-
-    if (data.success && data.data && data.data.deviceConfig) {
-      const deviceId = data.data.deviceConfig.deviceId;
-      console.log("✅ Found device ID:", deviceId);
-      return deviceId;
+  try {const response = await fetch("http://localhost:8321/api/system/info");
+    const data = await response.json();if (data.success && data.data && data.data.deviceConfig) {
+      const deviceId = data.data.deviceConfig.deviceId;return deviceId;
     }
 
     console.warn(
@@ -91,10 +78,7 @@ export const useAuth = (): UseAuthReturn => {
     setError(null);
 
     try {
-      const validatedData = loginSchema.parse(credentials);
-
-      console.log("🔍 Attempting to get device ID...");
-      const deviceId = await getSystemDeviceId();
+      const validatedData = loginSchema.parse(credentials);const deviceId = await getSystemDeviceId();
 
       if (!deviceId) {
         console.warn("⚠️ Could not retrieve device ID from system service");
@@ -109,16 +93,7 @@ export const useAuth = (): UseAuthReturn => {
         password: validatedData.password,
         device_id: deviceId || "KASSA-0000-0000-0000",
         need_generate_token: true,
-      };
-
-      console.log("🚀 Sending login payload:", {
-        username: loginPayload.username,
-        device_id: loginPayload.device_id,
-        device_id_source: deviceId ? "system_service" : "fallback",
-        need_generate_token: loginPayload.need_generate_token,
-      });
-
-      const response = await fetch("/api/auth/login", {
+      };const response = await fetch("/api/auth/login", {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
@@ -139,14 +114,7 @@ export const useAuth = (): UseAuthReturn => {
       if (data.success && data.data) {
         try {
           localStorage.setItem("user-data", JSON.stringify(data.data.user));
-          localStorage.setItem("auth-token", data.data.token);
-
-          console.log("✅ Login successful - User data saved:", {
-            username: data.data.user.username,
-            fullname: data.data.user.fullname,
-            id: data.data.user.id,
-          });
-        } catch (storageError) {
+          localStorage.setItem("auth-token", data.data.token);} catch (storageError) {
           console.error(
             "❌ Failed to save user data to localStorage:",
             storageError
@@ -187,10 +155,7 @@ export const useAuth = (): UseAuthReturn => {
     setError(null);
 
     try {
-      const validatedData = loginSchema.parse(credentials);
-
-      console.log(`🔍 Attempting to get device ID for ${type} popup...`);
-      const deviceId = await getSystemDeviceId();
+      const validatedData = loginSchema.parse(credentials);const deviceId = await getSystemDeviceId();
 
       if (!deviceId) {
         console.warn("⚠️ Could not retrieve device ID from system service");
@@ -206,18 +171,7 @@ export const useAuth = (): UseAuthReturn => {
         device_id: deviceId || "KASSA-0000-0000-0000",
         need_generate_token: true,
         ...(type === "sales" && { type: "sales" }),
-      };
-
-      console.log(`🚀 Sending ${type} login payload:`, {
-        username: loginPayload.username,
-        device_id: loginPayload.device_id,
-        device_id_source: deviceId ? "system_service" : "fallback",
-        need_generate_token: loginPayload.need_generate_token,
-        type: type,
-        ...(type === "sales" && { type_field: "sales" }),
-      });
-
-      const response = await fetch("/api/auth/login", {
+      };const response = await fetch("/api/auth/login", {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
@@ -238,14 +192,7 @@ export const useAuth = (): UseAuthReturn => {
       if (data.success && data.data) {
         try {
           localStorage.setItem("user-data", JSON.stringify(data.data.user));
-          localStorage.setItem("auth-token", data.data.token);
-
-          console.log(`✅ ${type} login successful - User data saved:`, {
-            username: data.data.user.username,
-            fullname: data.data.user.fullname,
-            id: data.data.user.id,
-          });
-        } catch (storageError) {
+          localStorage.setItem("auth-token", data.data.token);} catch (storageError) {
           console.error(
             "❌ Failed to save user data to localStorage:",
             storageError
@@ -282,10 +229,7 @@ export const useAuth = (): UseAuthReturn => {
     setIsLoading(true);
     setError(null);
 
-    try {
-      console.log("🔥 Starting logout process...");
-
-      const response = await fetch("/api/auth/logout", {
+    try {const response = await fetch("/api/auth/logout", {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
@@ -293,14 +237,11 @@ export const useAuth = (): UseAuthReturn => {
         credentials: "include",
       });
 
-      let apiSuccess = false;
       let apiMessage = "Logout completed";
 
       if (response.ok) {
         const data = await response.json();
-        apiSuccess = data.success;
         apiMessage = data.message || "Logout successful";
-        console.log("✅ Logout API call successful");
       } else {
         console.warn("⚠️ Logout API failed, but continuing with cleanup");
         apiMessage = "Logout completed (with warnings)";
@@ -308,9 +249,7 @@ export const useAuth = (): UseAuthReturn => {
 
       try {
         localStorage.removeItem("user-data");
-        localStorage.removeItem("auth-token");
-        console.log("✅ Local storage cleaned up");
-      } catch (storageError) {
+        localStorage.removeItem("auth-token");} catch (storageError) {
         console.error("❌ Failed to clear localStorage:", storageError);
       }
 
@@ -323,9 +262,7 @@ export const useAuth = (): UseAuthReturn => {
 
       try {
         localStorage.removeItem("user-data");
-        localStorage.removeItem("auth-token");
-        console.log("✅ Local storage cleaned up after API error");
-      } catch (storageError) {
+        localStorage.removeItem("auth-token");} catch (storageError) {
         console.error("❌ Failed to clear localStorage:", storageError);
       }
 

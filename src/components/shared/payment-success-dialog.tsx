@@ -39,11 +39,7 @@ export default function PaymentSuccessDialog({
     };
 
     const handleDone = async () => {
-        try {
-            console.log(
-                "🔄 Updating invoice number after payment completion..."
-            );
-            window.dispatchEvent(new CustomEvent("refetch-transaction-info"));
+        try {window.dispatchEvent(new CustomEvent("refetch-transaction-info"));
             await new Promise((resolve) => setTimeout(resolve, 500));
         } catch (error) {
             console.error("Error updating invoice number:", error);

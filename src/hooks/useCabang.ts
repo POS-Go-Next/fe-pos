@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, useCallback } from "react";
 
 interface CabangData {
     kd_cabang: string;
@@ -19,7 +19,7 @@ interface CabangApiResponse {
         page: number;
         totalPages: number;
     };
-    errors?: any;
+    errors?: Record<string, string[]>;
 }
 
 interface UseCabangReturn {
@@ -46,7 +46,7 @@ export const useCabang = (params: UseCabangParams = {}): UseCabangReturn => {
     const [totalPages, setTotalPages] = useState<number>();
     const [totalDocs, setTotalDocs] = useState<number>();
 
-    const fetchCabang = async () => {
+    const fetchCabang = useCallback(async () => {
         try {
             setIsLoading(true);
             setError(null);
@@ -101,11 +101,11 @@ export const useCabang = (params: UseCabangParams = {}): UseCabangReturn => {
         } finally {
             setIsLoading(false);
         }
-    };
+    }, [limit, offset, search]);
 
     useEffect(() => {
         fetchCabang();
-    }, [limit, offset, search]);
+    }, [limit, offset, search, fetchCabang]);
 
     const refetch = () => {
         fetchCabang();

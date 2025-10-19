@@ -60,7 +60,7 @@ const ChooseMiscDialog: React.FC<ChooseMiscDialogProps> = ({
         } else {
             setAmount("");
         }
-    }, [medicationType]);
+    }, [medicationType, quantity]);
 
     useEffect(() => {
         if (quantity !== "" && baseAmount > 0) {

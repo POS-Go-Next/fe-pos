@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, useCallback } from "react";
 import type {
     CorporateData,
     CorporateApiResponse,
@@ -27,7 +27,7 @@ export const useCorporate = (
     const [totalPages, setTotalPages] = useState<number>();
     const [totalDocs, setTotalDocs] = useState<number>();
 
-    const fetchCorporates = async () => {
+    const fetchCorporates = useCallback(async () => {
         try {
             setIsLoading(true);
             setError(null);
@@ -40,14 +40,7 @@ export const useCorporate = (
 
             if (search.trim()) {
                 queryParams.append("search", search.trim());
-            }
-
-            console.log(
-                "Fetching corporates with params:",
-                queryParams.toString()
-            );
-
-            const response = await fetch(
+            }const response = await fetch(
                 `/api/corporate?${queryParams.toString()}`,
                 {
                     method: "GET",
@@ -57,16 +50,7 @@ export const useCorporate = (
                 }
             );
 
-            const data: CorporateApiResponse = await response.json();
-
-            console.log("Corporate hook response:", {
-                status: response.status,
-                success: data.success,
-                message: data.message,
-                dataExists: !!data.data,
-            });
-
-            if (!response.ok) {
+            const data: CorporateApiResponse = await response.json();if (!response.ok) {
                 console.error("Corporate API request failed:", {
                     status: response.status,
                     data,
@@ -80,13 +64,7 @@ export const useCorporate = (
                 );
             }
 
-            if (data.success && data.data?.docs) {
-                console.log(
-                    "Corporate data loaded successfully:",
-                    data.data.docs.length,
-                    "corporates"
-                );
-                setCorporateList(data.data.docs);
+            if (data.success && data.data?.docs) {setCorporateList(data.data.docs);
                 setTotalPages(data.data.totalPages);
                 setTotalDocs(data.data.totalDocs);
             } else {
@@ -106,11 +84,11 @@ export const useCorporate = (
         } finally {
             setIsLoading(false);
         }
-    };
+    }, [limit, offset, search, type]);
 
     useEffect(() => {
         fetchCorporates();
-    }, [limit, offset, search, type]);
+    }, [limit, offset, search, type, fetchCorporates]);
 
     const refetch = () => {
         fetchCorporates();

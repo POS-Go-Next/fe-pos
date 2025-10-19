@@ -68,15 +68,7 @@ export async function GET(request: NextRequest) {
                 },
                 { status: 400 }
             );
-        }
-
-        console.log("Fetching printers:", {
-            offset: offsetNum,
-            limit: limitNum,
-            timestamp: new Date().toISOString(),
-        });
-
-        const response = await fetch(
+        }const response = await fetch(
             `${API_BASE_URL}/printer?offset=${offsetNum}&limit=${limitNum}`,
             {
                 method: "GET",
@@ -90,10 +82,7 @@ export async function GET(request: NextRequest) {
             }
         );
 
-        const responseData: PrinterApiResponse = await response.json();
-        console.log("Printer API Response:", responseData);
-
-        if (!response.ok) {
+        const responseData: PrinterApiResponse = await response.json();if (!response.ok) {
             if (response.status === 401) {
                 return NextResponse.json(
                     {

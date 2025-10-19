@@ -21,7 +21,7 @@ export interface CustomerApiResponse {
     success: boolean;
     message: string;
     data?: CustomerPaginationData;
-    errors?: any;
+    errors?: Record<string, string[]>;
 }
 
 export interface CustomerExternalApiResponse {

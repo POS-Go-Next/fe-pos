@@ -88,8 +88,7 @@ export default function SelectCustomerPage() {
   );
 
   // Handle customer selection
-  const handleSelectCustomer = (customer: Customer) => {
-    console.log("Customer selected:", customer.name);
+  const handleSelectCustomer = (_customer: Customer) => {
     router.back();
   };
 

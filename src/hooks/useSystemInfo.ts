@@ -25,10 +25,7 @@ export const useSystemInfo = (): UseSystemInfoReturn => {
         setIsLoading(true);
         setError(null);
 
-        try {
-            console.log("🔄 Fetching system info...");
-
-            const response = await fetch(
+        try {const response = await fetch(
                 "http://localhost:8321/api/system/info",
                 {
                     method: "GET",
@@ -50,16 +47,10 @@ export const useSystemInfo = (): UseSystemInfoReturn => {
                 throw new Error(
                     result.message || "Invalid system info response"
                 );
-            }
-
-            console.log("✅ System info fetched:", result.data);
-
-            setSystemInfo(result.data);
+            }setSystemInfo(result.data);
 
             if (result.data.deviceConfig && result.data.deviceConfig.deviceId) {
-                setDeviceId(result.data.deviceConfig.deviceId);
-                console.log("🆔 Device ID:", result.data.deviceConfig.deviceId);
-            }
+                setDeviceId(result.data.deviceConfig.deviceId);}
 
             const activeInterface =
                 result.data.ipAddresses.find(
@@ -68,12 +59,7 @@ export const useSystemInfo = (): UseSystemInfoReturn => {
 
             if (activeInterface) {
                 setMacAddress(activeInterface.macAddress);
-                setIpAddress(activeInterface.ipAddress);
-                console.log("📡 Active interface:", {
-                    mac: activeInterface.macAddress,
-                    ip: activeInterface.ipAddress,
-                });
-            } else {
+                setIpAddress(activeInterface.ipAddress);} else {
                 console.warn("⚠️ No active network interface found");
             }
         } catch (err) {

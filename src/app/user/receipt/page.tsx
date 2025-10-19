@@ -1,7 +1,6 @@
 "use client";
 
-import { Button } from "@/components/ui/button";
-import { useRouter } from "next/navigation";
+
 import Image from "next/image";
 import { useEffect, useState } from "react";
 import { useRealTimeClock } from "@/lib/useRealTimeClock";
@@ -24,8 +23,7 @@ interface ProductCard {
 }
 
 export default function UserReceiptPage() {
-  const router = useRouter();
-  const { time, date, isClient } = useRealTimeClock();
+  const { isClient } = useRealTimeClock();
   const [mounted, setMounted] = useState(false);
   const [currentBannerIndex, setCurrentBannerIndex] = useState(0);
 
@@ -222,13 +220,7 @@ export default function UserReceiptPage() {
 
   const totalAmount = receiptItems.reduce((sum, item) => sum + item.total, 0);
 
-  const handleSuccess = () => {
-    router.push("/user/success");
-  };
 
-  const handleBack = () => {
-    router.push("/user/welcome");
-  };
 
   if (!mounted || !isClient) {
     return (

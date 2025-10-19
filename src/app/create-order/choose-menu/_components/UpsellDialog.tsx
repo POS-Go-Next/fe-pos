@@ -15,7 +15,7 @@ const UpsellDialog: React.FC<UpsellDialogProps> = ({
     isOpen,
     onClose,
     onConfirm,
-    productName = "Selected Product",
+    productName: _productName = "Selected Product",
 }) => {
     if (!isOpen) return null;
 

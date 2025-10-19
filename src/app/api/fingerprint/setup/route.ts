@@ -48,14 +48,6 @@ export async function POST(request: NextRequest) {
                 { status: 400 }
             );
         }
-
-        console.log("Fingerprint setup request:", {
-            user_id,
-            device_id,
-            number_of_fingerprint,
-            timestamp: new Date().toISOString(),
-        });
-
         const response = await fetch(`${API_BASE_URL}/fingerprint/setup`, {
             method: "POST",
             headers: {
@@ -73,7 +65,6 @@ export async function POST(request: NextRequest) {
         });
 
         const responseData = await response.json();
-        console.log("Fingerprint setup API Response:", responseData);
 
         if (!response.ok) {
             if (response.status === 401) {

@@ -49,12 +49,6 @@ export async function POST(
         { status: 400 }
       );
     }
-
-    console.log("🖨️ Printing transaction:", {
-      transaction_id: id,
-      device_id: body.device_id,
-    });
-
     const response = await fetch(`${API_BASE_URL}/transaction/${id}/print`, {
       method: "POST",
       headers: {
@@ -70,12 +64,6 @@ export async function POST(
     });
 
     const responseData = await response.json();
-
-    console.log("📡 Print API Response:", {
-      status: response.status,
-      message: responseData.message,
-    });
-
     if (!response.ok) {
       if (response.status === 401) {
         return NextResponse.json(

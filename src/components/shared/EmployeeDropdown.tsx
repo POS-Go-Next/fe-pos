@@ -50,9 +50,7 @@ const EmployeeDropdown: FC<EmployeeDropdownProps> = ({
         const observer = new IntersectionObserver(
             (entries) => {
                 const target = entries[0];
-                if (target.isIntersecting && hasMoreData && !isLoadingMore) {
-                    console.log("🔄 Loading more employees...");
-                    onLoadMore();
+                if (target.isIntersecting && hasMoreData && !isLoadingMore) {onLoadMore();
                 }
             },
             {
@@ -81,9 +79,7 @@ const EmployeeDropdown: FC<EmployeeDropdownProps> = ({
             const { scrollTop, scrollHeight, clientHeight } = e.currentTarget;
             const isNearBottom = scrollTop + clientHeight >= scrollHeight - 10;
 
-            if (isNearBottom) {
-                console.log("📜 Manual scroll detected - loading more...");
-                onLoadMore();
+            if (isNearBottom) {onLoadMore();
             }
         },
         [hasMoreData, isLoadingMore, onLoadMore]

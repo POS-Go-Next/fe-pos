@@ -79,7 +79,7 @@ export default function PaymentDialog({
   isOpen,
   onClose,
   onPaymentSuccess,
-  totalAmount,
+  totalAmount: _totalAmount,
   orderDetails,
   customerData,
   doctorData,
@@ -213,7 +213,24 @@ export default function PaymentDialog({
           (product.promo || 0)
       );
 
-      const itemData: any = {
+      const itemData: {
+        transaction_action: string;
+        product_code: string;
+        quantity: number;
+        sub_total: number;
+        nominal_discount: number;
+        discount: number;
+        service_fee: number;
+        misc: number;
+        disc_promo: number;
+        value_promo: number;
+        no_promo: string;
+        promo_type: string;
+        up_selling: string;
+        total: number;
+        round_up: number;
+        prescription_code?: string;
+      } = {
         transaction_action: "1",
         product_code: product.stockData?.kode_brg || "",
         quantity: product.quantity,
@@ -349,18 +366,7 @@ export default function PaymentDialog({
         promo: totalPromo,
         round_up: 0,
         grand_total: correctTotalAmount,
-      };
-
-      console.log("Transaction Payload:", {
-        deviceId: transactionPayload.device_id,
-        invoiceNumber: transactionPayload.invoice_number,
-        customerId: transactionPayload.customer_id,
-        needPrintInvoice: transactionPayload.need_print_invoice,
-        grandTotal: transactionPayload.grand_total,
-        itemsCount: transactionPayload.items.length,
-      });
-
-      const response = await fetch("/api/transaction", {
+      };const response = await fetch("/api/transaction", {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
@@ -393,10 +399,7 @@ export default function PaymentDialog({
 
         showErrorAlert("Payment Failed", errorMessage);
         return;
-      }
-
-      console.log("Transaction successful:", result);
-      resetForm();
+      }resetForm();
       onPaymentSuccess({
         changeCash: payment.changeCash,
         changeCC: payment.changeCC,

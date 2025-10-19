@@ -28,16 +28,12 @@ const ProductTypeSelector: React.FC<ProductTypeSelectorProps> = ({
     setIsOpen(!isOpen);
   };
 
-  const handleSelect = (selectedType: string) => {
-    console.log("🔄 ProductTypeSelector - Selecting type:", selectedType);
-    onChange(selectedType);
+  const handleSelect = (selectedType: string) => {onChange(selectedType);
     setIsOpen(false);
   };
 
   const handleClear = (e: React.MouseEvent) => {
-    e.stopPropagation();
-    console.log("🗑️ ProductTypeSelector - Clearing selection");
-    onChange("");
+    e.stopPropagation();onChange("");
   };
 
   useEffect(() => {
@@ -60,9 +56,7 @@ const ProductTypeSelector: React.FC<ProductTypeSelectorProps> = ({
     }
   }, [isOpen]);
 
-  useEffect(() => {
-    console.log("🔍 ProductTypeSelector - Current type prop:", type);
-  }, [type]);
+  useEffect(() => {}, [type]);
 
   return (
     <>
@@ -118,7 +112,7 @@ const ProductTypeSelector: React.FC<ProductTypeSelectorProps> = ({
               </>
             )}
 
-            {types.map((t, index) => (
+            {types.map((t, _index) => (
               <button
                 key={t}
                 onClick={() => handleSelect(t)}

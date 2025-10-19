@@ -2,6 +2,7 @@
 
 import { useMedicationDetail } from "@/hooks/useMedicationDetail";
 import { ChevronLeft, ChevronRight, Loader2, X } from "lucide-react";
+import Image from "next/image";
 import React, { useEffect, useState } from "react";
 
 interface MedicationDetailsDialogProps {
@@ -114,7 +115,7 @@ const MedicationDetailsDialog: React.FC<MedicationDetailsDialogProps> = ({
                                         <div className="relative bg-gray-100 rounded-lg p-4 border-2 border-blue-400">
                                             {productImages.length > 0 ? (
                                                 <>
-                                                    <img
+                                                    <Image
                                                         src={
                                                             productImages[
                                                                 currentImageIndex
@@ -123,7 +124,9 @@ const MedicationDetailsDialog: React.FC<MedicationDetailsDialogProps> = ({
                                                                 currentImageIndex
                                                             ]?.gambar
                                                         }
-                                                        alt={productName}
+                                                        alt={productName || "Product image"}
+                                                        width={400}
+                                                        height={192}
                                                         className="w-full h-48 object-contain rounded"
                                                         onError={(e) => {
                                                             console.error(

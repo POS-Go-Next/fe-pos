@@ -63,10 +63,6 @@ export const useEmployeesInfinite = ({
             searchQuery: string = ""
         ) => {
             if (!enabled || isFetchingRef.current) {
-                console.log("Fetch blocked:", {
-                    enabled,
-                    isFetching: isFetchingRef.current,
-                });
                 return;
             }
 
@@ -82,11 +78,6 @@ export const useEmployeesInfinite = ({
                 }
 
                 const offset = (page - 1) * limit;
-
-                console.log(
-                    `Fetching employees: page=${page}, offset=${offset}, limit=${limit}, search="${searchQuery}"`
-                );
-
                 const queryParams = new URLSearchParams({
                     offset: offset.toString(),
                     limit: limit.toString(),
@@ -136,11 +127,7 @@ export const useEmployeesInfinite = ({
                 const totalPages = result.data.totalPages || 0;
                 const currentApiPage = result.data.page || 1;
                 const hasMore = currentApiPage < totalPages;
-
-                console.log(
-                    `Fetched ${newEmployees.length} employees, total: ${total}, hasMore: ${hasMore}`
-                );
-
+                
                 if (isLoadingMore) {
                     setEmployees((prev) => {
                         const existingIds = new Set(
@@ -190,17 +177,13 @@ export const useEmployeesInfinite = ({
         }
 
         const nextPage = currentPage + 1;
-        console.log("Loading more employees for page:", nextPage);
         fetchEmployees(nextPage, true, lastSearchTermRef.current);
     }, [hasMoreData, isLoadingMore, isLoading, currentPage, fetchEmployees]);
 
     const refetch = useCallback(() => {
         if (isFetchingRef.current) {
-            console.log("Refetch blocked - already fetching");
             return;
         }
-
-        console.log("Manual refetch triggered");
         setCurrentPage(1);
         setEmployees([]);
         setHasMoreData(true);
@@ -211,7 +194,6 @@ export const useEmployeesInfinite = ({
 
     const setSearchTerm = useCallback(
         (term: string) => {
-            console.log("Setting search term:", term);
             setSearchTermState(term);
             lastSearchTermRef.current = term;
 
@@ -229,19 +211,10 @@ export const useEmployeesInfinite = ({
     );
 
     useEffect(() => {
-        console.log("Enabled state check:", {
-            enabled,
-            lastEnabled: lastEnabledRef.current,
-            hasInitialFetch: hasInitialFetchRef.current,
-            employeesCount: employees.length,
-        });
-
         if (enabled && !lastEnabledRef.current && !hasInitialFetchRef.current) {
-            console.log("Enabled for first time - triggering initial fetch");
             hasInitialFetchRef.current = true;
             fetchEmployees(1, false, "");
         } else if (!enabled && lastEnabledRef.current) {
-            console.log("Disabled - resetting state");
             setEmployees([]);
             setError(null);
             setCurrentPage(1);
@@ -251,7 +224,7 @@ export const useEmployeesInfinite = ({
         }
 
         lastEnabledRef.current = enabled;
-    }, [enabled]);
+    }, [enabled, fetchEmployees]);
 
     return {
         employees,

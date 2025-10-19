@@ -1,7 +1,6 @@
 "use client";
 
-import { Button } from "@/components/ui/button";
-import { useRouter } from "next/navigation";
+
 import { useEffect, useState } from "react";
 import Image from "next/image";
 import { useRealTimeClock } from "@/lib/useRealTimeClock";
@@ -17,8 +16,7 @@ interface ProductCard {
 }
 
 export default function UserSuccessPage() {
-  const router = useRouter();
-  const { time, date, isClient } = useRealTimeClock();
+  const { isClient } = useRealTimeClock();
   const [mounted, setMounted] = useState(false);
   const [currentBannerIndex, setCurrentBannerIndex] = useState(0);
 

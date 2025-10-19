@@ -6,6 +6,7 @@ import FingerprintCard from "@/components/shared/FingerprintCard";
 import FingerprintScanningDialog from "@/components/shared/FingerprintScanningDialog";
 import { Button } from "@/components/ui/button";
 import { useAuth } from "@/hooks/useAuth";
+import { UserData } from "@/types/user";
 import { useEmployeeSelection } from "@/hooks/useEmployeeSelection";
 import { useSystemInfo } from "@/hooks/useSystemInfo";
 import { showErrorAlert } from "@/lib/swal";
@@ -99,7 +100,7 @@ const useScanningManager = () => {
         });
     }, []);
 
-    const setApiComplete = useCallback((success: boolean) => {
+    const setApiComplete = useCallback((_success: boolean) => {
         setScanState((prev) => ({
             ...prev,
             isApiProcessing: false,
@@ -171,25 +172,14 @@ const FingerprintSetupDialog: FC<FingerprintSetupDialogProps> = ({
 
         try {
             const authToken = localStorage.getItem("auth-token");
-            const userData = localStorage.getItem("user-data");
-
-            console.log("🔍 FingerprintDialog - Checking localStorage token:", {
-                hasAuthToken: !!authToken,
-                hasUserData: !!userData,
-                authTokenLength: authToken?.length || 0,
-            });
-
-            return !!(authToken && userData);
+            const userData = localStorage.getItem("user-data");return !!(authToken && userData);
         } catch (error) {
             console.error("Error checking localStorage token:", error);
             return false;
         }
     };
 
-    const showSessionExpiredPopup = () => {
-        console.log("⚠️ Showing session expired popup");
-
-        let timerInterval: NodeJS.Timeout;
+    const showSessionExpiredPopup = () => {let timerInterval: NodeJS.Timeout;
 
         Swal.fire({
             icon: "warning",
@@ -235,39 +225,25 @@ const FingerprintSetupDialog: FC<FingerprintSetupDialogProps> = ({
             willClose: () => {
                 clearInterval(timerInterval);
             },
-        }).then((result) => {
-            console.log("🔥 Session expired popup result:", result);
-
-            if (
+        }).then((result) => {if (
                 result.isConfirmed ||
                 result.dismiss === Swal.DismissReason.timer
-            ) {
-                console.log("➡️ Opening login dialog");
-                setShouldShowInterface(false);
+            ) {setShouldShowInterface(false);
             }
         });
     };
 
     useEffect(() => {
-        if (isOpen) {
-            console.log("🔍 FingerprintDialog opened, checking auth...");
-
-            setShouldShowInterface(false);
+        if (isOpen) {setShouldShowInterface(false);
             setIsAuthenticated(false);
             resetFlow();
             resetEmployee();
 
             const hasValidToken = checkLocalStorageToken();
 
-            if (hasValidToken) {
-                console.log(
-                    "✅ Valid token found, setting authenticated state"
-                );
-                setIsAuthenticated(true);
+            if (hasValidToken) {setIsAuthenticated(true);
                 setShouldShowInterface(true);
-            } else {
-                console.log("❌ No valid token, showing session expired");
-                showSessionExpiredPopup();
+            } else {showSessionExpiredPopup();
             }
         } else {
             setShouldShowInterface(false);
@@ -282,9 +258,7 @@ const FingerprintSetupDialog: FC<FingerprintSetupDialogProps> = ({
             !deviceId &&
             !isSystemLoading &&
             !systemError
-        ) {
-            console.log("🔄 Refetching system info to get MAC address...");
-            refetchSystemInfo();
+        ) {refetchSystemInfo();
         }
     }, [
         isOpen,
@@ -316,26 +290,11 @@ const FingerprintSetupDialog: FC<FingerprintSetupDialogProps> = ({
             ? "/api/fingerprint/validate"
             : "/api/fingerprint/setup";
 
-        try {
-            console.log(
-                `🚀 Starting ${
-                    isRescan ? "validation" : "setup"
-                } API call for ${type}...`
-            );
-
-            const fingerprintData = {
+        try {const fingerprintData = {
                 user_id: employeeState.selectedEmployeeId,
                 device_id: deviceId,
                 number_of_fingerprint: fingerprintNumber,
-            };
-
-            console.log("📤 Fingerprint API payload:", {
-                ...fingerprintData,
-                endpoint: apiEndpoint,
-                type: isRescan ? "validation" : "setup",
-            });
-
-            const response = await fetch(apiEndpoint, {
+            };const response = await fetch(apiEndpoint, {
                 method: "POST",
                 headers: { "Content-Type": "application/json" },
                 credentials: "include",
@@ -373,15 +332,7 @@ const FingerprintSetupDialog: FC<FingerprintSetupDialogProps> = ({
                         );
                     }, 100);
                     return;
-                }
-                console.log(
-                    `✅ Fingerprint ${fingerprintNumber} validation successful - Match confirmed`
-                );
-            } else {
-                console.log(
-                    `✅ Fingerprint ${fingerprintNumber} setup successful`
-                );
-            }
+                }} else {}
 
             setApiComplete(true);
         } catch (error) {
@@ -422,39 +373,7 @@ const FingerprintSetupDialog: FC<FingerprintSetupDialogProps> = ({
         [updateFingerprintState, setCurrentStep]
     );
 
-    const handleScanComplete = useCallback(() => {
-        switch (scanState.scanningType) {
-            case "finger1-scan":
-                updateFingerprintState({ finger1ScanCompleted: true });
-                setCurrentStep("finger1-rescan");
-                break;
-            case "finger1-rescan":
-                updateFingerprintState({ finger1RescanCompleted: true });
-                setCurrentStep("finger1-complete");
-                break;
-            case "finger2-scan":
-                updateFingerprintState({ finger2ScanCompleted: true });
-                setCurrentStep("finger2-rescan");
-                break;
-            case "finger2-rescan":
-                updateFingerprintState({ finger2RescanCompleted: true });
-                setCurrentStep("complete");
-                showSuccessDialog();
-                break;
-        }
-        closeScanDialog();
-    }, [
-        scanState.scanningType,
-        updateFingerprintState,
-        setCurrentStep,
-        closeScanDialog,
-    ]);
-
-    const handleNext = useCallback(() => {
-        setCurrentStep("finger2-scan");
-    }, [setCurrentStep]);
-
-    const showSuccessDialog = async () => {
+    const showSuccessDialog = useCallback(async () => {
         return Swal.fire({
             icon: "success",
             title: "Fingerprint Success Added!",
@@ -485,7 +404,43 @@ const FingerprintSetupDialog: FC<FingerprintSetupDialogProps> = ({
             onRegister();
             handleLogoutAndClose();
         });
-    };
+        // eslint-disable-next-line react-hooks/exhaustive-deps
+    }, [employeeState.selectedEmployeeName, onRegister]);
+
+    const handleScanComplete = useCallback(() => {
+        switch (scanState.scanningType) {
+            case "finger1-scan":
+                updateFingerprintState({ finger1ScanCompleted: true });
+                setCurrentStep("finger1-rescan");
+                break;
+            case "finger1-rescan":
+                updateFingerprintState({ finger1RescanCompleted: true });
+                setCurrentStep("finger1-complete");
+                break;
+            case "finger2-scan":
+                updateFingerprintState({ finger2ScanCompleted: true });
+                setCurrentStep("finger2-rescan");
+                break;
+            case "finger2-rescan":
+                updateFingerprintState({ finger2RescanCompleted: true });
+                setCurrentStep("complete");
+                showSuccessDialog();
+                break;
+        }
+        closeScanDialog();
+    }, [
+        scanState.scanningType,
+        updateFingerprintState,
+        setCurrentStep,
+        closeScanDialog,
+        showSuccessDialog,
+    ]);
+
+    const handleNext = useCallback(() => {
+        setCurrentStep("finger2-scan");
+    }, [setCurrentStep]);
+
+
 
     const handleReset = useCallback(() => {
         resetFlow();
@@ -496,24 +451,17 @@ const FingerprintSetupDialog: FC<FingerprintSetupDialogProps> = ({
 
     const handleLogoutAndClose = useCallback(async () => {
         try {
-            await logout();
-            console.log("✅ User logged out successfully");
-        } catch (error) {
+            await logout();} catch (error) {
             console.error("❌ Logout error:", error);
         }
         onClose();
     }, [logout, onClose]);
 
-    const handleLoginCloseWithoutAuth = useCallback(() => {
-        console.log("❌ Login dialog closed without login");
-        setShouldShowInterface(false);
+    const handleLoginCloseWithoutAuth = useCallback(() => {setShouldShowInterface(false);
         onClose();
     }, [onClose]);
 
-    const handleLoginSuccessWithInterface = useCallback((userData: any) => {
-        console.log("✅ Login successful, setting auth state");
-
-        try {
+    const handleLoginSuccessWithInterface = useCallback((userData: UserData) => {try {
             localStorage.setItem("user-data", JSON.stringify(userData));
             localStorage.setItem("auth-token", "employee-token-" + Date.now());
         } catch (error) {

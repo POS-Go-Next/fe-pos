@@ -55,7 +55,7 @@ export const DropdownPortal: React.FC<DropdownPortalProps> = ({
         if (isOpen && triggerRef.current) {
             calculatePosition(triggerRef.current);
         }
-    }, [isOpen, calculatePosition]);
+    }, [isOpen, calculatePosition, triggerRef]);
 
     useEffect(() => {
         const handleScroll = () => {
@@ -96,7 +96,7 @@ export const DropdownPortal: React.FC<DropdownPortalProps> = ({
             window.removeEventListener("resize", handleResize);
             document.removeEventListener("click", handleClickOutside, true);
         };
-    }, [isOpen, onClose]);
+    }, [isOpen, onClose, calculatePosition, triggerRef]);
 
     if (!isOpen) return null;
 

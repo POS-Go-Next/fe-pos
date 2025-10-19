@@ -70,12 +70,6 @@ export async function GET(
                 { status: 400 }
             );
         }
-
-        console.log("Fetching cashier activity for device ID:", {
-            deviceId,
-            timestamp: new Date().toISOString(),
-        });
-
         const response = await fetch(
             `${API_BASE_URL}/cashier-activity/${deviceId}/active`,
             {
@@ -92,7 +86,6 @@ export async function GET(
 
         const responseData: CashierActivityExternalApiResponse =
             await response.json();
-        console.log("Cashier Activity API Response:", responseData);
 
         if (!response.ok) {
             if (response.status === 401) {

@@ -25,7 +25,7 @@ interface FingerprintLoginResponse {
     };
     token?: string;
   };
-  errors?: any;
+  errors?: Record<string, string[]>;
 }
 
 export async function POST(request: NextRequest) {
@@ -41,15 +41,7 @@ export async function POST(request: NextRequest) {
         { status: 400 }
       );
     }
-
-    console.log("🔍 FINGERPRINT API - Received request:", {
-      device_id: body.device_id,
-      need_generate_token: body.need_generate_token,
-      type: body.type,
-      timestamp: new Date().toISOString(),
-    });
-
-    const payload: any = {
+    const payload: Record<string, unknown> = {
       device_id: body.device_id,
       need_generate_token: body.need_generate_token ?? true,
     };
@@ -68,14 +60,6 @@ export async function POST(request: NextRequest) {
     });
 
     const responseData: FingerprintLoginResponse = await response.json();
-    console.log("🔥 FINGERPRINT API - External response:", {
-      status: response.status,
-      success: response.ok,
-      message: responseData.message,
-      device_id_sent: body.device_id,
-      type_sent: body.type,
-    });
-
     if (!response.ok) {
       return NextResponse.json(
         {

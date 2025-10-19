@@ -35,7 +35,7 @@ interface KassaApiResponse {
     success: boolean;
     message: string;
     data?: KassaResponse;
-    errors?: any;
+    errors?: Record<string, string[]>;
 }
 
 interface UseKassaReturn {
@@ -72,10 +72,7 @@ export const useKassa = (): UseKassaReturn => {
         setIsLoading(true);
         setError(null);
 
-        try {
-            console.log("🔄 Updating kassa setup:", { deviceId, data });
-
-            const response = await fetch(`/api/kassa/${deviceId}/upsert`, {
+        try {const response = await fetch(`/api/kassa/${deviceId}/upsert`, {
                 method: "POST",
                 headers: {
                     "Content-Type": "application/json",
@@ -104,12 +101,7 @@ export const useKassa = (): UseKassaReturn => {
             }
 
             if (result.success && result.data) {
-                setLastResponse(result.data);
-                console.log(
-                    "✅ Kassa setup updated successfully:",
-                    result.data
-                );
-                return { success: true, isSessionExpired: false };
+                setLastResponse(result.data);return { success: true, isSessionExpired: false };
             } else {
                 const errorMessage =
                     result.message || "Invalid response from server";

@@ -25,14 +25,7 @@ export const usePrintTransaction = (): UsePrintTransactionReturn => {
   ): Promise<PrintTransactionResponse> => {
     try {
       setIsLoading(true);
-      setError(null);
-
-      console.log("🖨️ Printing transaction:", {
-        transactionId,
-        deviceId,
-      });
-
-      const payload: PrintTransactionPayload = {
+      setError(null);const payload: PrintTransactionPayload = {
         device_id: deviceId,
       };
 
@@ -56,13 +49,10 @@ export const usePrintTransaction = (): UsePrintTransactionReturn => {
           data.message
         );
         throw new Error(data.message || `HTTP ${response.status}`);
-      }
-
-      console.log("✅ Transaction printed successfully");
-      return data;
-    } catch (err: any) {
-      console.error("usePrintTransaction error:", err.message);
-      const errorMessage = err.message || "Failed to print transaction";
+      }return data;
+    } catch (err) {
+      console.error("usePrintTransaction error:", err instanceof Error ? err.message : err);
+      const errorMessage = err instanceof Error ? err.message : "Failed to print transaction";
       setError(errorMessage);
       throw new Error(errorMessage);
     } finally {

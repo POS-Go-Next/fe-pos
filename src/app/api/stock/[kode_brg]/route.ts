@@ -62,17 +62,6 @@ export async function GET(
         const responseData = await response.json();
 
         // Enhanced logging to debug the issue
-        console.log("Stock detail API Response:", {
-            message: responseData.message,
-            dataKeys: responseData.data ? Object.keys(responseData.data) : [],
-            hasProductImages: responseData.data?.product_images ? true : false,
-            productImagesLength: responseData.data?.product_images?.length || 0,
-            productImages: responseData.data?.product_images
-                ? JSON.stringify(responseData.data.product_images, null, 2)
-                : "No images",
-            hasInfoObat: responseData.data?.info_obat ? true : false,
-        });
-
         if (!response.ok) {
             if (response.status === 401) {
                 return NextResponse.json(
@@ -104,7 +93,7 @@ export async function GET(
             Array.isArray(stockData.product_images)
         ) {
             stockData.product_images = stockData.product_images.map(
-                (img: any) => ({
+                (img: { id: number; kd_brgdg: string; gambar: string }) => ({
                     id: img.id,
                     kd_brgdg: img.kd_brgdg,
                     url: img.gambar, // Map 'gambar' to 'url' for consistency with frontend

@@ -58,10 +58,7 @@ export async function GET(request: NextRequest) {
             }
         );
 
-        const responseData = await response.json();
-        console.log("Doctor API Response:", responseData);
-
-        if (!response.ok) {
+        const responseData = await response.json();if (!response.ok) {
             if (response.status === 401) {
                 return NextResponse.json(
                     {
@@ -159,10 +156,7 @@ export async function POST(request: NextRequest) {
             body: JSON.stringify(body),
         });
 
-        const responseData = await response.json();
-        console.log("Create Doctor API Response:", responseData);
-
-        if (!response.ok) {
+        const responseData = await response.json();if (!response.ok) {
             console.error("Create Doctor API Error:", {
                 status: response.status,
                 data: responseData,

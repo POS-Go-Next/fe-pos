@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, useCallback } from "react";
 import type {
   TransactionData,
   TransactionApiResponse,
@@ -35,7 +35,7 @@ export const useTransaction = (
   const [totalDocs, setTotalDocs] = useState<number>();
   const [currentPage, setCurrentPage] = useState<number>();
 
-  const fetchTransactions = async () => {
+  const fetchTransactions = useCallback(async () => {
     try {
       setIsLoading(true);
       setError(null);
@@ -73,9 +73,9 @@ export const useTransaction = (
       } else {
         throw new Error(data.message || "Invalid response format");
       }
-    } catch (err: any) {
-      console.error("useTransaction error:", err.message);
-      setError(err.message || "Failed to fetch transaction data");
+    } catch (err) {
+      console.error("useTransaction error:", err instanceof Error ? err.message : err);
+      setError(err instanceof Error ? err.message : "Failed to fetch transaction data");
       setTransactionList([]);
       setTotalPages(undefined);
       setTotalDocs(undefined);
@@ -83,11 +83,11 @@ export const useTransaction = (
     } finally {
       setIsLoading(false);
     }
-  };
+  }, [limit, offset, date_gte, date_lte, bought_product_code]);
 
   useEffect(() => {
     fetchTransactions();
-  }, [limit, offset, date_gte, date_lte, bought_product_code]);
+  }, [fetchTransactions]);
 
   const refetch = () => fetchTransactions();
 

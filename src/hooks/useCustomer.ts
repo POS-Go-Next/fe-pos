@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, useCallback } from "react";
 import type {
     CustomerData,
     CustomerApiResponse,
@@ -27,7 +27,7 @@ export const useCustomer = (
     const [totalPages, setTotalPages] = useState<number>();
     const [totalDocs, setTotalDocs] = useState<number>();
 
-    const fetchCustomers = async () => {
+    const fetchCustomers = useCallback(async () => {
         try {
             setIsLoading(true);
             setError(null);
@@ -35,14 +35,7 @@ export const useCustomer = (
             const queryParams = new URLSearchParams({
                 offset: offset.toString(),
                 limit: limit.toString(),
-            });
-
-            console.log(
-                "Fetching customers with params:",
-                queryParams.toString()
-            );
-
-            const response = await fetch(
+            });const response = await fetch(
                 `/api/customer?${queryParams.toString()}`,
                 {
                     method: "GET",
@@ -52,16 +45,7 @@ export const useCustomer = (
                 }
             );
 
-            const data: CustomerApiResponse = await response.json();
-
-            console.log("Customer hook response:", {
-                status: response.status,
-                success: data.success,
-                message: data.message,
-                dataExists: !!data.data,
-            });
-
-            if (!response.ok) {
+            const data: CustomerApiResponse = await response.json();if (!response.ok) {
                 console.error("Customer API request failed:", {
                     status: response.status,
                     data,
@@ -75,13 +59,7 @@ export const useCustomer = (
                 );
             }
 
-            if (data.success && data.data?.docs) {
-                console.log(
-                    "Customer data loaded successfully:",
-                    data.data.docs.length,
-                    "customers"
-                );
-                setCustomerList(data.data.docs);
+            if (data.success && data.data?.docs) {setCustomerList(data.data.docs);
                 setTotalPages(data.data.totalPages);
                 setTotalDocs(data.data.totalDocs);
             } else {
@@ -101,11 +79,11 @@ export const useCustomer = (
         } finally {
             setIsLoading(false);
         }
-    };
+    }, [limit, offset]);
 
     useEffect(() => {
         fetchCustomers();
-    }, [limit, offset]);
+    }, [limit, offset, fetchCustomers]);
 
     const refetch = () => {
         fetchCustomers();

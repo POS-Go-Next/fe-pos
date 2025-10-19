@@ -51,11 +51,7 @@ export async function GET(request: NextRequest) {
             }
         );
 
-        const responseData = await response.json();
-        console.log("Promo API Response:", responseData);
-        console.log("Promo API Status:", response.status);
-
-        if (!response.ok) {
+        const responseData = await response.json();if (!response.ok) {
             console.error("Promo API Error Details:", {
                 status: response.status,
                 statusText: response.statusText,
@@ -83,10 +79,7 @@ export async function GET(request: NextRequest) {
             );
         }
 
-        // Log the actual message to see what we're getting
-        console.log("Promo API Success Message:", responseData.message);
-
-        // More flexible response validation
+        // Log the actual message to see what we're getting// More flexible response validation
         if (!responseData.data) {
             return NextResponse.json(
                 {

@@ -7,7 +7,6 @@ import { Input } from "@/components/ui/input";
 import { useCorporate } from "@/hooks/useCorporate";
 import type {
     CorporateData,
-    transformCorporateApiToDialog,
 } from "@/types/corporate";
 
 interface GlobalDiscountDialogProps {
@@ -326,7 +325,7 @@ const GlobalDiscountDialog: React.FC<GlobalDiscountDialogProps> = ({
                                             paginatedEmployees.map(
                                                 (
                                                     employee: EmployeeData,
-                                                    index: number
+                                                    _index: number
                                                 ) => (
                                                     <tr
                                                         key={employee.id}

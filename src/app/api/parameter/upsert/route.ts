@@ -26,7 +26,6 @@ export async function POST(request: NextRequest) {
 
         const body = await request.json();
 
-        console.log("Parameter upsert request body:", body);
 
         const response = await fetch(`${API_BASE_URL}/parameter/upsert`, {
             method: "POST",
@@ -41,11 +40,6 @@ export async function POST(request: NextRequest) {
         });
 
         const responseData = await response.json();
-        console.log(
-            "Parameter upsert API Response:",
-            response.status,
-            responseData
-        );
 
         if (!response.ok) {
             if (response.status === 401) {

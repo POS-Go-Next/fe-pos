@@ -1,6 +1,6 @@
 "use client";
 
-import { FC, useState, useEffect, useRef } from "react";
+import { FC, useState, useEffect, useCallback } from "react";
 import { X, Loader2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { useCabang } from "@/hooks/useCabang";
@@ -13,6 +13,7 @@ import ParameterFormSection from "./ParameterFormSection";
 import ParameterReceiptSection from "./ParameterReceiptSection";
 import ParameterReceiptPreview from "./ParameterReceiptPreview";
 import Swal from "sweetalert2";
+import type { UserData } from "@/types/user";
 
 interface ParameterSettingsDialogProps {
     isOpen: boolean;
@@ -62,13 +63,14 @@ const ParameterSettingsDialog: FC<ParameterSettingsDialogProps> = ({
     const [shouldShowInterface, setShouldShowInterface] = useState(false);
     const [isSubmitting, setIsSubmitting] = useState(false);
     const [showReceiptPreview, setShowReceiptPreview] = useState(false);
+    const [allDataLoaded, setAllDataLoaded] = useState(false);
 
     const { logout } = useAuth();
 
     const {
         parameterData,
         isLoading: isLoadingParameter,
-        error: parameterError,
+        error: _parameterError,
         refetch: refetchParameter,
         updateParameter,
     } = useParameter();
@@ -140,25 +142,14 @@ const ParameterSettingsDialog: FC<ParameterSettingsDialogProps> = ({
 
         try {
             const authToken = localStorage.getItem("auth-token");
-            const userData = localStorage.getItem("user-data");
-
-            console.log("🔍 ParameterDialog - Checking localStorage token:", {
-                hasAuthToken: !!authToken,
-                hasUserData: !!userData,
-                authTokenLength: authToken?.length || 0,
-            });
-
-            return !!(authToken && userData);
+            const userData = localStorage.getItem("user-data");return !!(authToken && userData);
         } catch (error) {
             console.error("Error checking localStorage token:", error);
             return false;
         }
     };
 
-    const showSessionExpiredPopup = () => {
-        console.log("⚠️ Showing session expired popup");
-
-        let timerInterval: NodeJS.Timeout;
+    const showSessionExpiredPopup = () => {let timerInterval: NodeJS.Timeout;
 
         Swal.fire({
             icon: "warning",
@@ -204,36 +195,21 @@ const ParameterSettingsDialog: FC<ParameterSettingsDialogProps> = ({
             willClose: () => {
                 clearInterval(timerInterval);
             },
-        }).then((result) => {
-            console.log("🔥 Session expired popup result:", result);
-
-            if (
+        }).then((result) => {if (
                 result.isConfirmed ||
                 result.dismiss === Swal.DismissReason.timer
-            ) {
-                console.log("➡️ Opening login dialog");
-                setShouldShowInterface(false);
+            ) {setShouldShowInterface(false);
             }
         });
     };
 
     useEffect(() => {
-        if (isOpen) {
-            console.log("🔍 ParameterDialog opened, resetting state...");
-            setShouldShowInterface(false);
+        if (isOpen) {setShouldShowInterface(false);
             setShowReceiptPreview(false);
             const hasValidToken = checkLocalStorageToken();
 
-            if (hasValidToken) {
-                console.log(
-                    "✅ ParameterDialog - Valid token found in localStorage"
-                );
-                setShouldShowInterface(true);
-            } else {
-                console.log(
-                    "❌ ParameterDialog - No valid token, showing session expired"
-                );
-                showSessionExpiredPopup();
+            if (hasValidToken) {setShouldShowInterface(true);
+            } else {showSessionExpiredPopup();
             }
         } else {
             setShouldShowInterface(false);
@@ -241,27 +217,7 @@ const ParameterSettingsDialog: FC<ParameterSettingsDialogProps> = ({
         }
     }, [isOpen]);
 
-    useEffect(() => {
-        if (
-            shouldShowInterface &&
-            parameterData &&
-            !isLoadingParameter &&
-            cabangList.length > 0 &&
-            areaList.length > 0
-        ) {
-            console.log("🔄 Initializing form data...");
-            loadParameterDataToForm();
-        }
-    }, [
-        shouldShowInterface,
-        parameterData,
-        isLoadingParameter,
-        cabangList.length,
-        areaList.length,
-    ]);
-
-    const handleLoginSuccessWithInterface = (userData: any) => {
-        console.log("✅ Login successful, showing interface");
+    const handleLoginSuccessWithInterface = (userData: UserData) => {
         try {
             localStorage.setItem("user-data", JSON.stringify(userData));
             localStorage.setItem("auth-token", "employee-token-" + Date.now());
@@ -277,31 +233,27 @@ const ParameterSettingsDialog: FC<ParameterSettingsDialogProps> = ({
         }, 500);
     };
 
-    const handleLoginCloseWithoutAuth = () => {
-        console.log("❌ Login dialog closed without login");
-        setShouldShowInterface(false);
+    const handleLoginCloseWithoutAuth = () => {setShouldShowInterface(false);
         onClose();
     };
 
     const handleLogoutAndClose = async () => {
         try {
-            await logout();
-            console.log("✅ User logged out successfully");
-        } catch (error) {
+            await logout();} catch (error) {
             console.error("❌ Logout error:", error);
         }
         onClose();
     };
 
-    const convertYNToYaTidak = (value: "Y" | "N"): string => {
+    const convertYNToYaTidak = useCallback((value: "Y" | "N"): string => {
         return value === "Y" ? "Ya" : "Tidak";
-    };
+    }, []);
 
     const convertYaTidakToYN = (value: string): "Y" | "N" => {
         return value === "Ya" ? "Y" : "N";
     };
 
-    const loadParameterDataToForm = () => {
+    const loadParameterDataToForm = useCallback(() => {
         if (!parameterData) return;
 
         const selectedCabang = cabangList.find(
@@ -310,12 +262,6 @@ const ParameterSettingsDialog: FC<ParameterSettingsDialogProps> = ({
         const selectedArea = areaList.find(
             (area) => area.id_area === parameterData.kd_area
         );
-
-        console.log("🔍 Loading parameter data:", {
-            kd_cab: parameterData.kd_cab,
-            kd_area: parameterData.kd_area,
-        });
-
         setFormData({
             namaCabang: parameterData.kd_cab || "",
             namaCabangText: selectedCabang?.nama_cabang || "",
@@ -351,9 +297,35 @@ const ParameterSettingsDialog: FC<ParameterSettingsDialogProps> = ({
             footer3: parameterData.footer_struk_line3 || "",
             footer4: parameterData.footer_struk_line4 || "",
         });
+    }, [parameterData, cabangList, areaList, setFormData, convertYNToYaTidak]);
 
-        console.log("✅ Form data loaded successfully");
-    };
+    useEffect(() => {
+        if (
+            shouldShowInterface &&
+            parameterData &&
+            !isLoadingParameter &&
+            cabangList.length > 0 &&
+            areaList.length > 0
+        ) {
+            loadParameterDataToForm();
+        }
+    }, [
+        shouldShowInterface,
+        parameterData,
+        isLoadingParameter,
+        cabangList.length,
+        areaList.length,
+        loadParameterDataToForm,
+    ]);
+
+    useEffect(() => {
+        const isAllDataReady = !isLoadingParameter && !isLoadingCabang && !isLoadingArea &&
+                              parameterData !== null && cabangList.length > 0 && areaList.length > 0;
+        
+        if (!isSubmitting) {
+            setAllDataLoaded(isAllDataReady);
+        }
+    }, [isLoadingParameter, isLoadingCabang, isLoadingArea, parameterData, cabangList.length, areaList.length, isSubmitting]);
 
     const handleInputChange = (
         field: keyof ParameterFormData,
@@ -496,11 +468,7 @@ const ParameterSettingsDialog: FC<ParameterSettingsDialogProps> = ({
                 min_buffer_central: parameterData?.min_buffer_central || 7,
                 max_buffer_central: parameterData?.max_buffer_central || 10,
                 cabang_penyangga: parameterData?.cabang_penyangga || "N",
-            };
-
-            console.log("📤 Submitting parameter update...");
-
-            const success = await updateParameter(updateData);
+            };const success = await updateParameter(updateData);
 
             if (success) {
                 await showSuccessAlert(
@@ -542,7 +510,7 @@ const ParameterSettingsDialog: FC<ParameterSettingsDialogProps> = ({
         );
     }
 
-    if (isLoadingParameter || isLoadingCabang || isLoadingArea) {
+    if (!allDataLoaded) {
         return (
             <div className="fixed inset-0 flex items-center justify-center z-50">
                 <div className="absolute inset-0 bg-black/50"></div>

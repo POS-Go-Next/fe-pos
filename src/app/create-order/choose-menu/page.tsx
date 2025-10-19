@@ -34,6 +34,16 @@ export default function ChooseMenuPage() {
     requestedQuantity: 0,
   });
 
+  const [pendingAction, setPendingAction] = useState<{
+    type: "quantity-change";
+    data: { productId: number; newQuantity: number };
+  } | {
+    type: "product-select";
+    data: { stockData: StockData };
+  } | null>(null);
+
+  const [quantityValidationTimeout, setQuantityValidationTimeout] = useState<ReturnType<typeof setTimeout> | null>(null);
+
   const [triggerPayNow, setTriggerPayNow] = useState(false);
   const payNowButtonRef = useRef<HTMLButtonElement>(null);
   const isClearingRef = useRef(false);
@@ -44,6 +54,14 @@ export default function ChooseMenuPage() {
   useEffect(() => {
     setIsClient(true);
   }, []);
+
+  useEffect(() => {
+    return () => {
+      if (quantityValidationTimeout) {
+        clearTimeout(quantityValidationTimeout);
+      }
+    };
+  }, [quantityValidationTimeout]);
 
   const [products, setProducts] = useState<ProductTableItem[]>([]);
   const [nextId, setNextId] = useState(1);
@@ -337,16 +355,30 @@ export default function ChooseMenuPage() {
       }));
   }, [products, getSCValueByType]);
 
+  const debouncedStockValidation = useCallback((productToValidate: ProductTableItem, newQuantity: number, productId: number) => {
+    const isValidStock = validateStock(productToValidate, newQuantity);
+    
+    if (!isValidStock) {
+      // Store pending action for confirmation
+      setPendingAction({
+        type: "quantity-change",
+        data: { productId, newQuantity }
+      });
+    }
+  }, []);
+
   const handleQuantityChange = (id: number, value: number) => {
     if (!isClient) return;
 
     const productToValidate = products.find((product) => product.id === id);
     if (!productToValidate) return;
 
-    if (!validateStock(productToValidate, value)) {
-      return;
+    // Clear existing timeout
+    if (quantityValidationTimeout) {
+      clearTimeout(quantityValidationTimeout);
     }
 
+    // Immediately update the UI
     setProducts((prevProducts) =>
       prevProducts.map((product) => {
         if (product.id !== id) {
@@ -371,6 +403,12 @@ export default function ChooseMenuPage() {
         };
       })
     );
+
+    // Debounce the stock validation by 500ms
+    const timeoutId = setTimeout(() => {
+      debouncedStockValidation(productToValidate, value, id);
+    }, 500);
+    setQuantityValidationTimeout(timeoutId);
   };
 
   const handleQuantityBlur = () => {
@@ -483,6 +521,11 @@ export default function ChooseMenuPage() {
         availableStock: 0,
         requestedQuantity: 1,
       });
+      // Store pending action for confirmation
+      setPendingAction({
+        type: "product-select",
+        data: { stockData: selectedStockData }
+      });
       return;
     }
 
@@ -506,6 +549,34 @@ export default function ChooseMenuPage() {
       ...prev,
       isOpen: false,
     }));
+    setPendingAction(null);
+  };
+
+  const handleStockWarningConfirm = () => {
+    if (pendingAction) {
+      if (pendingAction.type === "quantity-change") {
+        const { productId, newQuantity } = pendingAction.data;
+        setProducts((prevProducts) =>
+          prevProducts.map((product) =>
+            product.id === productId
+              ? { ...product, quantity: newQuantity }
+              : product
+          )
+        );
+      } else if (pendingAction.type === "product-select") {
+        const { stockData } = pendingAction.data;
+        const newProduct = convertStockToProduct(stockData);
+        setProducts((prevProducts) => [...prevProducts, newProduct]);
+        setLastAddedProductId(nextId);
+        setNextId((prevId) => prevId + 1);
+      }
+    }
+    
+    setStockWarningDialog((prev) => ({
+      ...prev,
+      isOpen: false,
+    }));
+    setPendingAction(null);
   };
 
   if (!isClient) {
@@ -590,6 +661,7 @@ export default function ChooseMenuPage() {
       <StockWarningDialog
         isOpen={stockWarningDialog.isOpen}
         onClose={handleStockWarningClose}
+        onConfirm={handleStockWarningConfirm}
         productName={stockWarningDialog.productName}
         warningType={stockWarningDialog.warningType}
         availableStock={stockWarningDialog.availableStock}

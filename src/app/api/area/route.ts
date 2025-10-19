@@ -53,10 +53,7 @@ export async function GET(request: NextRequest) {
             }
         );
 
-        const responseData = await response.json();
-        console.log("Area API Response:", responseData);
-
-        if (!response.ok) {
+        const responseData = await response.json();if (!response.ok) {
             if (response.status === 401) {
                 return NextResponse.json(
                     {

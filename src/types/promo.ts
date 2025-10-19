@@ -32,7 +32,7 @@ export interface PromoApiResponse {
     success: boolean;
     message: string;
     data?: PromoPaginationData;
-    errors?: any;
+    errors?: Record<string, string[]>;
 }
 
 export interface PromoExternalApiResponse {

@@ -49,14 +49,6 @@ export async function POST(request: NextRequest) {
                 { status: 400 }
             );
         }
-
-        console.log("Fingerprint validation request:", {
-            user_id,
-            device_id,
-            number_of_fingerprint,
-            timestamp: new Date().toISOString(),
-        });
-
         // Call external API with authorization
         const response = await fetch(`${API_BASE_URL}/fingerprint/validate`, {
             method: "POST",
@@ -74,8 +66,7 @@ export async function POST(request: NextRequest) {
             }),
         });
 
-        const responseData = await response.json();
-        console.log("Fingerprint validation API Response:", responseData); // Debug log
+        const responseData = await response.json();// Debug log
 
         // Handle API response
         if (!response.ok) {

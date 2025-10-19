@@ -41,7 +41,7 @@ export interface CorporateApiResponse {
     success: boolean;
     message: string;
     data?: CorporatePaginationData;
-    errors?: any;
+    errors?: Record<string, string[]>;
 }
 
 export interface CorporateExternalApiResponse {

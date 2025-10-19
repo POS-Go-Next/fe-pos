@@ -7,11 +7,7 @@ export const dynamic = "force-dynamic";
 
 const API_BASE_URL = "https://api-pos.masivaguna.com/api";
 
-interface CabangQueryParams {
-    offset?: string;
-    limit?: string;
-    search?: string;
-}
+
 
 export async function GET(request: NextRequest) {
     try {
@@ -59,10 +55,7 @@ export async function GET(request: NextRequest) {
             }
         );
 
-        const responseData = await response.json();
-        console.log("Cabang API Response:", responseData);
-
-        if (!response.ok) {
+        const responseData = await response.json();if (!response.ok) {
             if (response.status === 401) {
                 return NextResponse.json(
                     {

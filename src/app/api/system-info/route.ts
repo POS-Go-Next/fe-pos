@@ -34,14 +34,8 @@ interface SystemInfoResponse {
     data: SystemInfoData;
 }
 
-export async function GET(request: NextRequest) {
-    try {
-        console.log(
-            "Fetching system info from:",
-            `${SYSTEM_SERVICE_URL}/system-info`
-        );
-
-        const response = await fetch(`${SYSTEM_SERVICE_URL}/system-info`, {
+export async function GET(_request: NextRequest) {
+    try {const response = await fetch(`${SYSTEM_SERVICE_URL}/system-info`, {
             method: "GET",
             headers: {
                 "Content-Type": "application/json",
@@ -67,10 +61,7 @@ export async function GET(request: NextRequest) {
             );
         }
 
-        const responseData: SystemInfoResponse = await response.json();
-        console.log("System info response:", responseData);
-
-        if (!responseData.success || !responseData.data) {
+        const responseData: SystemInfoResponse = await response.json();if (!responseData.success || !responseData.data) {
             return NextResponse.json(
                 {
                     success: false,

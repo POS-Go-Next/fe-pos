@@ -12,14 +12,9 @@ export async function POST(request: NextRequest) {
     const body = await request.json();
     const validatedData = loginSchema.parse(body);
 
-    console.log("🚀 LOGIN API - Received request:", {
-      username: validatedData.username,
-      device_id: body.device_id,
-      type: body.type,
-      timestamp: new Date().toISOString(),
-    });
 
-    const payload: any = {
+
+    const payload: Record<string, unknown> = {
       ...validatedData,
       device_id: body.device_id,
       need_generate_token: true,
@@ -39,13 +34,7 @@ export async function POST(request: NextRequest) {
     });
 
     const responseData = await response.json();
-    console.log("📥 LOGIN API - External response:", {
-      status: response.status,
-      success: response.ok,
-      message: responseData.message,
-      device_id_sent: body.device_id,
-      type_sent: body.type,
-    });
+
 
     if (!response.ok) {
       return NextResponse.json(

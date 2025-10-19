@@ -59,10 +59,7 @@ export const useCloseCashierActivity = (): UseCloseCashierActivityReturn => {
         setIsLoading(true);
         setError(null);
 
-        try {
-            console.log("🔄 Closing cashier activity for device ID:", deviceId);
-
-            const response = await fetch(
+        try {const response = await fetch(
                 `/api/cashier-activity/${deviceId}/close`,
                 {
                     method: "PATCH",
@@ -95,12 +92,7 @@ export const useCloseCashierActivity = (): UseCloseCashierActivityReturn => {
             }
 
             if (result.data) {
-                setLastResponse(result.data);
-                console.log(
-                    "✅ Cashier activity closed successfully:",
-                    result.data
-                );
-                return {
+                setLastResponse(result.data);return {
                     success: true,
                     isSessionExpired: false,
                     data: result.data,

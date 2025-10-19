@@ -26,35 +26,17 @@ export default function DashboardPage() {
 
         try {
             const authToken = localStorage.getItem("auth-token");
-            const userData = localStorage.getItem("user-data");
-
-            console.log("🔍 Checking auth token:", {
-                hasAuthToken: !!authToken,
-                hasUserData: !!userData,
-                authTokenLength: authToken?.length || 0,
-                userDataExists: !!userData,
-            });
-
-            return !!(authToken && userData);
+            const userData = localStorage.getItem("user-data");return !!(authToken && userData);
         } catch (error) {
             console.error("Error checking auth token:", error);
             return false;
         }
     };
 
-    const handleStartSelling = () => {
-        console.log("🚀 Start Selling clicked");
+    const handleStartSelling = () => {const hasValidToken = checkAuthToken();
 
-        const hasValidToken = checkAuthToken();
-
-        if (hasValidToken) {
-            console.log(
-                "✅ User already authenticated, redirecting to create-order"
-            );
-            window.location.href = "/create-order/choose-menu";
-        } else {
-            console.log("❌ No valid token found, showing login dialog");
-            setIsLoginDialogOpen(true);
+        if (hasValidToken) {window.location.href = "/create-order/choose-menu";
+        } else {setIsLoginDialogOpen(true);
         }
     };
 
@@ -62,10 +44,7 @@ export default function DashboardPage() {
         setIsLoginDialogOpen(false);
     };
 
-    const handleLogin = (userData: any) => {
-        console.log("Login successful with user data:", userData);
-
-        try {
+    const handleLogin = (userData: { id: number; fullname: string; username: string; email: string; phone: string; role_id: number; position_id: number }) => {try {
             localStorage.setItem("user-data", JSON.stringify(userData));
             localStorage.setItem("auth-token", "biometric-token-" + Date.now());
         } catch (error) {
@@ -80,9 +59,7 @@ export default function DashboardPage() {
         setIsFingerprintDialogOpen(true);
     };
 
-    const handleFingerprintComplete = () => {
-        console.log("Fingerprint setup completed successfully");
-        setIsFingerprintDialogOpen(false);
+    const handleFingerprintComplete = () => {setIsFingerprintDialogOpen(false);
     };
 
     const handleParameterConfigure = () => {
@@ -93,9 +70,28 @@ export default function DashboardPage() {
         setIsParameterDialogOpen(false);
     };
 
-    const handleParameterSubmit = (data: any) => {
-        console.log("Parameter settings saved:", data);
-        setIsParameterDialogOpen(false);
+    const handleParameterSubmit = (_data: {
+        namaCabang: string;
+        namaCabangText?: string;
+        namaArea: string;
+        namaAreaText?: string;
+        lokasiDepo: string;
+        lokasiSatelit: string;
+        cabangBaru: string;
+        rsia: string;
+        barangTransit: string;
+        sc: string;
+        scDoctor: string;
+        ruResep: string;
+        ruSwalayan: string;
+        shift1Start: string;
+        shift1End: string;
+        shift2Start: string;
+        shift2End: string;
+        shift3Start: string;
+        shift3End: string;
+        toleransiWaktuMin: string;
+    }) => {setIsParameterDialogOpen(false);
     };
 
     const handleKassaConfigure = () => {
@@ -106,9 +102,7 @@ export default function DashboardPage() {
         setIsKassaSetupDialogOpen(false);
     };
 
-    const handleSubmitKassa = () => {
-        console.log("Kassa configuration submitted");
-        setIsKassaSetupDialogOpen(false);
+    const handleSubmitKassa = () => {setIsKassaSetupDialogOpen(false);
     };
 
     const handleEndShift = () => {
@@ -119,9 +113,7 @@ export default function DashboardPage() {
         setIsCloseCashierDialogOpen(false);
     };
 
-    const handleSubmitShift = () => {
-        console.log("Shift submitted");
-        setIsCloseCashierDialogOpen(false);
+    const handleSubmitShift = () => {setIsCloseCashierDialogOpen(false);
     };
 
     const handleRetryClose = () => {
@@ -132,9 +124,7 @@ export default function DashboardPage() {
         setIsReCloseCashierDialogOpen(false);
     };
 
-    const handleSubmitReShift = () => {
-        console.log("Re-shift submitted");
-        setIsReCloseCashierDialogOpen(false);
+    const handleSubmitReShift = () => {setIsReCloseCashierDialogOpen(false);
     };
 
     return (

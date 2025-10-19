@@ -2,13 +2,13 @@ import { Button } from "@/components/ui/button";
 import { useFingerprintAuth } from "@/hooks/useFingerprintAuth";
 import { useAuth } from "@/hooks/useAuth";
 import { ArrowLeft, Check, X } from "lucide-react";
-import React, { useEffect, useState } from "react";
+import React, { useEffect, useState, useCallback } from "react";
 
 interface BiometricLoginDialogProps {
   isOpen: boolean;
   onClose: () => void;
   onBack: () => void;
-  onSuccess: (userData: any) => void;
+  onSuccess: (userData: { id: number; fullname: string; username: string; email: string; phone: string; role_id: number; position_id: number }) => void;
   scanDuration?: number;
   loginType?: string;
 }
@@ -77,14 +77,7 @@ const BiometricLoginDialog: React.FC<BiometricLoginDialogProps> = ({
       }
 
       setDeviceId(systemData.deviceConfig.deviceId);
-      setBiometricState("idle");
-
-      console.log("System info fetched:", {
-        hostname: systemData.hostname,
-        deviceId: systemData.deviceConfig.deviceId,
-        deviceName: systemData.deviceConfig.deviceName,
-      });
-    } catch (error) {
+      setBiometricState("idle");} catch (error) {
       console.error("Failed to fetch system info:", error);
       setErrorMessage(
         error instanceof Error
@@ -106,7 +99,7 @@ const BiometricLoginDialog: React.FC<BiometricLoginDialogProps> = ({
     }
   }, [isOpen]);
 
-  const handleStartScan = async () => {
+  const handleStartScan = useCallback(async () => {
     if (!deviceId) {
       setErrorMessage("MAC address not available");
       setBiometricState("error");
@@ -145,12 +138,12 @@ const BiometricLoginDialog: React.FC<BiometricLoginDialogProps> = ({
         setBiometricState("error");
         setErrorMessage(result.message || "Fingerprint verification failed");
       }
-    } catch (error) {
+    } catch (_error) {
       clearInterval(progressInterval);
       setBiometricState("error");
       setErrorMessage("Failed to verify fingerprint. Please try again.");
     }
-  };
+  }, [deviceId, fingerprintLogin, loginType, onSuccess, scanDuration]);
 
   useEffect(() => {
     if (isOpen && biometricState === "idle" && deviceId && !hasTriedScan) {
@@ -160,13 +153,11 @@ const BiometricLoginDialog: React.FC<BiometricLoginDialogProps> = ({
 
       return () => clearTimeout(timer);
     }
-  }, [isOpen, biometricState, deviceId, hasTriedScan]);
+  }, [isOpen, biometricState, deviceId, hasTriedScan, handleStartScan]);
 
   const handleLogoutAndClose = async () => {
     try {
-      await logout();
-      console.log("✅ User logged out successfully");
-    } catch (error) {
+      await logout();} catch (error) {
       console.error("❌ Logout error:", error);
     }
     setBiometricState("idle");
@@ -179,9 +170,7 @@ const BiometricLoginDialog: React.FC<BiometricLoginDialogProps> = ({
 
   const handleBack = async () => {
     try {
-      await logout();
-      console.log("✅ User logged out successfully on back");
-    } catch (error) {
+      await logout();} catch (error) {
       console.error("❌ Logout error:", error);
     }
     setBiometricState("idle");

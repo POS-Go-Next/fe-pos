@@ -38,7 +38,7 @@ export interface KassaApiResponse {
     success: boolean;
     message: string;
     data?: KassaResponse;
-    errors?: any;
+    errors?: Record<string, string[]>;
 }
 
 export interface KassaExternalApiResponse {

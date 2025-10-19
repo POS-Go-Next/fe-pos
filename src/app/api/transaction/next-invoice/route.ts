@@ -33,9 +33,6 @@ export async function GET(request: NextRequest) {
         const { searchParams } = new URL(request.url);
         const transactionType = searchParams.get("transaction_type") || "1";
 
-        console.log(
-            `🔄 Fetching next invoice number for transaction_type: ${transactionType}`
-        );
 
         const response = await fetch(
             `${API_BASE_URL}/transaction/next-invoice?transaction_type=${transactionType}`,
@@ -53,13 +50,6 @@ export async function GET(request: NextRequest) {
         );
 
         const data: InvoiceApiResponse = await response.json();
-
-        console.log(`📡 Invoice API Response:`, {
-            status: response.status,
-            message: data.message,
-            invoiceNumber: data.data?.invoice_number,
-        });
-
         if (!response.ok) {
             if (response.status === 401) {
                 return NextResponse.json(

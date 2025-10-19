@@ -60,12 +60,6 @@ export async function PATCH(
                 { status: 400 }
             );
         }
-
-        console.log("Closing cashier activity for device ID:", {
-            deviceId,
-            timestamp: new Date().toISOString(),
-        });
-
         const response = await fetch(
             `${API_BASE_URL}/cashier-activity/${deviceId}/close`,
             {
@@ -82,7 +76,6 @@ export async function PATCH(
 
         const responseData: CloseCashierActivityExternalApiResponse =
             await response.json();
-        console.log("Close Cashier Activity API Response:", responseData);
 
         if (!response.ok) {
             if (response.status === 401) {

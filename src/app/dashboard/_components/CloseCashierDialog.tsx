@@ -3,10 +3,11 @@
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Search, X, ChevronDown } from "lucide-react";
-import { FC, useEffect, useState, useRef } from "react";
+import { FC, useEffect, useState, useRef, useCallback } from "react";
 import { useAuth } from "@/hooks/useAuth";
 import { useSystemInfo } from "@/hooks/useSystemInfo";
-import { useCashierActivity } from "@/hooks/useCashierActivity";
+import { useCashierActivity, CashierActivityData } from "@/hooks/useCashierActivity";
+import { UserData } from "@/types/user";
 import { useCloseCashierActivity } from "@/hooks/useCloseCashierActivity";
 import EmployeeLoginDialog from "@/components/shared/EmployeeLoginDialog";
 import Pagination from "@/components/shared/pagination";
@@ -26,7 +27,7 @@ const CloseCashierDialog: FC<CloseCashierDialogProps> = ({
     const [hasValidToken, setHasValidToken] = useState(false);
     const [isLoginDialogOpen, setIsLoginDialogOpen] = useState(false);
     const [isCheckingToken, setIsCheckingToken] = useState(true);
-    const [cashierActivityData, setCashierActivityData] = useState<any>(null);
+    const [cashierActivityData, setCashierActivityData] = useState<CashierActivityData | null>(null);
     const [searchInput, setSearchInput] = useState("");
     const [searchTerm, setSearchTerm] = useState("");
     const [currentPage, setCurrentPage] = useState(1);
@@ -35,7 +36,7 @@ const CloseCashierDialog: FC<CloseCashierDialogProps> = ({
     const [totalPages, setTotalPages] = useState(1);
     const [totalDocs, setTotalDocs] = useState(0);
     const [selectedIndex, setSelectedIndex] = useState(-1);
-    const [filteredData, setFilteredData] = useState<any>(null);
+    const [filteredData, setFilteredData] = useState<CashierActivityData | null>(null);
     const searchInputRef = useRef<HTMLInputElement>(null);
     const tableContainerRef = useRef<HTMLDivElement>(null);
     const pageSizeOptions = [5, 10, 25, 50, 100];
@@ -51,7 +52,93 @@ const CloseCashierDialog: FC<CloseCashierDialogProps> = ({
     const { closeCashierActivity, isLoading: isClosingCashier } =
         useCloseCashierActivity();
 
-    const filterCashierData = (data: any, searchTerm: string) => {
+    const handleLogoutAndClose = useCallback(async () => {
+        try {
+            await logout();
+        } catch (_error) {
+            console.error("❌ Logout error:", _error);
+        }
+
+        setSearchInput("");
+        setSearchTerm("");
+        setCurrentPage(1);
+        setSelectedIndex(-1);
+        setCashierActivityData(null);
+        setFilteredData(null);
+
+        onClose();
+    }, [logout, onClose]);
+
+    const handleSubmitWithLogout = useCallback(async () => {
+        if (!deviceId) {
+            console.error("❌ Device ID not available for closing cashier");
+            showErrorAlert("Device ID not available for closing cashier");
+            return;
+        }
+
+        try {
+            const result = await closeCashierActivity(deviceId);
+
+            if (result.success) {
+                showSuccessAlert(
+                    "Cashier activity has been closed successfully!"
+                );
+                setTimeout(async () => {
+                    onSubmit();
+                    await logout();
+                }, 1500);
+            } else if (result.isSessionExpired) {
+                showSessionExpiredPopup();
+            } else {
+                console.error("❌ Failed to close cashier:", result.error);
+                showErrorAlert(
+                    result.error || "Failed to close cashier activity"
+                );
+            }
+        } catch (_error) {
+            console.error("❌ Error during close cashier process:", _error);
+            showErrorAlert(
+                "An unexpected error occurred while closing cashier"
+            );
+        }
+    }, [deviceId, closeCashierActivity, onSubmit, logout]);
+
+    const checkTokenStatus = useCallback(async () => {
+        setIsCheckingToken(true);
+
+        if (!deviceId) {
+            await refetchSystemInfo();
+            return;
+        }
+
+        try {
+            const result = await checkCashierActivity(deviceId);
+
+            if (result.success) {
+                setCashierActivityData(result.data || null);
+                setHasValidToken(true);
+                setIsCheckingToken(false);
+            } else if (result.isSessionExpired) {
+                setHasValidToken(false);
+                setIsCheckingToken(false);
+                showSessionExpiredPopup();
+            } else {
+                setCashierActivityData(null);
+                setHasValidToken(false);
+                setIsCheckingToken(false);
+                showSessionExpiredPopup();
+            }
+        } catch (error) {
+            console.error("❌ Token check error:", error);
+            setCashierActivityData(null);
+            setHasValidToken(false);
+            setIsCheckingToken(false);
+            showSessionExpiredPopup();
+        }
+        // eslint-disable-next-line react-hooks/exhaustive-deps
+    }, [deviceId]);
+
+    const filterCashierData = (data: CashierActivityData | null, searchTerm: string) => {
         if (!data) return null;
         if (!searchTerm.trim()) return data;
 
@@ -144,65 +231,22 @@ const CloseCashierDialog: FC<CloseCashierDialogProps> = ({
 
         document.addEventListener("keydown", handleKeyDown);
         return () => document.removeEventListener("keydown", handleKeyDown);
-    }, [isOpen, filteredData, selectedIndex]);
+    }, [isOpen, filteredData, selectedIndex, handleLogoutAndClose, handleSubmitWithLogout]);
 
     useEffect(() => {
-        if (isOpen) {
+        if (isOpen && deviceId) {
             checkTokenStatus();
-            setCurrentPage(1);
-            setPageSize(10);
             setSearchInput("");
             setSearchTerm("");
-            setSelectedIndex(-1);
 
             setTimeout(() => {
                 searchInputRef.current?.focus();
             }, 100);
         }
+        // eslint-disable-next-line react-hooks/exhaustive-deps
     }, [isOpen, deviceId]);
 
-    const checkTokenStatus = async () => {
-        console.log("🔍 CHECKING TOKEN STATUS...");
-        setIsCheckingToken(true);
-
-        if (!deviceId) {
-            console.log(
-                "⚠️ Device ID not available, refetching system info..."
-            );
-            await refetchSystemInfo();
-            return;
-        }
-
-        try {
-            const result = await checkCashierActivity(deviceId);
-
-            if (result.success) {
-                console.log("✅ API CALL SUCCESS: User is authenticated");
-                setCashierActivityData(result.data);
-                setHasValidToken(true);
-                setIsCheckingToken(false);
-            } else if (result.isSessionExpired) {
-                console.log("❌ API CALL 401: Not authenticated");
-                setHasValidToken(false);
-                setIsCheckingToken(false);
-                showSessionExpiredPopup();
-            } else {
-                console.log("❌ API CALL ERROR:", result.error);
-                setHasValidToken(false);
-                setIsCheckingToken(false);
-                showSessionExpiredPopup();
-            }
-        } catch (error) {
-            console.log("❌ API CALL FAILED:", error);
-            setHasValidToken(false);
-            setIsCheckingToken(false);
-            showSessionExpiredPopup();
-        }
-    };
-
     const showSessionExpiredPopup = () => {
-        console.log("⚠️ Showing session expired popup");
-
         let timerInterval: NodeJS.Timeout;
 
         Swal.fire({
@@ -249,15 +293,10 @@ const CloseCashierDialog: FC<CloseCashierDialogProps> = ({
             willClose: () => {
                 clearInterval(timerInterval);
             },
-        }).then((result) => {
-            console.log("🔥 Session expired popup result:", result);
-
-            if (
+        }).then((result) => {if (
                 result.isConfirmed ||
                 result.dismiss === Swal.DismissReason.timer
-            ) {
-                console.log("➡️ Opening login dialog");
-                setIsLoginDialogOpen(true);
+            ) {setIsLoginDialogOpen(true);
             }
         });
     };
@@ -298,91 +337,28 @@ const CloseCashierDialog: FC<CloseCashierDialogProps> = ({
         });
     };
 
-    const handleLoginSuccess = async (userData: any) => {
-        console.log("✅ Login successful:", userData);
-        setHasValidToken(true);
+    const handleLoginSuccess = async (_userData: UserData) => {setHasValidToken(true);
         setIsLoginDialogOpen(false);
 
         if (deviceId) {
             try {
                 const result = await checkCashierActivity(deviceId);
                 if (result.success) {
-                    setCashierActivityData(result.data);
-                    console.log(
-                        "✅ Cashier activity data refreshed after login"
-                    );
-                }
-            } catch (error) {
+                    setCashierActivityData(result.data || null);}
+        } catch (_error) {
                 console.error(
                     "❌ Failed to refresh cashier activity after login:",
-                    error
+                    _error
                 );
             }
         }
     };
 
-    const handleLoginClose = () => {
-        console.log("❌ Login dialog closed without login");
-        setIsLoginDialogOpen(false);
+    const handleLoginClose = () => {setIsLoginDialogOpen(false);
         onClose();
     };
 
-    const handleLogoutAndClose = async () => {
-        try {
-            await logout();
-            console.log("✅ User logged out successfully");
-        } catch (error) {
-            console.error("❌ Logout error:", error);
-        }
 
-        setSearchInput("");
-        setSearchTerm("");
-        setCurrentPage(1);
-        setSelectedIndex(-1);
-        setCashierActivityData(null);
-        setFilteredData(null);
-
-        onClose();
-    };
-
-    const handleSubmitWithLogout = async () => {
-        if (!deviceId) {
-            console.error("❌ Device ID not available for closing cashier");
-            showErrorAlert("Device ID not available for closing cashier");
-            return;
-        }
-
-        try {
-            console.log("🔄 Starting close cashier process...");
-
-            const result = await closeCashierActivity(deviceId);
-
-            if (result.success) {
-                console.log("✅ Cashier activity closed successfully");
-                showSuccessAlert(
-                    "Cashier activity has been closed successfully!"
-                );
-                setTimeout(async () => {
-                    onSubmit();
-                    await logout();
-                    console.log("✅ User logged out successfully after submit");
-                }, 1500);
-            } else if (result.isSessionExpired) {
-                console.log("❌ Session expired during close cashier");
-                showSessionExpiredPopup();
-            } else {
-                console.error("❌ Failed to close cashier:", result.error);
-                showErrorAlert(
-                    result.error || "Failed to close cashier activity"
-                );
-            }
-        } catch (error) {
-            console.error("❌ Error during close cashier process:", error);
-            showErrorAlert(
-                "An unexpected error occurred while closing cashier"
-            );
-        }
-    };
 
     const handleSearchReset = () => {
         setSearchInput("");

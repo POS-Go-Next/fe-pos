@@ -35,7 +35,7 @@ export const useKeyboardShortcuts = ({
 
         const handleKeyDown = (event: KeyboardEvent) => {
             const activeElement = document.activeElement;
-            const isInputFocused =
+            const _isInputFocused =
                 activeElement &&
                 (activeElement.tagName === "INPUT" ||
                     activeElement.tagName === "TEXTAREA" ||
@@ -71,19 +71,7 @@ export const useKeyboardShortcuts = ({
                         event.stopImmediatePropagation();
                     }
 
-                    if (debug) {
-                        console.log(`Keyboard shortcut triggered:`, {
-                            key: shortcut.key,
-                            ctrl: shortcut.ctrl,
-                            shift: shortcut.shift,
-                            alt: shortcut.alt,
-                            description: shortcut.description,
-                            isInputFocused,
-                            eventKey: event.key,
-                            eventCode: event.code,
-                            keyCode: event.keyCode,
-                        });
-                    }
+                    if (debug) {}
 
                     shortcut.action();
                     break;

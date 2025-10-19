@@ -34,3 +34,43 @@ You can check out [the Next.js GitHub repository](https://github.com/vercel/next
 The easiest way to deploy your Next.js app is to use the [Vercel Platform](https://vercel.com/new?utm_medium=default-template&filter=next.js&utm_source=create-next-app&utm_campaign=create-next-app-readme) from the creators of Next.js.
 
 Check out our [Next.js deployment documentation](https://nextjs.org/docs/app/building-your-application/deploying) for more details.
+
+## Development Configuration
+
+### Logging System
+
+This project uses a centralized logging system for better debugging and development experience. To configure logging:
+
+1. Copy `.env.local.example` to `.env.local`:
+   ```bash
+   cp .env.local.example .env.local
+   ```
+
+2. Configure logging levels and categories in `.env.local`:
+   ```env
+   # Log levels: debug | info | warn | error | off
+   NEXT_PUBLIC_DEBUG_LEVEL=debug
+   
+   # Categories (comma-separated): API,AUTH,UI,PAYMENT,PRINTER,BIOMETRIC,KASSA,HOOK,SYSTEM,DEBUG
+   # Leave empty for all categories
+   NEXT_PUBLIC_DEBUG_CATEGORIES=API,AUTH
+   ```
+
+3. Use the logging system in your code:
+   ```typescript
+   import { log } from '@/lib/logger';
+   
+   // Basic logging
+   log.debug('API', 'Fetching user data', userData);
+   log.info('AUTH', 'User logged in successfully');
+   log.error('PAYMENT', 'Payment processing failed', error);
+   
+   // Convenience methods
+   log.api.call('/api/users', 'GET', params);
+   log.api.success('/api/users', response);
+   log.auth('User authenticated', user);
+   log.ui('Dialog opened');
+   log.hook('useAuth', 'login completed', result);
+   ```
+
+**Note:** Logging is automatically disabled in production builds for performance. Configuration only affects development environment.

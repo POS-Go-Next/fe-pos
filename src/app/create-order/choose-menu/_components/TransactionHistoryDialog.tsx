@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, useCallback } from "react";
 import { X, Search, ChevronDown } from "lucide-react";
 import { Input } from "@/components/ui/input";
 import Pagination from "@/components/shared/pagination";
@@ -129,7 +129,7 @@ const TransactionHistoryDialog: React.FC<TransactionHistoryDialogProps> = ({
     transactionList,
     isLoading,
     error,
-    refetch,
+    refetch: _refetch,
     totalPages = 0,
     totalDocs = 0,
   } = useTransaction({
@@ -168,16 +168,17 @@ const TransactionHistoryDialog: React.FC<TransactionHistoryDialogProps> = ({
       } else {
         throw new Error("Invalid response format");
       }
-    } catch (err: any) {
+    } catch (err: unknown) {
       console.error("Error fetching transaction detail:", err);
-      setDetailError(err.message || "Failed to fetch transaction detail");
+      const errorMessage = err instanceof Error ? err.message : "Failed to fetch transaction detail";
+      setDetailError(errorMessage);
       setTransactionDetail(null);
     } finally {
       setIsDetailLoading(false);
     }
   };
 
-  const handlePrintTransaction = async () => {
+  const handlePrintTransaction = useCallback(async () => {
     if (!selectedTransaction || !transactionDetail) {
       showErrorAlert(
         "No Transaction Selected",
@@ -204,14 +205,15 @@ const TransactionHistoryDialog: React.FC<TransactionHistoryDialogProps> = ({
         "Print Success",
         "Transaction detail has been sent to printer."
       );
-    } catch (err: any) {
+    } catch (err: unknown) {
       Swal.close();
+      const errorMessage = err instanceof Error ? err.message : "Failed to print transaction detail.";
       showErrorAlert(
         "Print Failed",
-        err.message || "Failed to print transaction detail."
+        errorMessage
       );
     }
-  };
+  }, [selectedTransaction, transactionDetail, deviceId, printTransaction]);
 
   const transactionItems = transactionDetail?.items || [];
   const itemTotalPages = Math.ceil(transactionItems.length / productPageSize);
@@ -223,12 +225,6 @@ const TransactionHistoryDialog: React.FC<TransactionHistoryDialogProps> = ({
 
   useEffect(() => {
     if (isOpen) {
-      console.log(
-        "📋 Transaction History Dialog opened for:",
-        productName,
-        "Code:",
-        productCode
-      );
       setCurrentPage(1);
       setPageSize(5);
       setSearchInput("");
@@ -278,7 +274,7 @@ const TransactionHistoryDialog: React.FC<TransactionHistoryDialogProps> = ({
 
     document.addEventListener("keydown", handleKeyDown);
     return () => document.removeEventListener("keydown", handleKeyDown);
-  }, [isOpen, selectedTransaction, transactionDetail, deviceId]);
+  }, [isOpen, selectedTransaction, transactionDetail, deviceId, handlePrintTransaction]);
 
   const filteredTransactions = React.useMemo(() => {
     if (!searchTerm) return transactionList;
@@ -347,7 +343,6 @@ const TransactionHistoryDialog: React.FC<TransactionHistoryDialogProps> = ({
   const handleDateRangeChange = (range: DateRange | undefined) => {
     setAppliedDateRange(range);
     setCurrentPage(1);
-    console.log("✅ Date range applied:", range);
   };
 
   const handleRowClick = (transaction: TransactionData) => {
@@ -480,7 +475,7 @@ const TransactionHistoryDialog: React.FC<TransactionHistoryDialogProps> = ({
                     </td>
                   </tr>
                 ) : displayTransactions.length > 0 ? (
-                  displayTransactions.map((transaction, index) => (
+                  displayTransactions.map((transaction, _index) => (
                     <tr
                       key={transaction.invoice_number}
                       className={`border-b border-gray-100 hover:bg-blue-50 cursor-pointer transition-colors ${

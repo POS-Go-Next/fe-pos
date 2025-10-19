@@ -66,15 +66,7 @@ export async function GET(request: NextRequest) {
 
         const { searchParams } = new URL(request.url);
         const limit = searchParams.get("limit") || "10";
-        const offset = searchParams.get("offset") || "0";
-
-        console.log("Fetching cashier activities list:", {
-            limit,
-            offset,
-            timestamp: new Date().toISOString(),
-        });
-
-        const response = await fetch(
+        const offset = searchParams.get("offset") || "0";const response = await fetch(
             `${API_BASE_URL}/cashier-activity?limit=${limit}&offset=${offset}`,
             {
                 method: "GET",
@@ -89,10 +81,7 @@ export async function GET(request: NextRequest) {
         );
 
         const responseData: CashierActivitiesExternalApiResponse =
-            await response.json();
-        console.log("Cashier Activities List API Response:", responseData);
-
-        if (!response.ok) {
+            await response.json();if (!response.ok) {
             if (response.status === 401) {
                 return NextResponse.json(
                     {

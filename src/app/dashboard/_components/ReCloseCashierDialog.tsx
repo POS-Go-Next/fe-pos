@@ -1,6 +1,6 @@
 "use client";
 
-import { FC, useState, useEffect, useRef } from "react";
+import { FC, useState, useEffect, useRef, useCallback } from "react";
 import { X, Search, ChevronDown } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -12,12 +12,50 @@ import { useRecloseActivity } from "@/hooks/useRecloseActivity";
 import EmployeeLoginDialog from "@/components/shared/EmployeeLoginDialog";
 import Pagination from "@/components/shared/pagination";
 import Swal from "sweetalert2";
+import type { UserData } from "@/types/user";
 
 interface ReCloseCashierDialogProps {
     isOpen: boolean;
     onClose: () => void;
     onSubmit: () => void;
 }
+
+interface CashierData {
+    id: number;
+    fullname: string;
+    username: string;
+    email: string;
+    phone: string;
+    role_id: number;
+    position_id?: number;
+}
+
+interface CashierActivityItem {
+    kode: string;
+    tanggal: string;
+    tgl_trans: string;
+    kd_kasir: string;
+    kd_kassa: string;
+    shift: string;
+    tanggal_opening: string;
+    jam_opening: string;
+    tanggal_closing?: string;
+    jam_closing?: string;
+    status_operasional: string;
+    user_update?: string;
+    status: string;
+    tot_setor: number;
+    cashier: CashierData;
+}
+
+interface CashierActivitiesListData {
+    docs: CashierActivityItem[];
+    totalDocs: number;
+    page: number;
+    totalPages: number;
+}
+
+
 
 const ReCloseCashierDialog: FC<ReCloseCashierDialogProps> = ({
     isOpen,
@@ -28,8 +66,8 @@ const ReCloseCashierDialog: FC<ReCloseCashierDialogProps> = ({
     const [isLoginDialogOpen, setIsLoginDialogOpen] = useState(false);
     const [isCheckingToken, setIsCheckingToken] = useState(true);
     const [cashierActivitiesData, setCashierActivitiesData] =
-        useState<any>(null);
-    const [selectedItem, setSelectedItem] = useState<any>(null);
+        useState<CashierActivitiesListData | null>(null);
+    const [selectedItem, setSelectedItem] = useState<CashierActivityItem | null>(null);
     const [searchInput, setSearchInput] = useState("");
     const [searchTerm, setSearchTerm] = useState("");
     const [currentPage, setCurrentPage] = useState(1);
@@ -48,18 +86,18 @@ const ReCloseCashierDialog: FC<ReCloseCashierDialogProps> = ({
         error: systemError,
         refetch: refetchSystemInfo,
     } = useSystemInfo();
-    const { checkCashierActivity } = useCashierActivity();
+    const { checkCashierActivity: _checkCashierActivity } = useCashierActivity();
     const { getCashierActivitiesList } = useCashierActivitiesList();
     const { recloseActivity, isLoading: isReclosing } = useRecloseActivity();
 
-    const filterCashierActivities = (data: any, searchTerm: string) => {
+    const filterCashierActivities = useCallback((data: CashierActivitiesListData | null, searchTerm: string) => {
         if (!data || !data.docs) return data;
         if (!searchTerm.trim()) return data;
 
         const search = searchTerm.toLowerCase();
 
         const filteredDocs = data.docs.filter(
-            (item: any) =>
+            (item: CashierActivityItem) =>
                 item.cashier?.fullname?.toLowerCase().includes(search) ||
                 item.cashier?.username?.toLowerCase().includes(search) ||
                 item.kd_kassa?.toLowerCase().includes(search) ||
@@ -73,7 +111,54 @@ const ReCloseCashierDialog: FC<ReCloseCashierDialogProps> = ({
             totalDocs: filteredDocs.length,
             totalPages: Math.ceil(filteredDocs.length / pageSize),
         };
-    };
+    }, [pageSize]);
+
+    const handleLogoutAndClose = useCallback(async () => {
+        try {
+            await logout();
+        } catch (error) {
+            console.error("❌ Logout error:", error);
+        }
+
+        setSearchInput("");
+        setSearchTerm("");
+        setCurrentPage(1);
+        setSelectedIndex(-1);
+        setSelectedItem(null);
+        setCashierActivitiesData(null);
+
+        onClose();
+    }, [logout, onClose]);
+
+    const checkTokenStatus = useCallback(async () => {
+        setIsCheckingToken(true);
+
+        try {
+            const result = await getCashierActivitiesList(pageSize, 0);
+            if (result.success) {
+                setCashierActivitiesData(result.data || null);
+                setHasValidToken(true);
+                setIsCheckingToken(false);
+            } else if (result.isSessionExpired) {
+                setCashierActivitiesData(null);
+                setHasValidToken(false);
+                setIsCheckingToken(false);
+                showSessionExpiredPopup();
+            } else {
+                setCashierActivitiesData(null);
+                setHasValidToken(false);
+                setIsCheckingToken(false);
+                showSessionExpiredPopup();
+            }
+        } catch (error) {
+            console.error("❌ Token check error:", error);
+            setCashierActivitiesData(null);
+            setHasValidToken(false);
+            setIsCheckingToken(false);
+            showSessionExpiredPopup();
+        }
+        // eslint-disable-next-line react-hooks/exhaustive-deps
+    }, [pageSize]);
 
     const showSuccessAlert = (message: string) => {
         Swal.fire({
@@ -212,6 +297,7 @@ const ReCloseCashierDialog: FC<ReCloseCashierDialogProps> = ({
 
         document.addEventListener("keydown", handleKeyDown);
         return () => document.removeEventListener("keydown", handleKeyDown);
+        // eslint-disable-next-line react-hooks/exhaustive-deps
     }, [isOpen, cashierActivitiesData, selectedIndex, searchTerm]);
 
     useEffect(() => {
@@ -225,6 +311,7 @@ const ReCloseCashierDialog: FC<ReCloseCashierDialogProps> = ({
         } else {
             setSelectedIndex(-1);
         }
+        // eslint-disable-next-line react-hooks/exhaustive-deps
     }, [cashierActivitiesData, searchTerm]);
 
     useEffect(() => {
@@ -241,6 +328,7 @@ const ReCloseCashierDialog: FC<ReCloseCashierDialogProps> = ({
                 searchInputRef.current?.focus();
             }, 100);
         }
+        // eslint-disable-next-line react-hooks/exhaustive-deps
     }, [isOpen]);
 
     useEffect(() => {
@@ -256,55 +344,19 @@ const ReCloseCashierDialog: FC<ReCloseCashierDialogProps> = ({
         }
     }, [searchInput]);
 
-    const checkTokenStatus = async () => {
-        console.log("🔍 CHECKING TOKEN STATUS...");
-        setIsCheckingToken(true);
-
-        try {
-            const result = await getCashierActivitiesList(pageSize, 0);
-
-            if (result.success) {
-                console.log("✅ API CALL SUCCESS: User is authenticated");
-                setCashierActivitiesData(result.data);
-                setHasValidToken(true);
-                setIsCheckingToken(false);
-            } else if (result.isSessionExpired) {
-                console.log("❌ API CALL 401: Not authenticated");
-                setHasValidToken(false);
-                setIsCheckingToken(false);
-                showSessionExpiredPopup();
-            } else {
-                console.log("❌ API CALL ERROR:", result.error);
-                setHasValidToken(false);
-                setIsCheckingToken(false);
-                showSessionExpiredPopup();
-            }
-        } catch (error) {
-            console.log("❌ API CALL FAILED:", error);
-            setHasValidToken(false);
-            setIsCheckingToken(false);
-            showSessionExpiredPopup();
-        }
-    };
-
     const fetchCashierActivitiesList = async (page: number = 1) => {
         const offset = (page - 1) * pageSize;
         try {
             const result = await getCashierActivitiesList(pageSize, offset);
             if (result.success) {
-                setCashierActivitiesData(result.data);
-                setCurrentPage(page);
-                console.log("✅ Cashier activities list fetched successfully");
-            }
+                setCashierActivitiesData(result.data || null);
+                setCurrentPage(page);}
         } catch (error) {
             console.error("❌ Failed to fetch cashier activities list:", error);
         }
     };
 
-    const showSessionExpiredPopup = () => {
-        console.log("⚠️ Showing session expired popup");
-
-        let timerInterval: NodeJS.Timeout;
+    const showSessionExpiredPopup = () => {let timerInterval: NodeJS.Timeout;
 
         Swal.fire({
             icon: "warning",
@@ -350,48 +402,21 @@ const ReCloseCashierDialog: FC<ReCloseCashierDialogProps> = ({
             willClose: () => {
                 clearInterval(timerInterval);
             },
-        }).then((result) => {
-            console.log("🔥 Session expired popup result:", result);
-
-            if (
+        }).then((result) => {if (
                 result.isConfirmed ||
                 result.dismiss === Swal.DismissReason.timer
-            ) {
-                console.log("➡️ Opening login dialog");
-                setIsLoginDialogOpen(true);
+            ) {setIsLoginDialogOpen(true);
             }
         });
     };
 
-    const handleLoginSuccess = async (userData: any) => {
-        console.log("✅ Login successful:", userData);
-        setHasValidToken(true);
+    const handleLoginSuccess = async (_userData: UserData) => {setHasValidToken(true);
         setIsLoginDialogOpen(false);
 
         await fetchCashierActivitiesList();
     };
 
-    const handleLoginClose = () => {
-        console.log("❌ Login dialog closed without login");
-        setIsLoginDialogOpen(false);
-        onClose();
-    };
-
-    const handleLogoutAndClose = async () => {
-        try {
-            await logout();
-            console.log("✅ User logged out successfully");
-        } catch (error) {
-            console.error("❌ Logout error:", error);
-        }
-
-        setSearchInput("");
-        setSearchTerm("");
-        setCurrentPage(1);
-        setSelectedIndex(-1);
-        setSelectedItem(null);
-        setCashierActivitiesData(null);
-
+    const handleLoginClose = () => {setIsLoginDialogOpen(false);
         onClose();
     };
 
@@ -416,7 +441,7 @@ const ReCloseCashierDialog: FC<ReCloseCashierDialogProps> = ({
         setIsPageSizeOpen(false);
     };
 
-    const handleRowClick = (item: any, index: number) => {
+    const handleRowClick = (item: CashierActivityItem, index: number) => {
         setSelectedIndex(index);
         setSelectedItem(item);
     };
@@ -438,25 +463,16 @@ const ReCloseCashierDialog: FC<ReCloseCashierDialogProps> = ({
             return;
         }
 
-        try {
-            console.log("🔄 Starting reclose cashier process...");
+        try {const result = await recloseActivity(deviceId, selectedItem.kode);
 
-            const result = await recloseActivity(deviceId, selectedItem.kode);
-
-            if (result.success) {
-                console.log("✅ Cashier activity reclosed successfully");
-                showSuccessAlert(
+            if (result.success) {showSuccessAlert(
                     "Cashier activity has been re-closed successfully!"
                 );
 
                 setTimeout(async () => {
                     onSubmit();
-                    await logout();
-                    console.log("✅ User logged out successfully after submit");
-                }, 1500);
-            } else if (result.isSessionExpired) {
-                console.log("❌ Session expired during reclose cashier");
-                showSessionExpiredPopup();
+                    await logout();}, 1500);
+            } else if (result.isSessionExpired) {showSessionExpiredPopup();
             } else {
                 console.error("❌ Failed to reclose cashier:", result.error);
                 showErrorAlert(
@@ -645,7 +661,7 @@ const ReCloseCashierDialog: FC<ReCloseCashierDialogProps> = ({
                                         </tr>
                                     ) : paginatedData.length > 0 ? (
                                         paginatedData.map(
-                                            (data: any, index: number) => {
+                                             (data: CashierActivityItem, index: number) => {
                                                 const rowClassName = `border-b border-gray-100 cursor-pointer transition-all duration-200 ${
                                                     index === selectedIndex
                                                         ? "bg-blue-100 border-blue-300 shadow-sm"

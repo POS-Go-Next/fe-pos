@@ -56,7 +56,7 @@ export interface BranchWideStockApiResponse {
     success: boolean;
     message: string;
     data?: BranchWideStockData;
-    errors?: any;
+    errors?: Record<string, string[]>;
 }
 
 export interface BranchWideStockExternalApiResponse {

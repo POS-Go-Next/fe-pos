@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, useCallback } from "react";
 
 interface DoctorData {
     id: number;
@@ -26,10 +26,10 @@ interface DoctorApiResponse {
     success: boolean;
     message: string;
     data?: DoctorPaginationData;
-    errors?: any;
+    errors?: Record<string, string[]>;
 }
 
-interface DoctorExternalApiResponse {
+interface _DoctorExternalApiResponse {
     message: string;
     data: DoctorPaginationData;
 }
@@ -66,7 +66,7 @@ export const useDoctor = (params: UseDoctorParams = {}): UseDoctorReturn => {
     const [totalPages, setTotalPages] = useState<number>();
     const [totalDocs, setTotalDocs] = useState<number>();
 
-    const fetchDoctors = async () => {
+    const fetchDoctors = useCallback(async () => {
         try {
             setIsLoading(true);
             setError(null);
@@ -123,11 +123,11 @@ export const useDoctor = (params: UseDoctorParams = {}): UseDoctorReturn => {
         } finally {
             setIsLoading(false);
         }
-    };
+    }, [limit, offset, search, sort_by, sort_order]);
 
     useEffect(() => {
         fetchDoctors();
-    }, [limit, offset, search, sort_by, sort_order]);
+    }, [limit, offset, search, sort_by, sort_order, fetchDoctors]);
 
     const refetch = () => {
         fetchDoctors();

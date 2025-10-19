@@ -61,7 +61,7 @@ export default function TransactionCorrectionDialog({
     error,
     totalPages = 1,
     totalDocs = 0,
-    refetch,
+    refetch: _refetch,
   } = useTransaction({
     offset,
     limit: pageSize,
@@ -95,7 +95,6 @@ export default function TransactionCorrectionDialog({
 
   useEffect(() => {
     if (isOpen) {
-      console.log("Transaction Correction Dialog opened");
       setCurrentPage(1);
       setPageSize(10);
       setSearchInput("");
@@ -151,7 +150,6 @@ export default function TransactionCorrectionDialog({
   const handleDateRangeChange = (range: DateRange | undefined) => {
     setAppliedDateRange(range);
     setCurrentPage(1);
-    console.log("Date range applied:", range);
   };
 
   const handlePageChange = (page: number) => {
@@ -196,7 +194,6 @@ export default function TransactionCorrectionDialog({
     if (onSelectTransaction) {
       onSelectTransaction(transaction);
     }
-    console.log("Transaction selected for correction:", transaction);
   };
 
   if (!isOpen) return null;

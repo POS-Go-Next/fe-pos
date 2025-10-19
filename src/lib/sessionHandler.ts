@@ -1,4 +1,5 @@
 import { showErrorAlert } from "@/lib/swal";
+import { BaseApiResponse } from "@/types/api";
 import Swal from "sweetalert2";
 
 export const showSessionExpiredAlert = () => {
@@ -91,7 +92,7 @@ export const handleLogout = async (): Promise<void> => {
 
 export const handleApiError = async (
     response: Response,
-    data: any,
+    data: BaseApiResponse | null,
     customSessionHandler?: () => Promise<void>
 ) => {
     if (response.status === 401) {
@@ -100,22 +101,16 @@ export const handleApiError = async (
         } else {
             await showSessionExpiredAlert();
         }
-        return true;
+    } else {
+        showErrorAlert(data?.message || "An error occurred. Please try again.");
     }
-
-    await showErrorAlert(
-        "Error",
-        data.message || "An error occurred. Please try again.",
-        "OK"
-    );
 };
 
-export const isSessionExpired = (response: Response, data?: any): boolean => {
+export const isSessionExpired = (response: Response, data?: BaseApiResponse): boolean => {
     return (
         response.status === 401 ||
-        (data?.message &&
-            data.message.toLowerCase().includes("session expired")) ||
-        (data?.message && data.message.toLowerCase().includes("unauthorized"))
+        (data?.message ? data.message.toLowerCase().includes("session expired") : false) ||
+        (data?.message ? data.message.toLowerCase().includes("unauthorized") : false)
     );
 };
 

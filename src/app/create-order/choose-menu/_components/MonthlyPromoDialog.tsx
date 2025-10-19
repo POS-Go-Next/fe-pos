@@ -185,7 +185,6 @@ export default function MonthlyPromoDialog({
     const handleDateRangeChange = (range: DateRange | undefined) => {
         setAppliedDateRange(range);
         setCurrentPage(1);
-        console.log("Date range applied:", range);
     };
 
     const handleClose = () => {
@@ -198,8 +197,7 @@ export default function MonthlyPromoDialog({
         onClose();
     };
 
-    const handleRowClick = (promo: PromoDisplayData) => {
-        console.log("Promo selected:", promo);
+    const handleRowClick = (_promo: PromoDisplayData) => {
     };
 
     const handleRetry = () => {
@@ -213,7 +211,7 @@ export default function MonthlyPromoDialog({
         try {
             const numAmount = Number(amount);
             return `Rp ${numAmount.toLocaleString("id-ID")}`;
-        } catch (error) {
+        } catch (_error) {
             return "Rp 0";
         }
     };

@@ -107,11 +107,7 @@ const BranchWideStockDialog: React.FC<BranchWideStockDialogProps> = ({
     units: branchStockData?.isi || units,
     strips: strips,
     qtyFree: qtyFree,
-  };
-
-  console.log("branchStockData:", branchStockData);
-
-  return (
+  };return (
     <div className="fixed inset-0 bg-black/50 z-50 flex items-center justify-center p-4">
       <div className="bg-white rounded-lg w-full max-w-6xl max-h-[90vh] flex flex-col">
         <div className="flex justify-between items-center p-6 border-b">
@@ -336,7 +332,7 @@ const BranchWideStockDialog: React.FC<BranchWideStockDialogProps> = ({
                   </button>
                 </div>
               ) : paginatedData.length > 0 ? (
-                paginatedData.map((branch, index) => (
+                paginatedData.map((branch, _index) => (
                   <div
                     key={branch.idBranch}
                     className="grid grid-cols-6 p-4 text-sm text-gray-900 border-b border-gray-100 last:border-b-0 hover:bg-blue-50 cursor-pointer transition-colors"

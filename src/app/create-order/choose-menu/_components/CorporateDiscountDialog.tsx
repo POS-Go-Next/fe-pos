@@ -57,7 +57,6 @@ const CorporateDiscountDialog: React.FC<CorporateDiscountDialogProps> = ({
 
     useEffect(() => {
         if (isOpen) {
-            console.log("🔍 Corporate Discount Dialog opened");
             setCurrentPage(1);
             setPageSize(10);
             setSearchInput("");
@@ -193,7 +192,7 @@ const CorporateDiscountDialog: React.FC<CorporateDiscountDialogProps> = ({
                                         </td>
                                     </tr>
                                 ) : corporateList.length > 0 ? (
-                                    corporateList.map((corporate, index) => (
+                                     corporateList.map((corporate, _index) => (
                                         <tr
                                             key={corporate.kd_corp}
                                             className={`border-b border-gray-100 hover:bg-blue-50 cursor-pointer transition-colors ${

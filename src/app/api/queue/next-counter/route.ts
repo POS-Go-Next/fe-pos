@@ -20,7 +20,6 @@ export async function GET(request: NextRequest) {
             );
         }
 
-        console.log("🔄 Fetching next queue counter");
 
         // Call external API
         const response = await fetch(
@@ -35,13 +34,6 @@ export async function GET(request: NextRequest) {
         );
 
         const data: QueueApiResponse = await response.json();
-
-        console.log(`📡 Queue API Response:`, {
-            status: response.status,
-            message: data.message,
-            queueNumber: data.data?.queue_number,
-        });
-
         if (!response.ok) {
             return NextResponse.json(
                 { message: data.message || "Failed to fetch queue counter" },

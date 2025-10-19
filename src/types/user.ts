@@ -23,7 +23,7 @@ export interface UserApiResponse {
     success: boolean;
     message: string;
     data?: UserPaginationData;
-    errors?: any;
+    errors?: Record<string, string[]>;
 }
 
 export interface UserExternalApiResponse {
@@ -46,8 +46,8 @@ export interface FingerprintSetupData {
 export interface FingerprintSetupResponse {
     success: boolean;
     message: string;
-    data?: any;
-    errors?: any;
+    data?: unknown;
+    errors?: Record<string, string[]>;
 }
 
 export interface FingerprintData {

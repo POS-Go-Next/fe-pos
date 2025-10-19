@@ -1,7 +1,7 @@
 "use client";
 
 import type { PromoApiResponse, PromoData } from "@/types/promo";
-import { useEffect, useState } from "react";
+import { useEffect, useState, useCallback } from "react";
 
 interface UsePromoReturn {
     promoList: PromoData[];
@@ -24,9 +24,9 @@ export const usePromo = (params: UsePromoParams = {}): UsePromoReturn => {
     const {
         limit = 10,
         offset = 0,
-        search = "",
-        sort_by = "id",
-        sort_order = "desc",
+        search: _search = "",
+        sort_by: _sort_by = "id",
+        sort_order: _sort_order = "desc",
     } = params;
 
     const [promoList, setPromoList] = useState<PromoData[]>([]);
@@ -35,7 +35,7 @@ export const usePromo = (params: UsePromoParams = {}): UsePromoReturn => {
     const [totalPages, setTotalPages] = useState<number>();
     const [totalDocs, setTotalDocs] = useState<number>();
 
-    const fetchPromos = async () => {
+    const fetchPromos = useCallback(async () => {
         try {
             setIsLoading(true);
             setError(null);
@@ -86,11 +86,11 @@ export const usePromo = (params: UsePromoParams = {}): UsePromoReturn => {
         } finally {
             setIsLoading(false);
         }
-    };
+    }, [limit, offset]);
 
     useEffect(() => {
         fetchPromos();
-    }, [limit, offset]);
+    }, [limit, offset, fetchPromos]);
 
     const refetch = () => {
         fetchPromos();

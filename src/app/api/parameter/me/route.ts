@@ -47,14 +47,6 @@ export async function GET(request: NextRequest) {
         );
 
         const responseData = await response.json();
-        console.log("Parameter API Response:", {
-            status: response.status,
-            message: responseData.message,
-            kd_cab: responseData.data?.kd_cab,
-            kd_area: responseData.data?.kd_area,
-            timestamp: new Date().toISOString(),
-        });
-
         if (!response.ok) {
             if (response.status === 401) {
                 return NextResponse.json(
