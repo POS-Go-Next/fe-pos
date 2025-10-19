@@ -1,17 +1,17 @@
 "use client";
 
 import { FC } from "react";
+import type { KeyboardEvent as ReactKeyboardEvent } from "react";
 import { ChooseMenuProductTable } from "./";
-import type { ProductTableItem } from "@/types/stock";
+import type { ProductTableItem, StockData } from "@/types/stock";
 
 interface ProductTableSectionProps {
   products: ProductTableItem[];
   onQuantityChange: (id: number, value: number) => void;
   onQuantityBlur?: () => void;
-  onQuantityKeyPress?: (e: React.KeyboardEvent) => void;
+  onQuantityKeyPress?: (e: ReactKeyboardEvent<HTMLInputElement>) => void;
   onRemoveProduct: (id: number) => void;
-  onProductNameClick: (id: number) => void;
-  onProductSelect: (product: any, productId: number) => void;
+  onProductSelect: (product: StockData) => void;
   onTypeChange: (id: number, type: string) => void;
   onDiscountChange?: (id: number, discount: number) => void;
   onMiscChange?: (id: number, miscAmount: number) => void;
@@ -25,7 +25,6 @@ const ProductTableSection: FC<ProductTableSectionProps> = ({
   onQuantityBlur,
   onQuantityKeyPress,
   onRemoveProduct,
-  onProductNameClick,
   onProductSelect,
   onTypeChange,
   onDiscountChange,
@@ -41,7 +40,6 @@ const ProductTableSection: FC<ProductTableSectionProps> = ({
         onQuantityBlur={onQuantityBlur}
         onQuantityKeyPress={onQuantityKeyPress}
         onRemoveProduct={onRemoveProduct}
-        onProductNameClick={onProductNameClick}
         onProductSelect={onProductSelect}
         onTypeChange={onTypeChange}
         onDiscountChange={onDiscountChange}

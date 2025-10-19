@@ -101,13 +101,15 @@ const BranchWideStockDialog: React.FC<BranchWideStockDialogProps> = ({
       ? `Rp ${branchStockData.hj_ecer?.toLocaleString("id-ID")}`
       : wholesalePrice,
     quantity: branchStockData?.q_bbs || quantity,
-    expiredDate: branchStockData
-      ? new Date(branchStockData.tgl_berlaku_nie).toLocaleDateString("en-GB")
+    expiredDate: branchStockData?.tgl_berlaku_nie 
+      ? new Date(branchStockData.tgl_berlaku_nie).toLocaleDateString("id-ID")
       : expiredDate,
     units: branchStockData?.isi || units,
     strips: strips,
     qtyFree: qtyFree,
   };
+
+  console.log("branchStockData:", branchStockData);
 
   return (
     <div className="fixed inset-0 bg-black/50 z-50 flex items-center justify-center p-4">

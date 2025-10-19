@@ -9,35 +9,14 @@ import { useParameter } from "@/hooks/useParameter";
 import type { StockData } from "@/types/stock";
 import { ProductTableItem } from "@/types/stock";
 import { ArrowLeft, Search } from "lucide-react";
-import { useEffect, useMemo, useState, useRef } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import type { KeyboardEvent as ReactKeyboardEvent } from "react";
 import { ProductTableSection } from "./_components";
 import TransactionHistoryDialog from "./_components/TransactionHistoryDialog";
 import StockWarningDialog from "@/components/shared/stock-warning-dialog";
 
-interface CustomerData {
-  id: number;
-  name: string;
-  gender: string;
-  age: string;
-  phone: string;
-  address: string;
-  status: string;
-}
-
-interface DoctorData {
-  id: number;
-  fullname: string;
-  phone: string;
-  address: string;
-  fee_consultation?: number;
-  sip: string;
-}
-
 export default function ChooseMenuPage() {
   const [isClient, setIsClient] = useState(false);
-  const [selectedCustomer, setSelectedCustomer] =
-    useState<CustomerData | null>();
-  const [selectedDoctor, setSelectedDoctor] = useState<DoctorData | null>(null);
   const [shouldFocusSearch, setShouldFocusSearch] = useState(true);
   const [shouldFocusQuantity, setShouldFocusQuantity] = useState(false);
   const [lastAddedProductId, setLastAddedProductId] = useState<number | null>(
@@ -57,9 +36,6 @@ export default function ChooseMenuPage() {
 
   const [triggerPayNow, setTriggerPayNow] = useState(false);
   const payNowButtonRef = useRef<HTMLButtonElement>(null);
-
-  const productSearchInputRef = useRef<HTMLInputElement>(null);
-  const barcodeSearchInputRef = useRef<HTMLInputElement>(null);
   const isClearingRef = useRef(false);
 
   const { logout, isLoading: isLogoutLoading } = useLogout();
@@ -67,24 +43,26 @@ export default function ChooseMenuPage() {
 
   useEffect(() => {
     setIsClient(true);
-    setIsTransactionHistoryOpen(false);
   }, []);
 
   const [products, setProducts] = useState<ProductTableItem[]>([]);
   const [nextId, setNextId] = useState(1);
 
-  const getSCValueByType = (type: string): number => {
-    if (!parameterData) return 0;
+  const getSCValueByType = useCallback(
+    (type: string): number => {
+      if (!parameterData) return 0;
 
-    switch (type) {
-      case "R/":
-        return parameterData.service || 0;
-      case "RC":
-        return parameterData.service_dokter || 0;
-      default:
-        return 0;
-    }
-  };
+      switch (type) {
+        case "R/":
+          return parameterData.service || 0;
+        case "RC":
+          return parameterData.service_dokter || 0;
+        default:
+          return 0;
+      }
+    },
+    [parameterData]
+  );
 
   const validateStock = (
     product: ProductTableItem,
@@ -96,15 +74,11 @@ export default function ChooseMenuPage() {
     }
 
     const availableStock = stockData.q_akhir;
+    if (availableStock == null) {
+      return true;
+    }
 
-    console.log("Validating stock:", {
-      productName: product.name,
-      availableStock,
-      requestedQuantity,
-    });
-
-    if (availableStock === 0) {
-      console.log("Validation failed: Stock is exactly 0");
+    if (availableStock <= 0) {
       setStockWarningDialog({
         isOpen: true,
         productName: product.name,
@@ -112,14 +86,10 @@ export default function ChooseMenuPage() {
         availableStock: 0,
         requestedQuantity,
       });
+      return false;
     }
 
-    if (
-      availableStock &&
-      availableStock > 0 &&
-      requestedQuantity > availableStock
-    ) {
-      console.log("Validation failed: Requested quantity exceeds stock");
+    if (requestedQuantity > availableStock) {
       setStockWarningDialog({
         isOpen: true,
         productName: product.name,
@@ -127,9 +97,9 @@ export default function ChooseMenuPage() {
         availableStock,
         requestedQuantity,
       });
+      return false;
     }
 
-    console.log("Validation passed: Stock is available");
     return true;
   };
 
@@ -163,26 +133,16 @@ export default function ChooseMenuPage() {
   const handleUpsellingChange = (productId: number) => {
     if (!isClient) return;
 
-    console.log("Updating upselling for product:", productId);
-
-    setProducts((prevProducts) => {
-      const updated = prevProducts.map((product) => {
-        if (product.id === productId) {
-          const newUpValue = product.up === "Y" ? "N" : "Y";
-          console.log(
-            `Product ${productId} UP: ${product.up} -> ${newUpValue}`
-          );
-          return {
-            ...product,
-            up: newUpValue,
-          };
-        }
-        return product;
-      });
-
-      console.log("Updated products:", updated);
-      return updated;
-    });
+    setProducts((prevProducts) =>
+      prevProducts.map((product) =>
+        product.id === productId
+          ? {
+              ...product,
+              up: product.up === "Y" ? "N" : "Y",
+            }
+          : product
+      )
+    );
   };
 
   useEffect(() => {
@@ -229,7 +189,6 @@ export default function ChooseMenuPage() {
   }, [shouldFocusQuantity, lastAddedProductId, isClient, products]);
 
   const handleClearAllProducts = () => {
-    console.log("Clearing all products and localStorage");
     isClearingRef.current = true;
 
     setProducts([]);
@@ -252,8 +211,6 @@ export default function ChooseMenuPage() {
   };
 
   const handleShowCustomerDoctorDialogViaShortcut = () => {
-    console.log("Ctrl+Space pressed - triggering Pay Now flow");
-
     if (products.length === 0 || !products.some((p) => p.name)) {
       alert("Please add products to cart before proceeding with payment");
       return;
@@ -264,7 +221,6 @@ export default function ChooseMenuPage() {
 
   useEffect(() => {
     if (triggerPayNow && payNowButtonRef.current) {
-      console.log("Triggering Pay Now button click");
       payNowButtonRef.current.click();
       setTriggerPayNow(false);
     }
@@ -310,7 +266,6 @@ export default function ChooseMenuPage() {
 
   useEffect(() => {
     if (isClient && !isClearingRef.current) {
-      console.log("Saving products to localStorage:", products);
       localStorage.setItem("pos-products", JSON.stringify(products));
       localStorage.setItem("pos-next-id", nextId.toString());
     }
@@ -361,7 +316,7 @@ export default function ChooseMenuPage() {
       discount,
       promo,
     };
-  }, [products, isClient, parameterData]);
+  }, [products, isClient, getSCValueByType]);
 
   const paymentProducts = useMemo(() => {
     return products
@@ -380,7 +335,7 @@ export default function ChooseMenuPage() {
         stockData: product.stockData,
         up: product.up,
       }));
-  }, [products, parameterData]);
+  }, [products, getSCValueByType]);
 
   const handleQuantityChange = (id: number, value: number) => {
     if (!isClient) return;
@@ -392,27 +347,28 @@ export default function ChooseMenuPage() {
       return;
     }
 
-    setProducts(
-      products.map((product) => {
-        if (product.id === id) {
-          const newQuantity = value < 0 ? 0 : value;
-          const newSubtotal = (product.price || 0) * newQuantity;
-          const dynamicSC = getSCValueByType(product.type || "");
-
-          return {
-            ...product,
-            quantity: newQuantity,
-            subtotal: newSubtotal,
-            sc: dynamicSC,
-            total:
-              newSubtotal +
-              dynamicSC +
-              (product.misc || 0) -
-              newSubtotal * ((product.discount || 0) / 100) -
-              (product.promo || 0),
-          };
+    setProducts((prevProducts) =>
+      prevProducts.map((product) => {
+        if (product.id !== id) {
+          return product;
         }
-        return product;
+
+        const newQuantity = value < 0 ? 0 : value;
+        const newSubtotal = (product.price || 0) * newQuantity;
+        const dynamicSC = getSCValueByType(product.type || "");
+
+        return {
+          ...product,
+          quantity: newQuantity,
+          subtotal: newSubtotal,
+          sc: dynamicSC,
+          total:
+            newSubtotal +
+            dynamicSC +
+            (product.misc || 0) -
+            newSubtotal * ((product.discount || 0) / 100) -
+            (product.promo || 0),
+        };
       })
     );
   };
@@ -423,9 +379,11 @@ export default function ChooseMenuPage() {
     }, 100);
   };
 
-  const handleQuantityKeyPress = (e: React.KeyboardEvent) => {
-    if (e.key === "Enter") {
-      (e.target as HTMLInputElement).blur();
+  const handleQuantityKeyPress = (
+    event: ReactKeyboardEvent<HTMLInputElement>
+  ) => {
+    if (event.key === "Enter") {
+      (event.target as HTMLInputElement).blur();
       setShouldFocusSearch(true);
     }
   };
@@ -494,10 +452,6 @@ export default function ChooseMenuPage() {
     setShouldFocusSearch(true);
   };
 
-  const handleProductNameClick = (id: number) => {
-    console.log(`Product name clicked for ID: ${id}`);
-  };
-
   const convertStockToProduct = (stockData: StockData): ProductTableItem => {
     return {
       id: nextId,
@@ -518,19 +472,10 @@ export default function ChooseMenuPage() {
     };
   };
 
-  const handleProductSelect = (
-    selectedStockData: StockData,
-    productId: number
-  ) => {
-    console.log("Adding product to cart:", {
-      productName: selectedStockData.nama_brg,
-      stock: selectedStockData.q_akhir,
-    });
-
+  const handleProductSelect = (selectedStockData: StockData) => {
     const availableStock = selectedStockData.q_akhir;
 
-    if (availableStock === 0) {
-      console.log("Blocked: Cannot add product with zero stock");
+    if (availableStock != null && availableStock <= 0) {
       setStockWarningDialog({
         isOpen: true,
         productName: selectedStockData.nama_brg,
@@ -538,9 +483,9 @@ export default function ChooseMenuPage() {
         availableStock: 0,
         requestedQuantity: 1,
       });
+      return;
     }
 
-    console.log("Allowed: Adding product to cart");
     const newProduct = convertStockToProduct(selectedStockData);
     setProducts((prevProducts) => [...prevProducts, newProduct]);
     setLastAddedProductId(nextId);
@@ -553,7 +498,6 @@ export default function ChooseMenuPage() {
   };
 
   const handlePaymentComplete = () => {
-    console.log("Payment complete - clearing cart now");
     handleClearAllProducts();
   };
 
@@ -589,7 +533,6 @@ export default function ChooseMenuPage() {
               <div className="flex-grow flex justify-end ml-4">
                 <div className="relative w-full max-w-md">
                   <Input
-                    ref={barcodeSearchInputRef}
                     type="text"
                     placeholder="Scan or Search Barcode"
                     className="pl-10 bg-[#F5F5F5] border-none py-5"
@@ -609,7 +552,6 @@ export default function ChooseMenuPage() {
             onQuantityBlur={handleQuantityBlur}
             onQuantityKeyPress={handleQuantityKeyPress}
             onRemoveProduct={handleRemoveProduct}
-            onProductNameClick={handleProductNameClick}
             onProductSelect={handleProductSelect}
             onTypeChange={handleTypeChange}
             onDiscountChange={handleDiscountChange}

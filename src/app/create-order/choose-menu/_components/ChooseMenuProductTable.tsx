@@ -7,11 +7,11 @@ import SelectProductDialog from "@/components/shared/select-product-dialog";
 import ProductHistoryDialog from "@/components/shared/product-history-dialog";
 import { Input } from "@/components/ui/input";
 import { usePOSKeyboardShortcuts } from "@/hooks/useKeyboardShortcuts";
-import { useLogout } from "@/hooks/useLogout";
 import { useParameter } from "@/hooks/useParameter";
-import type { ProductTableItem } from "@/types/stock";
+import type { ProductTableItem, StockData } from "@/types/stock";
 import { Plus, Trash } from "lucide-react";
-import React, { useState, useEffect, useRef } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
+import type { ChangeEvent, KeyboardEvent as ReactKeyboardEvent } from "react";
 import KeyboardShortcutGuide from "./KeyboardShortcutGuide";
 import UpsellDialog from "./UpsellDialog";
 import PrescriptionDiscountDialog from "./PrescriptionDiscountDialog";
@@ -24,29 +24,46 @@ import TransactionCorrectionDialog from "./TransactionCorrectionDialog";
 import AddPendingBillDialog from "./AddPendingBillDialog";
 import ViewPendingBillDialog from "./ViewPendingBillDialog";
 
-export interface Product extends ProductTableItem {}
+const SEARCH_ROW_ID = 999;
 
-const formatCurrency = (amount: number | undefined | null): string => {
-  if (amount == null || isNaN(Number(amount))) {
+const dialogStateTemplate = {
+  selectProduct: false,
+  branchStock: false,
+  medicationDetails: false,
+  shortcutGuide: false,
+  upsell: false,
+  prescriptionDiscount: false,
+  chooseMisc: false,
+  corporateDiscount: false,
+  transactionHistory: false,
+  globalDiscount: false,
+  productHistory: false,
+  monthlyPromo: false,
+  transactionCorrection: false,
+  addPendingBill: false,
+  viewPendingBill: false,
+} as const;
+
+type DialogKey = keyof typeof dialogStateTemplate;
+
+const createDialogState = () => ({ ...dialogStateTemplate });
+
+const formatCurrency = (amount?: number | null) => {
+  const numericAmount = Number(amount ?? 0);
+
+  if (!Number.isFinite(numericAmount)) {
     return "Rp 0";
   }
 
-  try {
-    const numAmount = Number(amount);
-    return `Rp ${numAmount.toLocaleString("id-ID")}`;
-  } catch (error) {
-    return "Rp 0";
-  }
+  return `Rp ${numericAmount.toLocaleString("id-ID")}`;
 };
 
 const ProductActionIcons = ({
-  productName,
   onBranchStockClick,
   onMedicationDetailsClick,
   onDeleteClick,
   showIcons = true,
 }: {
-  productName: string;
   onBranchStockClick: () => void;
   onMedicationDetailsClick: () => void;
   onDeleteClick: () => void;
@@ -57,20 +74,22 @@ const ProductActionIcons = ({
   return (
     <div className="flex items-center gap-2">
       <button
-        className="w-8 h-8 bg-red-100 rounded flex items-center justify-center hover:bg-red-200 transition-colors cursor-pointer"
+        className="flex h-8 w-8 items-center justify-center rounded bg-red-100 transition-colors hover:bg-red-200"
         onClick={onDeleteClick}
         title="Delete Product"
+        type="button"
       >
-        <Trash className="w-4 h-4 text-red-600" />
+        <Trash className="h-4 w-4 text-red-600" />
       </button>
 
       <button
-        className="w-8 h-8 bg-blue-100 rounded flex items-center justify-center hover:bg-blue-200 transition-colors cursor-pointer"
+        className="flex h-8 w-8 items-center justify-center rounded bg-blue-100 transition-colors hover:bg-blue-200"
         onClick={onBranchStockClick}
         title="View Branch Wide Stock"
+        type="button"
       >
         <svg
-          className="w-5 h-5 text-blue-600"
+          className="h-5 w-5 text-blue-600"
           fill="none"
           stroke="currentColor"
           viewBox="0 0 24 24"
@@ -85,12 +104,13 @@ const ProductActionIcons = ({
       </button>
 
       <button
-        className="w-8 h-8 bg-blue-100 rounded flex items-center justify-center hover:bg-blue-200 transition-colors cursor-pointer"
+        className="flex h-8 w-8 items-center justify-center rounded bg-blue-100 transition-colors hover:bg-blue-200"
         onClick={onMedicationDetailsClick}
         title="View Medication Details"
+        type="button"
       >
         <svg
-          className="w-5 h-5 text-blue-600"
+          className="h-5 w-5 text-blue-600"
           fill="none"
           stroke="currentColor"
           viewBox="0 0 24 24"
@@ -111,10 +131,10 @@ interface ChooseMenuProductTableProps {
   products: ProductTableItem[];
   onQuantityChange: (id: number, quantity: number) => void;
   onQuantityBlur?: () => void;
-  onQuantityKeyPress?: (e: React.KeyboardEvent) => void;
+  onQuantityKeyPress?: (e: ReactKeyboardEvent<HTMLInputElement>) => void;
   onRemoveProduct: (id: number) => void;
   onProductNameClick?: (id: number) => void;
-  onProductSelect?: (product: any, productId: number) => void;
+  onProductSelect?: (product: StockData) => void;
   onTypeChange?: (id: number, type: string) => void;
   onDiscountChange?: (id: number, discount: number) => void;
   onMiscChange?: (id: number, miscAmount: number) => void;
@@ -136,70 +156,95 @@ export default function ChooseMenuProductTable({
   onUpsellingChange,
   className = "",
 }: ChooseMenuProductTableProps) {
-  const [isClient, setIsClient] = useState(false);
+  const [hasMounted, setHasMounted] = useState(false);
+  const [dialogStates, setDialogStates] = useState(createDialogState);
+  const [selectedRowId, setSelectedRowId] = useState<number | null>(null);
+  const [selectedProduct, setSelectedProduct] =
+    useState<ProductTableItem | null>(null);
+  const [searchValue, setSearchValue] = useState("");
+  const [preSearchQuery, setPreSearchQuery] = useState("");
+  const [searchTimeout, setSearchTimeout] =
+    useState<ReturnType<typeof setTimeout> | null>(null);
+
+  const tableContainerRef = useRef<HTMLDivElement>(null);
+  const searchInputRef = useRef<HTMLInputElement>(null);
 
   const { parameterData } = useParameter();
 
-  const [dialogStates, setDialogStates] = useState({
-    selectProduct: false,
-    branchStock: false,
-    medicationDetails: false,
-    shortcutGuide: false,
-    upsell: false,
-    prescriptionDiscount: false,
-    chooseMisc: false,
-    corporateDiscount: false,
-    transactionHistory: false,
-    globalDiscount: false,
-    productHistory: false,
-    monthlyPromo: false,
-    transactionCorrection: false,
-    addPendingBill: false,
-    viewPendingBill: false,
-  });
-
-  const [selectedProductId, setSelectedProductId] = useState<number | null>(
-    null
-  );
-  const [selectedProduct, setSelectedProduct] =
-    useState<ProductTableItem | null>(null);
-  const [selectedRowId, setSelectedRowId] = useState<number | null>(null);
-
-  const [searchValue, setSearchValue] = useState("");
-  const [preSearchQuery, setPreSearchQuery] = useState("");
-  const [searchTimeout, setSearchTimeout] = useState<NodeJS.Timeout | null>(
-    null
-  );
-
-  const tableContainerRef = useRef<HTMLDivElement>(null);
-  const tableBodyRef = useRef<HTMLTableSectionElement>(null);
-  const searchInputRef = useRef<HTMLInputElement>(null);
-  const { logout } = useLogout();
-
   useEffect(() => {
-    setIsClient(true);
-    console.log("Component mounted");
+    setHasMounted(true);
   }, []);
 
-  const toggleDialog = (dialogName: keyof typeof dialogStates) => {
-    console.log(`Toggling dialog: ${dialogName}`, {
-      currentState: dialogStates[dialogName],
-      newState: !dialogStates[dialogName],
-    });
+  useEffect(() => {
+    if (!hasMounted || !searchInputRef.current) return;
 
-    setDialogStates((prev) => ({
-      ...prev,
-      [dialogName]: !prev[dialogName],
+    const timeoutId = window.setTimeout(() => {
+      searchInputRef.current?.focus();
+    }, 100);
+
+    return () => window.clearTimeout(timeoutId);
+  }, [hasMounted]);
+
+  useEffect(() => {
+    if (!hasMounted || !tableContainerRef.current || products.length === 0) {
+      return;
+    }
+
+    const timeoutId = window.setTimeout(() => {
+      if (tableContainerRef.current) {
+        tableContainerRef.current.scrollTop =
+          tableContainerRef.current.scrollHeight;
+      }
+    }, 100);
+
+    return () => window.clearTimeout(timeoutId);
+  }, [products.length, hasMounted]);
+
+  useEffect(() => {
+    if (!searchTimeout) return undefined;
+    return () => window.clearTimeout(searchTimeout);
+  }, [searchTimeout]);
+
+  useEffect(() => {
+    if (selectedRowId === null) {
+      setSelectedProduct(null);
+      return;
+    }
+
+    const nextSelectedProduct =
+      products.find((product) => product.id === selectedRowId) ?? null;
+
+    if (nextSelectedProduct) {
+      setSelectedProduct(nextSelectedProduct);
+      return;
+    }
+
+    setSelectedRowId(null);
+    setSelectedProduct(null);
+  }, [products, selectedRowId]);
+
+  const setDialogVisibility = (dialogName: DialogKey, isOpen: boolean) => {
+    setDialogStates((previous) => ({
+      ...previous,
+      [dialogName]: isOpen,
     }));
   };
 
-  const closeDialog = (dialogName: keyof typeof dialogStates) => {
-    console.log(`Force closing dialog: ${dialogName}`);
+  const openDialog = (dialogName: DialogKey) => {
+    setDialogVisibility(dialogName, true);
+  };
 
-    setDialogStates((prev) => ({
-      ...prev,
-      [dialogName]: false,
-    }));
+  const closeDialog = (dialogName: DialogKey) => {
+    setDialogVisibility(dialogName, false);
+  };
+
+  const resetSearchState = () => {
+    setSearchValue("");
+    setPreSearchQuery("");
+    if (searchTimeout) {
+      window.clearTimeout(searchTimeout);
+      setSearchTimeout(null);
+    }
   };
 
   const getSCValueByType = (type: string): number => {
@@ -215,12 +260,16 @@ export default function ChooseMenuProductTable({
     }
   };
 
-  const currentCartTotals = React.useMemo(() => {
-    const filledProducts = products.filter((p) => p.name && p.quantity > 0);
+  const currentCartTotals = useMemo(() => {
+    const filledProducts = products.filter(
+      (product) => product.name && product.quantity > 0
+    );
+
     const subtotal = filledProducts.reduce(
       (sum, product) => sum + (product.subtotal || 0),
       0
     );
+
     return {
       products: filledProducts,
       totalAmount: subtotal,
@@ -229,256 +278,142 @@ export default function ChooseMenuProductTable({
 
   usePOSKeyboardShortcuts(
     {
-      showShortcutGuide: () => {
-        console.log("Ctrl+Shift+F1: Opening Shortcut Guide");
-        toggleDialog("shortcutGuide");
-      },
+      showShortcutGuide: () => openDialog("shortcutGuide"),
       showProductHistory: () => {
-        console.log("Ctrl+Shift+F2: Opening Product History Dialog");
-        if (selectedRowId !== null && selectedProduct) {
-          toggleDialog("productHistory");
-        } else {
-          console.log("No product selected for history");
+        if (selectedProduct) {
+          openDialog("productHistory");
         }
       },
       showPrescriptionDiscount: () => {
-        console.log("Ctrl+Shift+F3: Opening Prescription Discount");
-        if (selectedRowId !== null && selectedProduct) {
-          toggleDialog("prescriptionDiscount");
-        } else {
-          console.log("No product selected for discount");
+        if (selectedProduct) {
+          openDialog("prescriptionDiscount");
         }
       },
-      showGlobalDiscount: () => {
-        console.log("Shift+Alt+F3: Opening Global Discount");
-        toggleDialog("globalDiscount");
-      },
-      clearAllProducts: () => {
-        console.log("Ctrl+Shift+F4: Clear all products");
-      },
-      showPromoList: () => {
-        console.log("Ctrl+Shift+F5: Opening Monthly Promo Highlights");
-        toggleDialog("monthlyPromo");
-      },
+      showGlobalDiscount: () => openDialog("globalDiscount"),
+      showPromoList: () => openDialog("monthlyPromo"),
       showUpSelling: () => {
-        console.log("Ctrl+Shift+F6: Opening Up Selling Dialog");
-        if (selectedRowId !== null && selectedProduct) {
-          toggleDialog("upsell");
-        } else {
-          console.log("No product selected for upselling");
+        if (selectedProduct) {
+          openDialog("upsell");
         }
       },
       showTransactionList: () => {
-        console.log("Ctrl+Shift+F7: Opening Transaction History");
-        if (selectedRowId !== null && selectedProduct) {
-          toggleDialog("transactionHistory");
-        } else {
-          console.log("No product selected for transaction history");
+        if (selectedProduct) {
+          openDialog("transactionHistory");
         }
       },
-      showTransactionCorrection: () => {
-        console.log("Ctrl+Shift+F8: Opening Transaction Correction");
-        toggleDialog("transactionCorrection");
-      },
-      addPendingBill: () => {
-        console.log("Ctrl+Shift+F9: Add Pending Bill");
-        toggleDialog("addPendingBill");
-      },
-      viewPendingBill: () => {
-        console.log("Alt+Shift+F9: View Pending Bills");
-        toggleDialog("viewPendingBill");
-      },
-      showMemberCorporate: () => {
-        console.log("Ctrl+Shift+F10: Opening Corporate Discount");
-        toggleDialog("corporateDiscount");
-      },
-      showNewItemSuggestion: () => {
-        console.log("Ctrl+Shift+F11: Opening New Item Suggestion");
-      },
+      showTransactionCorrection: () => openDialog("transactionCorrection"),
+      addPendingBill: () => openDialog("addPendingBill"),
+      viewPendingBill: () => openDialog("viewPendingBill"),
+      showMemberCorporate: () => openDialog("corporateDiscount"),
       addMisc: () => {
-        console.log("Ctrl+Shift+F12: Opening Add Misc Dialog");
-        if (selectedRowId !== null && selectedProduct) {
-          toggleDialog("chooseMisc");
-        } else {
-          console.log("No product selected for misc - no action taken");
+        if (selectedProduct) {
+          openDialog("chooseMisc");
         }
       },
     },
     {},
-    { enabled: isClient, debug: false }
+    { enabled: hasMounted, debug: false }
   );
 
-  useEffect(() => {
-    if (tableContainerRef.current && products.length > 0 && isClient) {
-      setTimeout(() => {
-        if (tableContainerRef.current) {
-          tableContainerRef.current.scrollTop =
-            tableContainerRef.current.scrollHeight;
-        }
-      }, 100);
-    }
-  }, [products.length, isClient]);
-
-  const handleProductSelectFromDialog = (selectedProduct: any) => {
-    console.log("Product selected from dialog:", selectedProduct);
-
-    if (onProductSelect && selectedProductId !== null) {
-      onProductSelect(selectedProduct, selectedProductId);
-    }
-
+  const handleProductSelectFromDialog = (stockItem: StockData) => {
+    onProductSelect?.(stockItem);
     closeDialog("selectProduct");
-    setSelectedProductId(null);
-    setSearchValue("");
-    setPreSearchQuery("");
+    resetSearchState();
   };
 
-  const handleRowClick = (product: ProductTableItem, index: number) => {
-    const newSelectedRowId = selectedRowId === product.id ? null : product.id;
-    setSelectedRowId(newSelectedRowId);
+  const handleRowClick = (product: ProductTableItem) => {
+    if (product.id === SEARCH_ROW_ID) return;
 
-    if (newSelectedRowId !== null && product.name) {
-      setSelectedProduct(product);
-      console.log("Product selected:", product.name);
-    } else {
-      setSelectedProduct(null);
-      console.log("Product deselected");
-    }
-  };
-
-  const handleBranchStockClick = (product: ProductTableItem) => {
-    if (product.name) {
-      setSelectedProduct(product);
-      toggleDialog("branchStock");
-    }
-  };
-
-  const handleMedicationDetailsClick = (product: ProductTableItem) => {
-    if (product.name) {
-      setSelectedProduct(product);
-      toggleDialog("medicationDetails");
-    }
-  };
-
-  const handleTypeChange = (productId: number, newType: string) => {
-    if (productId === 999) return;
-    if (onTypeChange) {
-      onTypeChange(productId, newType);
-    }
-
-    const newSCValue = getSCValueByType(newType);
-    console.log(`Type changed to ${newType}, SC value: ${newSCValue}`);
-
-    const updatedProducts = products.map((product) => {
-      if (product.id === productId) {
-        const updatedProduct = {
-          ...product,
-          type: newType,
-          sc: newSCValue,
-        };
-
-        updatedProduct.total =
-          (updatedProduct.subtotal || 0) +
-          (updatedProduct.sc || 0) +
-          (updatedProduct.misc || 0) -
-          (updatedProduct.subtotal || 0) *
-            ((updatedProduct.discount || 0) / 100) -
-          (updatedProduct.promo || 0);
-
-        return updatedProduct;
-      }
-      return product;
-    });
-
-    console.log(
-      "Updated product with new SC:",
-      updatedProducts.find((p) => p.id === productId)
+    setSelectedRowId((previous) =>
+      previous === product.id ? null : product.id
     );
   };
 
-  const handleQuantityChangeWithFocus = (id: number, value: number) => {
+  const handleBranchStockClick = (product: ProductTableItem) => {
+    setSelectedRowId(product.id);
+    setSelectedProduct(product);
+    openDialog("branchStock");
+  };
+
+  const handleMedicationDetailsClick = (product: ProductTableItem) => {
+    setSelectedRowId(product.id);
+    setSelectedProduct(product);
+    openDialog("medicationDetails");
+  };
+
+  const handleTypeChange = (productId: number, newType: string) => {
+    if (productId === SEARCH_ROW_ID) return;
+    onTypeChange?.(productId, newType);
+  };
+
+  const handleQuantityChange = (id: number, value: number) => {
     onQuantityChange(id, value);
   };
 
-  const handleQuantityInputBlur = () => {
-    if (onQuantityBlur) {
-      onQuantityBlur();
-    }
-  };
+  const handleSearchInputChange = (event: ChangeEvent<HTMLInputElement>) => {
+    const value = event.target.value;
+    const trimmedValue = value.trim();
 
-  const handleQuantityInputKeyPress = (e: React.KeyboardEvent) => {
-    if (onQuantityKeyPress) {
-      onQuantityKeyPress(e);
-    }
-  };
-
-  const handleSearchInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    const value = e.target.value;
     setSearchValue(value);
 
     if (searchTimeout) {
-      clearTimeout(searchTimeout);
+      window.clearTimeout(searchTimeout);
     }
 
-    if (value.trim().length >= 3) {
-      const timeoutId = setTimeout(() => {
-        console.log(
-          "Auto-triggering product dialog with query after 2s delay:",
-          value.trim()
-        );
-        setPreSearchQuery(value.trim());
-        setSelectedProductId(999);
-        closeDialog("selectProduct");
-        setTimeout(() => {
-          toggleDialog("selectProduct");
-        }, 50);
-      }, 500);
-
-      setSearchTimeout(timeoutId);
-    } else {
+    if (trimmedValue.length < 3) {
       setSearchTimeout(null);
+      setPreSearchQuery("");
+      return;
     }
+
+    const timeoutId = window.setTimeout(() => {
+      setPreSearchQuery(trimmedValue);
+      closeDialog("selectProduct");
+      window.setTimeout(() => openDialog("selectProduct"), 0);
+    }, 500);
+
+    setSearchTimeout(timeoutId);
   };
 
-  const handleSearchKeyDown = (e: React.KeyboardEvent) => {
-    if (e.key === "Escape") {
-      if (searchTimeout) {
-        clearTimeout(searchTimeout);
-        setSearchTimeout(null);
-      }
-      setSearchValue("");
-      setPreSearchQuery("");
-      console.log("Search cleared via ESC key");
+  const handleSearchKeyDown = (event: ReactKeyboardEvent<HTMLInputElement>) => {
+    if (event.key !== "Escape") return;
+
+    if (searchTimeout) {
+      window.clearTimeout(searchTimeout);
+      setSearchTimeout(null);
     }
+
+    resetSearchState();
   };
 
   const handleOpenSelectProductDialog = () => {
-    console.log("Opening Select Product Dialog (legacy)");
-    setPreSearchQuery("");
-    setSelectedProductId(999);
+    if (searchTimeout) {
+      window.clearTimeout(searchTimeout);
+      setSearchTimeout(null);
+    }
+    setPreSearchQuery(searchValue.trim());
     closeDialog("selectProduct");
-    setTimeout(() => {
-      toggleDialog("selectProduct");
-    }, 50);
+    window.setTimeout(() => openDialog("selectProduct"), 0);
   };
 
-  const handlePendingBillSubmit = (pendingBillData: any) => {
-    console.log("Pending bill saved:", pendingBillData);
-    alert("Pending bill saved successfully!");
+  const handlePendingBillSubmit = (pendingBillData: unknown) => {
+    void pendingBillData;
+    closeDialog("addPendingBill");
   };
 
-  const handleLoadPendingBill = (bill: any) => {
-    console.log("Loading pending bill to cart:", bill);
-    alert(`Loading pending bill: ${bill.customerName}`);
+  const handleLoadPendingBill = (bill: unknown) => {
+    void bill;
+    closeDialog("viewPendingBill");
   };
 
   const handleDeletePendingBill = (billId: string) => {
-    console.log("Deleting pending bill:", billId);
-    alert(`Deleted pending bill: ${billId}`);
+    void billId;
+    closeDialog("viewPendingBill");
   };
 
-  const tableData = React.useMemo(() => {
-    const searchRow = {
-      id: 999,
+  const tableData = useMemo<ProductTableItem[]>(() => {
+    const searchRow: ProductTableItem = {
+      id: SEARCH_ROW_ID,
       name: "",
       type: "",
       price: 0,
@@ -494,33 +429,13 @@ export default function ChooseMenuProductTable({
       total: 0,
     };
 
-    const filledProducts = products.filter((p) => p.name);
+    const filledProducts = products.filter((product) => product.name);
     return [searchRow, ...filledProducts];
   }, [products]);
 
-  useEffect(() => {
-    console.log("Dialog states:", dialogStates);
-  }, [dialogStates]);
-
-  useEffect(() => {
-    if (isClient && searchInputRef.current) {
-      setTimeout(() => {
-        searchInputRef.current?.focus();
-      }, 100);
-    }
-  }, [isClient]);
-
-  useEffect(() => {
-    return () => {
-      if (searchTimeout) {
-        clearTimeout(searchTimeout);
-      }
-    };
-  }, [searchTimeout]);
-
-  if (!isClient) {
+  if (!hasMounted) {
     return (
-      <div className="flex justify-center items-center h-64">
+      <div className="flex h-64 items-center justify-center">
         <div className="text-lg">Loading...</div>
       </div>
     );
@@ -528,100 +443,97 @@ export default function ChooseMenuProductTable({
 
   return (
     <>
-      <div className={`bg-white rounded-2xl p-5 mb-6 ${className}`}>
-        <div className="bg-white rounded-2xl overflow-hidden">
+      <div className={`mb-6 rounded-2xl bg-white p-5 ${className}`}>
+        <div className="rounded-2xl bg-white">
           <div
             ref={tableContainerRef}
-            className="overflow-auto custom-scrollbar max-h-[610px]"
+            className="custom-scrollbar max-h-[610px] overflow-auto"
           >
             <table className="w-full min-w-[1350px]">
               <thead className="sticky top-0 z-10 h-[60px]">
                 <tr className="bg-gray-100">
-                  <th className="text-left px-3 text-sm font-semibold text-black w-[50px] rounded-tl-2xl"></th>
-                  <th className="text-left px-3 text-sm font-semibold text-black w-[400px]">
+                  <th className="w-[50px] rounded-tl-2xl px-3 text-left text-sm font-semibold text-black" />
+                  <th className="w-[400px] px-3 text-left text-sm font-semibold text-black">
                     Product Name
                   </th>
-                  <th className="text-left px-3 text-sm font-semibold text-black w-[70px]">
+                  <th className="w-[70px] px-3 text-left text-sm font-semibold text-black">
                     Type
                   </th>
-                  <th className="text-left px-3 text-sm font-semibold text-black w-[100px]">
+                  <th className="w-[100px] px-3 text-left text-sm font-semibold text-black">
                     Price
                   </th>
-                  <th className="text-center px-3 text-sm font-semibold text-black w-[60px]">
+                  <th className="w-[60px] px-3 text-center text-sm font-semibold text-black">
                     Qty
                   </th>
-                  <th className="text-left px-3 text-sm font-semibold text-black w-[100px]">
+                  <th className="w-[100px] px-3 text-left text-sm font-semibold text-black">
                     SubTotal
                   </th>
-                  <th className="text-center px-3 text-sm font-semibold text-black w-[70px]">
+                  <th className="w-[70px] px-3 text-center text-sm font-semibold text-black">
                     Disc%
                   </th>
-                  <th className="text-left px-3 text-sm font-semibold text-black w-[80px]">
+                  <th className="w-[80px] px-3 text-left text-sm font-semibold text-black">
                     SC
                   </th>
-                  <th className="text-left px-3 text-sm font-semibold text-black w-[80px]">
+                  <th className="w-[80px] px-3 text-left text-sm font-semibold text-black">
                     Misc
                   </th>
-                  <th className="text-left px-3 text-sm font-semibold text-black w-[80px]">
+                  <th className="w-[80px] px-3 text-left text-sm font-semibold text-black">
                     Promo
                   </th>
-                  <th className="text-center px-3 text-sm font-semibold text-black w-[70px]">
+                  <th className="w-[70px] px-3 text-center text-sm font-semibold text-black">
                     Promo%
                   </th>
-                  <th className="text-center px-3 text-sm font-semibold text-black w-[50px]">
+                  <th className="w-[50px] px-3 text-center text-sm font-semibold text-black">
                     Up
                   </th>
-                  <th className="text-center px-3 text-sm font-semibold text-black w-[80px]">
+                  <th className="w-[80px] px-3 text-center text-sm font-semibold text-black">
                     NoVoucher
                   </th>
-                  <th className="text-left px-3 text-sm font-semibold text-black w-[100px] rounded-tr-2xl">
+                  <th className="w-[100px] rounded-tr-2xl px-3 text-left text-sm font-semibold text-black">
                     Total
                   </th>
                 </tr>
               </thead>
-
-              <tbody ref={tableBodyRef}>
+              <tbody>
                 {tableData.map((product, index) => {
-                  const hasProductData = !!product.name;
-                  const isSearchRow = product.id === 999;
-
+                  const hasProductData = Boolean(product.name);
+                  const isSearchRow = product.id === SEARCH_ROW_ID;
                   const displaySCValue = hasProductData
                     ? getSCValueByType(product.type || "")
                     : 0;
 
+                  const rowBackground =
+                    isSearchRow && index === 0
+                      ? "bg-blue-50 sticky top-14 z-5"
+                      : index % 2 === 0
+                      ? "bg-gray-50/30"
+                      : "";
+
                   return (
                     <tr
                       key={product.id}
-                      className={`border-b border-gray-100 hover:bg-blue-50 cursor-pointer ${
+                      className={`cursor-pointer border-b border-gray-100 hover:bg-blue-50 ${rowBackground} ${
                         selectedRowId === product.id ? "bg-blue-50" : ""
-                      } ${
-                        isSearchRow
-                          ? "bg-blue-50 sticky top-14 z-5"
-                          : index % 2 === 0
-                          ? "bg-gray-50/30"
-                          : ""
                       }`}
-                      onClick={() => handleRowClick(product, index)}
+                      onClick={() => handleRowClick(product)}
                     >
                       <td className="p-3">
                         {hasProductData ? (
                           <input
                             type="checkbox"
                             checked={selectedRowId === product.id}
-                            onChange={() => handleRowClick(product, index)}
+                            onChange={() => handleRowClick(product)}
                             className="rounded border-gray-300 text-blue-600 focus:ring-blue-500"
                           />
                         ) : (
-                          <div className="w-4 h-4"></div>
+                          <div className="h-4 w-4" />
                         )}
                       </td>
-
                       <td className="p-3">
                         <div className="flex items-center gap-3">
                           {hasProductData ? (
                             <>
                               <ProductActionIcons
-                                productName={product.name}
                                 onBranchStockClick={() =>
                                   handleBranchStockClick(product)
                                 }
@@ -633,7 +545,7 @@ export default function ChooseMenuProductTable({
                                 }
                               />
                               <span
-                                className="cursor-pointer hover:text-blue-600 text-sm font-medium truncate max-w-[180px]"
+                                className="max-w-[180px] truncate text-sm font-medium hover:text-blue-600"
                                 onClick={() => onProductNameClick?.(product.id)}
                                 title={product.name}
                               >
@@ -641,21 +553,22 @@ export default function ChooseMenuProductTable({
                               </span>
                             </>
                           ) : (
-                            <div className="flex items-center gap-3 w-full">
+                            <div className="flex w-full items-center gap-3">
                               <button
-                                className="w-8 h-8 bg-blue-100 rounded flex items-center justify-center hover:bg-blue-200 transition-colors cursor-pointer"
-                                onClick={(e) => {
-                                  e.stopPropagation();
+                                className="flex h-8 w-8 items-center justify-center rounded bg-blue-100 transition-colors hover:bg-blue-200"
+                                onClick={(event) => {
+                                  event.stopPropagation();
                                   handleOpenSelectProductDialog();
                                 }}
                                 title="Add Product"
+                                type="button"
                               >
-                                <Plus className="w-5 h-5 text-blue-600" />
+                                <Plus className="h-5 w-5 text-blue-600" />
                               </button>
                               <Input
                                 ref={searchInputRef}
                                 placeholder="Cari nama produk disini"
-                                className="border-[#F0F0F0] text-sm h-11 flex-1 bg-white shadow-none"
+                                className="h-11 flex-1 border-[#F0F0F0] bg-white text-sm shadow-none"
                                 value={searchValue}
                                 onChange={handleSearchInputChange}
                                 onKeyDown={handleSearchKeyDown}
@@ -664,7 +577,6 @@ export default function ChooseMenuProductTable({
                           )}
                         </div>
                       </td>
-
                       <td className="p-3">
                         <ProductTypeSelector
                           type={product.type || ""}
@@ -674,77 +586,69 @@ export default function ChooseMenuProductTable({
                           disabled={isSearchRow || !hasProductData}
                         />
                       </td>
-
                       <td className="p-3 text-sm">
                         <div className="whitespace-nowrap">
                           {formatCurrency(product.price)}
                         </div>
                       </td>
-
                       <td className="p-3">
                         <div className="flex justify-center">
                           <Input
                             type="number"
-                            value={product.quantity || ""}
-                            onChange={(e) =>
-                              handleQuantityChangeWithFocus(
+                            value={hasProductData ? product.quantity : ""}
+                            onChange={(event) =>
+                              handleQuantityChange(
                                 product.id,
-                                parseInt(e.target.value) || 0
+                                parseInt(event.target.value, 10) || 0
                               )
                             }
-                            onBlur={handleQuantityInputBlur}
-                            onKeyDown={handleQuantityInputKeyPress}
-                            className="w-[76px] text-sm border-[#F0F0F0] h-11 text-center"
+                            onBlur={() => onQuantityBlur?.()}
+                            onKeyDown={(event) =>
+                              onQuantityKeyPress?.(event)
+                            }
+                            className="h-11 w-[76px] border-[#F0F0F0] text-center text-sm"
                             min="0"
                             data-product-id={product.id}
+                            disabled={!hasProductData}
                           />
                         </div>
                       </td>
-
                       <td className="p-3 text-sm font-semibold">
                         <div className="whitespace-nowrap">
                           {formatCurrency(product.subtotal)}
                         </div>
                       </td>
-
                       <td className="p-3">
                         <div className="flex justify-center">
-                          <span className="w-[76px] text-sm text-center py-2">
+                          <span className="w-[76px] py-2 text-center text-sm">
                             {product.discount || 0}%
                           </span>
                         </div>
                       </td>
-
                       <td className="p-3 text-sm">
                         <div className="whitespace-nowrap">
                           {formatCurrency(displaySCValue)}
                         </div>
                       </td>
-
                       <td className="p-3 text-sm">
                         <div className="whitespace-nowrap">
                           {formatCurrency(product.misc)}
                         </div>
                       </td>
-
                       <td className="p-3 text-sm">
                         <div className="whitespace-nowrap">
                           {formatCurrency(product.promo || 0)}
                         </div>
                       </td>
-
-                      <td className="p-3 text-sm text-center">
+                      <td className="p-3 text-center text-sm">
                         {product.promoPercent || 0}%
                       </td>
-
-                      <td className="p-3 text-sm text-center">
+                      <td className="p-3 text-center text-sm">
                         {product.up || "N"}
                       </td>
-
-                      <td className="p-3 text-sm text-center">
+                      <td className="p-3 text-center text-sm">
                         {product.noVoucher || 0}
                       </td>
-
                       <td className="p-3 text-sm font-bold">
                         <div className="whitespace-nowrap">
                           {formatCurrency(
@@ -752,7 +656,8 @@ export default function ChooseMenuProductTable({
                               ? product.subtotal +
                                   displaySCValue +
                                   (product.misc || 0) -
-                                  (product.subtotal * (product.discount || 0)) /
+                                  ((product.subtotal || 0) *
+                                    (product.discount || 0)) /
                                     100 -
                                   (product.promo || 0)
                               : 0
@@ -771,15 +676,8 @@ export default function ChooseMenuProductTable({
       <SelectProductDialog
         isOpen={dialogStates.selectProduct}
         onClose={() => {
-          console.log("SelectProduct onClose called");
           closeDialog("selectProduct");
-          setSelectedProductId(null);
-          setSearchValue("");
-          setPreSearchQuery("");
-          if (searchTimeout) {
-            clearTimeout(searchTimeout);
-            setSearchTimeout(null);
-          }
+          resetSearchState();
         }}
         onSelectProduct={handleProductSelectFromDialog}
         initialSearchQuery={preSearchQuery}
@@ -835,9 +733,7 @@ export default function ChooseMenuProductTable({
         isOpen={dialogStates.prescriptionDiscount}
         onClose={() => closeDialog("prescriptionDiscount")}
         onSubmit={(productId, discount) => {
-          if (onDiscountChange) {
-            onDiscountChange(productId, discount);
-          }
+          onDiscountChange?.(productId, discount);
           closeDialog("prescriptionDiscount");
         }}
         selectedProduct={{
@@ -851,45 +747,9 @@ export default function ChooseMenuProductTable({
         isOpen={dialogStates.chooseMisc}
         onClose={() => closeDialog("chooseMisc")}
         onSubmit={(miscData) => {
-          console.log("Misc applied:", miscData);
-
-          if (selectedRowId !== null && selectedProduct) {
-            if (onMiscChange) {
-              onMiscChange(selectedRowId, miscData.amount);
-            } else {
-              console.warn(
-                "onMiscChange callback not provided by parent component"
-              );
-            }
-
-            const updatedProduct = {
-              ...selectedProduct,
-              misc: (selectedProduct.misc || 0) + miscData.amount,
-            };
-
-            const displaySCValue = getSCValueByType(selectedProduct.type || "");
-            updatedProduct.total =
-              (updatedProduct.subtotal || 0) +
-              displaySCValue +
-              (updatedProduct.misc || 0) -
-              (updatedProduct.subtotal || 0) *
-                ((updatedProduct.discount || 0) / 100) -
-              (updatedProduct.promo || 0);
-
-            setSelectedProduct(updatedProduct);
-
-            console.log("Misc applied to product:", {
-              productId: selectedRowId,
-              productName: selectedProduct?.name,
-              previousMisc: selectedProduct.misc || 0,
-              addedMisc: miscData.amount,
-              newMisc: (selectedProduct.misc || 0) + miscData.amount,
-              medicationType: miscData.medicationType,
-              quantity: miscData.quantity,
-              newTotal: updatedProduct.total,
-            });
+          if (selectedRowId !== null) {
+            onMiscChange?.(selectedRowId, miscData.amount);
           }
-
           closeDialog("chooseMisc");
         }}
       />
@@ -898,7 +758,7 @@ export default function ChooseMenuProductTable({
         isOpen={dialogStates.corporateDiscount}
         onClose={() => closeDialog("corporateDiscount")}
         onSubmit={(selectedCorporates) => {
-          console.log("Corporate discount applied:", selectedCorporates);
+          void selectedCorporates;
           closeDialog("corporateDiscount");
         }}
       />
@@ -914,7 +774,7 @@ export default function ChooseMenuProductTable({
         isOpen={dialogStates.transactionCorrection}
         onClose={() => closeDialog("transactionCorrection")}
         onSelectTransaction={(transaction) => {
-          console.log("Transaction selected for correction:", transaction);
+          void transaction;
           closeDialog("transactionCorrection");
         }}
       />
@@ -923,7 +783,7 @@ export default function ChooseMenuProductTable({
         isOpen={dialogStates.globalDiscount}
         onClose={() => closeDialog("globalDiscount")}
         onSubmit={(globalDiscountData) => {
-          console.log("Global discount applied:", globalDiscountData);
+          void globalDiscountData;
           closeDialog("globalDiscount");
         }}
       />
