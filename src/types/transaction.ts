@@ -4,6 +4,7 @@ export interface TransactionApiParams {
   date_gte?: string;
   date_lte?: string;
   bought_product_code?: string;
+  search?: string;
 }
 
 export interface TransactionData {

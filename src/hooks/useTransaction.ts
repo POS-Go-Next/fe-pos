@@ -26,6 +26,7 @@ export const useTransaction = (
     date_gte = "",
     date_lte = "",
     bought_product_code = "",
+    search = "",
   } = params;
 
   const [transactionList, setTransactionList] = useState<TransactionData[]>([]);
@@ -49,6 +50,7 @@ export const useTransaction = (
       if (date_lte) queryParams.append("date_lte", date_lte);
       if (bought_product_code)
         queryParams.append("bought_product_code", bought_product_code);
+      if (search) queryParams.append("search", search);
 
       const response = await fetch(
         `/api/transaction?${queryParams.toString()}`,
@@ -83,7 +85,7 @@ export const useTransaction = (
     } finally {
       setIsLoading(false);
     }
-  }, [limit, offset, date_gte, date_lte, bought_product_code]);
+  }, [limit, offset, date_gte, date_lte, bought_product_code, search]);
 
   useEffect(() => {
     fetchTransactions();

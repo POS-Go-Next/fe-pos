@@ -366,10 +366,10 @@ export default function ChooseMenuProductTable({
       return;
     }
 
-    const timeoutId = window.setTimeout(() => {
+    const timeoutId = setTimeout(() => {
       setPreSearchQuery(trimmedValue);
       closeDialog("selectProduct");
-      window.setTimeout(() => openDialog("selectProduct"), 0);
+      setTimeout(() => openDialog("selectProduct"), 0);
     }, 500);
 
     setSearchTimeout(timeoutId);

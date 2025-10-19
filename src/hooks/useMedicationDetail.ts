@@ -1,5 +1,6 @@
 "use client";
 
+import { ProductImage } from "@/types/stock";
 import { useState, useEffect, useCallback } from "react";
 
 interface MedicationDetailData {
@@ -38,8 +39,7 @@ interface MedicationDetailData {
         kd_brgdg: string;
         url: string;
         gambar: string;
-        main_display: boolean;
-        created_at: string;
+        created_at?: string;
         is_primary?: boolean;
     }>;
 }
@@ -115,17 +115,10 @@ export const useMedicationDetail = ({
                     Array.isArray(processedData.product_images)
                 ) {
                     processedData.product_images =
-                        processedData.product_images.map((img: {
-                            id: number;
-                            kd_brgdg: string;
-                            url?: string;
-                            gambar: string;
-                            main_display: boolean;
-                            created_at: string;
-                        }) => ({
+                        processedData.product_images.map((img: ProductImage) => ({
                             id: img.id,
                             kd_brgdg: img.kd_brgdg,
-                            url: img.url || img.gambar,
+                            url: img.gambar,
                             gambar: img.gambar,
                             main_display: img.main_display,
                             created_at: img.created_at,

@@ -152,6 +152,21 @@ Only write custom implementations for routes that require:
 - **Custom logic**: Complex routes in `[device_id]`, authentication, specialized business logic
 - **Avoid**: Manual authentication, error handling, and fetch logic when utilities exist
 
+### API Route Conversion Status (Updated: Oct 2025)
+**Converted Routes (22/29 - 76% coverage):**
+- All simple CRUD operations use utility patterns
+- All dynamic parameter routes converted
+- ~90% code reduction across converted routes
+
+**Complex Business Logic Routes (7 routes - intentionally unconverted):**
+- `/api/transaction/route.ts` - Complex transaction creation with business rules
+- `/api/auth/login/route.ts` - Custom session management and authentication
+- `/api/auth/fingerprint/route.ts` - Hardware biometric integration
+- `/api/user/route.ts` - Special authentication token handling
+- `/api/fingerprint/validate/route.ts` - Biometric validation logic
+- `/api/fingerprint/setup/route.ts` - Hardware enrollment workflows
+- `/api/system-info/route.ts` - Local system service communication
+
 ## Hooks Architecture
 
 ### Custom Hooks

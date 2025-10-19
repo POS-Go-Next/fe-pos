@@ -1,53 +1,10 @@
-// app/api/queue/next-counter/route.ts
-import { NextRequest, NextResponse } from "next/server";
+import { createApiHandler, createGetHandler } from "@/lib/api-utils";
 
-interface QueueApiResponse {
-    message: string;
-    data: {
-        queue_number: number;
-    };
-}
+export const runtime = "nodejs";
+export const dynamic = "force-dynamic";
 
-export async function GET(request: NextRequest) {
-    try {
-        // Get auth token from cookies
-        const authToken = request.cookies.get("auth-token")?.value;
+const handler = createApiHandler({
+  GET: createGetHandler("/queue/next-counter")
+});
 
-        if (!authToken) {
-            return NextResponse.json(
-                { message: "Authentication required" },
-                { status: 401 }
-            );
-        }
-
-
-        // Call external API
-        const response = await fetch(
-            "https://api-pos.masivaguna.com/api/queue/next-counter",
-            {
-                method: "GET",
-                headers: {
-                    "Content-Type": "application/json",
-                    Authorization: `Bearer ${authToken}`,
-                },
-            }
-        );
-
-        const data: QueueApiResponse = await response.json();
-        if (!response.ok) {
-            return NextResponse.json(
-                { message: data.message || "Failed to fetch queue counter" },
-                { status: response.status }
-            );
-        }
-
-        return NextResponse.json(data, { status: 200 });
-    } catch (error) {
-        console.error("❌ Queue API Error:", error);
-
-        return NextResponse.json(
-            { message: "Internal server error" },
-            { status: 500 }
-        );
-    }
-}
+export const GET = handler;

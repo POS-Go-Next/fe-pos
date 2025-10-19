@@ -160,11 +160,202 @@ export function createPostHandler(endpoint: string) {
   };
 }
 
+// Helper function to create dynamic GET endpoints with path parameters
+export function createDynamicGetHandler(
+  endpointTemplate: string,
+  options?: {
+    transformResponse?: (data: unknown) => unknown;
+    validateParams?: (params: Record<string, string>) => boolean;
+    paramValidationMessage?: string;
+  }
+) {
+  return async function handler(request: NextRequest, params?: Record<string, string>): Promise<NextResponse> {
+    const authToken = getAuthToken(request);
+
+    if (!authToken) {
+      return NextResponse.json(
+        { success: false, message: "Authentication required. Please login first." },
+        { status: 401 }
+      );
+    }
+
+    if (!params || (options?.validateParams && !options.validateParams(params))) {
+      return NextResponse.json(
+        { success: false, message: options?.paramValidationMessage || "Invalid parameters" },
+        { status: 400 }
+      );
+    }
+
+    // Replace path parameters in endpoint template
+    let endpoint = endpointTemplate;
+    Object.entries(params).forEach(([key, value]) => {
+      endpoint = endpoint.replace(`[${key}]`, value);
+    });
+
+    const { searchParams } = new URL(request.url);
+    const queryString = searchParams.toString();
+    const fullEndpoint = queryString ? `${endpoint}?${queryString}` : endpoint;
+
+    const { data: responseData } = await authenticatedFetch(fullEndpoint, {
+      authToken,
+      next: { revalidate: 0 }
+    });
+
+    let finalData = responseData.data;
+    if (options?.transformResponse && finalData) {
+      finalData = options.transformResponse(finalData);
+    }
+
+    return NextResponse.json({
+      success: true,
+      message: responseData.message || `${endpoint.replace('/', '')} retrieved successfully`,
+      data: finalData,
+    });
+  };
+}
+
+// Helper function to create dynamic POST endpoints with path parameters
+export function createDynamicPostHandler(
+  endpointTemplate: string,
+  options?: {
+    validateParams?: (params: Record<string, string>) => boolean;
+    paramValidationMessage?: string;
+    validateBody?: (body: unknown) => boolean;
+    bodyValidationMessage?: string;
+    transformBody?: (body: unknown) => unknown;
+  }
+) {
+  return async function handler(request: NextRequest, params?: Record<string, string>): Promise<NextResponse> {
+    const authToken = getAuthToken(request);
+
+    if (!authToken) {
+      return NextResponse.json(
+        { success: false, message: "Authentication required. Please login first." },
+        { status: 401 }
+      );
+    }
+
+    if (!params || (options?.validateParams && !options.validateParams(params))) {
+      return NextResponse.json(
+        { success: false, message: options?.paramValidationMessage || "Invalid parameters" },
+        { status: 400 }
+      );
+    }
+
+    // Replace path parameters in endpoint template
+    let endpoint = endpointTemplate;
+    Object.entries(params).forEach(([key, value]) => {
+      endpoint = endpoint.replace(`[${key}]`, value);
+    });
+
+    let body: unknown = null;
+    
+    try {
+      body = await request.json();
+    } catch {
+      // No body provided - that's okay for some POST requests
+      body = {};
+    }
+    
+    if (options?.validateBody && !options.validateBody(body)) {
+      return NextResponse.json(
+        { success: false, message: options?.bodyValidationMessage || "Invalid request body" },
+        { status: 400 }
+      );
+    }
+
+    if (options?.transformBody) {
+      body = options.transformBody(body);
+    }
+
+    const { data: responseData } = await authenticatedFetch(endpoint, {
+      method: "POST",
+      authToken,
+      body: JSON.stringify(body),
+    });
+
+    return NextResponse.json({
+      success: true,
+      message: responseData.message || `${endpoint.replace('/', '')} created successfully`,
+      data: responseData.data,
+    });
+  };
+}
+
+// Helper function to create dynamic PATCH endpoints with path parameters
+export function createDynamicPatchHandler(
+  endpointTemplate: string,
+  options?: {
+    validateParams?: (params: Record<string, string>) => boolean;
+    paramValidationMessage?: string;
+    validateBody?: (body: unknown) => boolean;
+    bodyValidationMessage?: string;
+    transformBody?: (body: unknown) => unknown;
+  }
+) {
+  return async function handler(request: NextRequest, params?: Record<string, string>): Promise<NextResponse> {
+    const authToken = getAuthToken(request);
+
+    if (!authToken) {
+      return NextResponse.json(
+        { success: false, message: "Authentication required. Please login first." },
+        { status: 401 }
+      );
+    }
+
+    if (!params || (options?.validateParams && !options.validateParams(params))) {
+      return NextResponse.json(
+        { success: false, message: options?.paramValidationMessage || "Invalid parameters" },
+        { status: 400 }
+      );
+    }
+
+    // Replace path parameters in endpoint template
+    let endpoint = endpointTemplate;
+    Object.entries(params).forEach(([key, value]) => {
+      endpoint = endpoint.replace(`[${key}]`, value);
+    });
+
+    let body: unknown = null;
+    
+    try {
+      body = await request.json();
+    } catch {
+      // No body provided - that's okay for some PATCH requests
+      body = {};
+    }
+    
+    if (options?.validateBody && !options.validateBody(body)) {
+      return NextResponse.json(
+        { success: false, message: options?.bodyValidationMessage || "Invalid request body" },
+        { status: 400 }
+      );
+    }
+
+    if (options?.transformBody) {
+      body = options.transformBody(body);
+    }
+
+    const { data: responseData } = await authenticatedFetch(endpoint, {
+      method: "PATCH",
+      authToken,
+      body: JSON.stringify(body),
+    });
+
+    return NextResponse.json({
+      success: true,
+      message: responseData.message || `${endpoint.replace('/', '')} updated successfully`,
+      data: responseData.data,
+    });
+  };
+}
+
 export function createApiHandler(
   handlers: {
     GET?: (request: NextRequest, params?: Record<string, string>) => Promise<NextResponse>;
     POST?: (request: NextRequest, params?: Record<string, string>) => Promise<NextResponse>;
     PUT?: (request: NextRequest, params?: Record<string, string>) => Promise<NextResponse>;
+    PATCH?: (request: NextRequest, params?: Record<string, string>) => Promise<NextResponse>;
     DELETE?: (request: NextRequest, params?: Record<string, string>) => Promise<NextResponse>;
   }
 ) {

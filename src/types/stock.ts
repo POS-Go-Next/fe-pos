@@ -1,9 +1,8 @@
 export interface ProductImage {
     id: number;
     kd_brgdg: string;
-    url: string;
     gambar: string;
-    main_display?: number | boolean;
+    main_display?: boolean;
     created_at?: string;
 }
 

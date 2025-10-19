@@ -157,6 +157,7 @@ export async function GET(request: NextRequest) {
     const dateGte = searchParams.get("date_gte") || "";
     const dateLte = searchParams.get("date_lte") || "";
     const boughtProductCode = searchParams.get("bought_product_code") || "";
+    const search = searchParams.get("search") || "";
 
     // Validate offset to prevent excessive values
     if (offset < 0 || limit < 1 || limit > 100) {
@@ -173,7 +174,8 @@ export async function GET(request: NextRequest) {
     if (dateGte) apiUrl.searchParams.set("date_gte", dateGte);
     if (dateLte) apiUrl.searchParams.set("date_lte", dateLte);
     if (boughtProductCode)
-      apiUrl.searchParams.set("bought_product_code", boughtProductCode);// Call external API with timeout
+      apiUrl.searchParams.set("bought_product_code", boughtProductCode);
+    if (search) apiUrl.searchParams.set("search", search);// Call external API with timeout
     const controller = new AbortController();
     const timeoutId = setTimeout(() => controller.abort(), 25000);
 

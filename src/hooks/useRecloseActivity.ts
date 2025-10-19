@@ -64,7 +64,7 @@ export const useRecloseActivity = (): UseRecloseActivityReturn => {
         try {const response = await fetch(
                 `/api/cashier-activity/${deviceId}/reclose/${kode}`,
                 {
-                    method: "PATCH",
+                    method: "POST",
                     headers: {
                         "Content-Type": "application/json",
                     },

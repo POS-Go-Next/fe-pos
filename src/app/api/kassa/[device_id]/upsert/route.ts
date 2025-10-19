@@ -1,11 +1,8 @@
 // app/api/kassa/[device_id]/upsert/route.ts
-import { NextRequest, NextResponse } from "next/server";
-import { cookies } from "next/headers";
+import { createApiHandler, createDynamicPostHandler } from "@/lib/api-utils";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
-
-const API_BASE_URL = "https://api-pos.masivaguna.com/api";
 
 interface KassaUpsertData {
     default_jual: string;
@@ -16,158 +13,39 @@ interface KassaUpsertData {
     printer_id: number | null;
 }
 
+const handler = createApiHandler({
+  POST: createDynamicPostHandler("/kassa/[device_id]/upsert", {
+    validateParams: (params) => !!params.device_id,
+    paramValidationMessage: "Device ID is required",
+    transformBody: (body: unknown) => {
+      const rawBody = body as KassaUpsertData;
+      return {
+        default_jual: rawBody.default_jual,
+        status_aktif: Boolean(rawBody.status_aktif),
+        antrian: Boolean(rawBody.antrian),
+        finger: rawBody.finger,
+        device_id: rawBody.device_id,
+        printer_id: rawBody.printer_id ? Number(rawBody.printer_id) : null,
+      };
+    },
+    validateBody: (processedBody: unknown) => {
+      const body = processedBody as {
+        default_jual: string;
+        status_aktif: boolean;
+        antrian: boolean;
+        finger: string;
+        device_id: string;
+        printer_id: number | null;
+      };
+      return !!(body.default_jual &&
+        typeof body.status_aktif === "boolean" &&
+        typeof body.antrian === "boolean" &&
+        body.finger &&
+        body.device_id &&
+        (body.printer_id === null || typeof body.printer_id === "number"));
+    },
+    bodyValidationMessage: "Invalid request data. Please check all required fields."
+  })
+});
 
-
-export async function POST(
-    request: NextRequest,
-    { params }: { params: { device_id: string } }
-) {
-    try {
-        const cookieStore = cookies();
-        const authToken =
-            cookieStore.get("auth-token")?.value ||
-            request.headers.get("authorization");
-
-        if (!authToken) {
-            return NextResponse.json(
-                {
-                    success: false,
-                    message: "Authentication required. Please login first.",
-                },
-                { status: 401 }
-            );
-        }
-
-        const deviceId = params.device_id;
-
-        if (!deviceId) {
-            return NextResponse.json(
-                {
-                    success: false,
-                    message: "Device ID is required",
-                },
-                { status: 400 }
-            );
-        }
-
-        const body: KassaUpsertData = await request.json();
-        // Convert string values to proper types
-        const processedBody = {
-            default_jual: body.default_jual,
-            status_aktif: Boolean(body.status_aktif),
-            antrian: Boolean(body.antrian),
-            finger: body.finger,
-            device_id: body.device_id,
-            printer_id: body.printer_id ? Number(body.printer_id) : null,
-        };
-
-
-        if (
-            !processedBody.default_jual ||
-            typeof processedBody.status_aktif !== "boolean" ||
-            typeof processedBody.antrian !== "boolean" ||
-            !processedBody.finger ||
-            !processedBody.device_id ||
-            (processedBody.printer_id !== null &&
-                typeof processedBody.printer_id !== "number")
-        ) {
-            return NextResponse.json(
-                {
-                    success: false,
-                    message:
-                        "Invalid request data. Please check all required fields.",
-                    debug: {
-                        received: body,
-                        processed: processedBody,
-                    },
-                },
-                { status: 400 }
-            );
-        }
-        const response = await fetch(
-            `${API_BASE_URL}/kassa/${deviceId}/upsert`,
-            {
-                method: "POST",
-                headers: {
-                    "Content-Type": "application/json",
-                    Accept: "application/json",
-                    Authorization: authToken.startsWith("Bearer ")
-                        ? authToken
-                        : `Bearer ${authToken}`,
-                },
-                body: JSON.stringify(processedBody),
-            }
-        );
-
-        const responseData = await response.json();
-
-        if (!response.ok) {
-            if (response.status === 401) {
-                return NextResponse.json(
-                    {
-                        success: false,
-                        message: "Session expired. Please login again.",
-                    },
-                    { status: 401 }
-                );
-            }
-
-            return NextResponse.json(
-                {
-                    success: false,
-                    message:
-                        responseData.message || "Failed to update kassa setup",
-                    errors: responseData.errors,
-                },
-                { status: response.status }
-            );
-        }
-
-        if (!responseData.message || !responseData.data) {
-            return NextResponse.json(
-                {
-                    success: false,
-                    message: "Invalid response from kassa API",
-                },
-                { status: 400 }
-            );
-        }
-
-        return NextResponse.json({
-            success: true,
-            message: responseData.message,
-            data: responseData.data,
-        });
-    } catch (error) {
-        console.error("Kassa upsert error:", error);
-
-        if (error instanceof TypeError && error.message.includes("fetch")) {
-            return NextResponse.json(
-                {
-                    success: false,
-                    message: "Unable to connect to kassa API server",
-                },
-                { status: 503 }
-            );
-        }
-
-        if (error instanceof SyntaxError) {
-            return NextResponse.json(
-                {
-                    success: false,
-                    message: "Invalid request format. Please check your data.",
-                },
-                { status: 400 }
-            );
-        }
-
-        return NextResponse.json(
-            {
-                success: false,
-                message:
-                    "An unexpected error occurred while updating kassa setup",
-            },
-            { status: 500 }
-        );
-    }
-}
+export const POST = handler;

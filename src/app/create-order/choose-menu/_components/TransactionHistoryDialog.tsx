@@ -102,6 +102,7 @@ const TransactionHistoryDialog: React.FC<TransactionHistoryDialogProps> = ({
     useState<TransactionDetailData | null>(null);
   const [isDetailLoading, setIsDetailLoading] = useState(false);
   const [detailError, setDetailError] = useState<string | null>(null);
+  const [focusedRowIndex, setFocusedRowIndex] = useState<number>(-1);
 
   const [appliedDateRange, setAppliedDateRange] = useState<
     DateRange | undefined
@@ -140,6 +141,7 @@ const TransactionHistoryDialog: React.FC<TransactionHistoryDialogProps> = ({
       : "",
     date_lte: appliedDateRange?.to ? formatDateForAPI(appliedDateRange.to) : "",
     bought_product_code: productCode,
+    search: searchTerm,
   });
 
   const fetchTransactionDetail = async (invoiceNumber: string) => {
@@ -231,7 +233,9 @@ const TransactionHistoryDialog: React.FC<TransactionHistoryDialogProps> = ({
       setSearchTerm("");
       setSelectedTransaction(null);
       setTransactionDetail(null);
-      setAppliedDateRange(undefined);
+      // Set default date range to current date
+      const today = new Date();
+      setAppliedDateRange({ from: today, to: today });
       setProductCurrentPage(1);
       setProductPageSize(5);
     }
@@ -276,28 +280,9 @@ const TransactionHistoryDialog: React.FC<TransactionHistoryDialogProps> = ({
     return () => document.removeEventListener("keydown", handleKeyDown);
   }, [isOpen, selectedTransaction, transactionDetail, deviceId, handlePrintTransaction]);
 
-  const filteredTransactions = React.useMemo(() => {
-    if (!searchTerm) return transactionList;
-
-    return transactionList.filter((transaction) => {
-      const customerName = transaction.customer_name?.toLowerCase() || "";
-      const invoiceNumber = transaction.invoice_number?.toLowerCase() || "";
-      const searchLower = searchTerm.toLowerCase();
-
-      return (
-        customerName.includes(searchLower) ||
-        invoiceNumber.includes(searchLower)
-      );
-    });
-  }, [transactionList, searchTerm]);
-
-  const displayTransactions = searchTerm
-    ? filteredTransactions
-    : transactionList;
-  const displayTotalPages = searchTerm
-    ? Math.ceil(filteredTransactions.length / pageSize)
-    : totalPages;
-  const displayTotalDocs = searchTerm ? filteredTransactions.length : totalDocs;
+  const displayTransactions = transactionList;
+  const displayTotalPages = totalPages;
+  const displayTotalDocs = totalDocs;
 
   const formatDateForDisplay = (dateString: string): string => {
     try {
@@ -345,21 +330,58 @@ const TransactionHistoryDialog: React.FC<TransactionHistoryDialogProps> = ({
     setCurrentPage(1);
   };
 
-  const handleRowClick = (transaction: TransactionData) => {
+  const handleRowClick = useCallback((transaction: TransactionData) => {
     setSelectedTransaction(
       selectedTransaction?.invoice_number === transaction.invoice_number
         ? null
         : transaction
     );
-  };
+  }, [selectedTransaction]);
+
+  // Arrow key navigation for table
+  useEffect(() => {
+    if (!isOpen) return;
+
+    const handleKeyDown = (e: KeyboardEvent) => {
+      // Skip if user is typing in an input field
+      if (e.target instanceof HTMLInputElement || e.target instanceof HTMLTextAreaElement) {
+        return;
+      }
+
+      const currentTransactions = displayTransactions;
+      if (currentTransactions.length === 0) return;
+
+      switch (e.key) {
+        case 'ArrowDown':
+          e.preventDefault();
+          setFocusedRowIndex(prev => 
+            prev < currentTransactions.length - 1 ? prev + 1 : prev
+          );
+          break;
+        case 'ArrowUp':
+          e.preventDefault();
+          setFocusedRowIndex(prev => (prev > 0 ? prev - 1 : prev));
+          break;
+        case 'Enter':
+          e.preventDefault();
+          if (focusedRowIndex >= 0 && focusedRowIndex < currentTransactions.length) {
+            handleRowClick(currentTransactions[focusedRowIndex]);
+          }
+          break;
+      }
+    };
+
+    document.addEventListener('keydown', handleKeyDown);
+    return () => document.removeEventListener('keydown', handleKeyDown);
+  }, [isOpen, displayTransactions, focusedRowIndex, handleRowClick]);
+
+  // Reset focused row when transactions change
+  useEffect(() => {
+    setFocusedRowIndex(-1);
+  }, [displayTransactions]);
 
   const handlePageChange = (page: number) => {
-    if (searchTerm) {
-      const maxPages = Math.ceil(filteredTransactions.length / pageSize);
-      if (page < 1 || page > maxPages) return;
-    } else {
-      if (page < 1 || page > totalPages) return;
-    }
+    if (page < 1 || page > totalPages) return;
     setCurrentPage(page);
   };
 
@@ -475,16 +497,22 @@ const TransactionHistoryDialog: React.FC<TransactionHistoryDialogProps> = ({
                     </td>
                   </tr>
                 ) : displayTransactions.length > 0 ? (
-                  displayTransactions.map((transaction, _index) => (
+                  displayTransactions.map((transaction, index) => (
                     <tr
                       key={transaction.invoice_number}
                       className={`border-b border-gray-100 hover:bg-blue-50 cursor-pointer transition-colors ${
                         selectedTransaction?.invoice_number ===
                         transaction.invoice_number
                           ? "bg-blue-50 border-2 border-blue-400"
+                          : focusedRowIndex === index
+                          ? "bg-gray-100 border-2 border-gray-300"
                           : "border-2 border-transparent"
                       }`}
                       onClick={() => handleRowClick(transaction)}
+                      role="row"
+                      tabIndex={focusedRowIndex === index ? 0 : -1}
+                      aria-selected={selectedTransaction?.invoice_number === transaction.invoice_number}
+                      aria-describedby={focusedRowIndex === index ? "keyboard-instructions" : undefined}
                     >
                       <td className="h-[48px] px-4 text-sm font-medium text-gray-900">
                         {cleanString(transaction.invoice_number)}
@@ -526,6 +554,11 @@ const TransactionHistoryDialog: React.FC<TransactionHistoryDialogProps> = ({
                 )}
               </tbody>
             </table>
+          </div>
+
+          {/* Keyboard instructions for accessibility */}
+          <div id="keyboard-instructions" className="sr-only">
+            Use arrow keys to navigate table rows, Enter to select/deselect, and Ctrl+Shift+P to print selected transaction.
           </div>
 
           {displayTransactions.length > 0 && (
@@ -614,7 +647,12 @@ const TransactionHistoryDialog: React.FC<TransactionHistoryDialogProps> = ({
                 transactionDetail.items &&
                 transactionDetail.items.length > 0 && (
                   <>
-                    <table className="w-full">
+            <table 
+              className="w-full" 
+              role="table" 
+              aria-label="Transaction history data"
+              aria-describedby={focusedRowIndex >= 0 ? "keyboard-instructions" : undefined}
+            >
                       <thead className="sticky top-0 bg-[#F5F5F5]">
                         <tr className="border-b border-gray-200">
                           <th className="text-left h-[40px] px-4 text-sm font-medium text-gray-600 w-[60px]">

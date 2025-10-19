@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useState, useEffect, useRef } from "react";
+import React, { useState, useEffect, useRef, useCallback } from "react";
 import { Search, X, ChevronDown } from "lucide-react";
 import { Input } from "@/components/ui/input";
 import { DateRangePicker } from "@/components/ui/date-range-picker";
@@ -45,6 +45,8 @@ export default function ProductHistoryDialog({
   const [appliedDateRange, setAppliedDateRange] = useState<
     DateRange | undefined
   >(undefined);
+  const [selectedRecord, setSelectedRecord] = useState<ProductHistoryData | null>(null);
+  const [focusedRowIndex, setFocusedRowIndex] = useState<number>(-1);
 
   const searchInputRef = useRef<HTMLInputElement>(null);
   const tableContainerRef = useRef<HTMLDivElement>(null);
@@ -75,6 +77,7 @@ export default function ProductHistoryDialog({
       : "",
     date_lte: appliedDateRange?.to ? formatDateForAPI(appliedDateRange.to) : "",
     bought_product_code: productCode,
+    search: searchTerm,
   });
 
   const historyData: ProductHistoryData[] = transactionList.map(
@@ -103,11 +106,14 @@ export default function ProductHistoryDialog({
   );
 
   useEffect(() => {
-    if (isOpen) {setCurrentPage(1);
+    if (isOpen) {
+      setCurrentPage(1);
       setPageSize(10);
       setSearchInput("");
       setSearchTerm("");
-      setAppliedDateRange(undefined);
+      // Set default date range to current date
+      const today = new Date();
+      setAppliedDateRange({ from: today, to: today });
       setTimeout(() => {
         searchInputRef.current?.focus();
       }, 100);
@@ -130,37 +136,16 @@ export default function ProductHistoryDialog({
     }
   }, [searchInput]);
 
-  const filteredHistoryData = React.useMemo(() => {
-    if (!searchTerm) return historyData;
-
-    return historyData.filter((record) => {
-      const customerName = record.customer_name?.toLowerCase() || "";
-      const receiptId = record.receipt_id?.toLowerCase() || "";
-      const searchLower = searchTerm.toLowerCase();
-
-      return (
-        customerName.includes(searchLower) || receiptId.includes(searchLower)
-      );
-    });
-  }, [historyData, searchTerm]);
-
-  const displayData = searchTerm ? filteredHistoryData : historyData;
-  const displayTotalPages = searchTerm
-    ? Math.ceil(filteredHistoryData.length / pageSize)
-    : totalPages;
-  const displayTotalDocs = searchTerm ? filteredHistoryData.length : totalDocs;
+  const displayData = historyData;
+  const displayTotalPages = totalPages;
+  const displayTotalDocs = totalDocs;
 
   const handleDateRangeChange = (range: DateRange | undefined) => {
     setAppliedDateRange(range);
     setCurrentPage(1);};
 
   const handlePageChange = (page: number) => {
-    if (searchTerm) {
-      const maxPages = Math.ceil(filteredHistoryData.length / pageSize);
-      if (page < 1 || page > maxPages) return;
-    } else {
-      if (page < 1 || page > totalPages) return;
-    }
+    if (page < 1 || page > totalPages) return;
     setCurrentPage(page);
   };
 
@@ -175,6 +160,54 @@ export default function ProductHistoryDialog({
     setSearchTerm("");
     setCurrentPage(1);
   };
+
+  const handleRowClick = useCallback((record: ProductHistoryData) => {
+    setSelectedRecord(
+      selectedRecord?.receipt_id === record.receipt_id ? null : record
+    );
+  }, [selectedRecord]);
+
+  // Arrow key navigation for table
+  useEffect(() => {
+    if (!isOpen) return;
+
+    const handleKeyDown = (e: KeyboardEvent) => {
+      // Skip if user is typing in an input field
+      if (e.target instanceof HTMLInputElement || e.target instanceof HTMLTextAreaElement) {
+        return;
+      }
+
+      const currentRecords = displayData;
+      if (currentRecords.length === 0) return;
+
+      switch (e.key) {
+        case 'ArrowDown':
+          e.preventDefault();
+          setFocusedRowIndex(prev => 
+            prev < currentRecords.length - 1 ? prev + 1 : prev
+          );
+          break;
+        case 'ArrowUp':
+          e.preventDefault();
+          setFocusedRowIndex(prev => (prev > 0 ? prev - 1 : prev));
+          break;
+        case 'Enter':
+          e.preventDefault();
+          if (focusedRowIndex >= 0 && focusedRowIndex < currentRecords.length) {
+            handleRowClick(currentRecords[focusedRowIndex]);
+          }
+          break;
+      }
+    };
+
+    document.addEventListener('keydown', handleKeyDown);
+    return () => document.removeEventListener('keydown', handleKeyDown);
+  }, [isOpen, displayData, focusedRowIndex, handleRowClick]);
+
+  // Reset focused row when data changes
+  useEffect(() => {
+    setFocusedRowIndex(-1);
+  }, [displayData]);
 
   const handleClose = () => {
     setSearchInput("");
@@ -259,7 +292,12 @@ export default function ProductHistoryDialog({
                 maxHeight: "400px",
               }}
             >
-              <table className="w-full border-collapse min-w-[1200px]">
+              <table 
+                className="w-full border-collapse min-w-[1200px]" 
+                role="table" 
+                aria-label="Product history data"
+                aria-describedby={focusedRowIndex >= 0 ? "product-keyboard-instructions" : undefined}
+              >
                 <thead className="sticky top-0 z-10 bg-gray-50">
                   <tr className="border-b border-gray-200">
                     <th className="text-left h-[48px] px-4 text-sm font-medium text-gray-600 bg-gray-50 min-w-[120px]">
@@ -309,8 +347,19 @@ export default function ProductHistoryDialog({
                       <tr
                         key={record.receipt_id}
                         className={`border-b border-gray-100 hover:bg-blue-50 cursor-pointer transition-colors ${
-                          index % 2 === 1 ? "bg-gray-50/30" : ""
+                          selectedRecord?.receipt_id === record.receipt_id
+                            ? "bg-blue-50 border-2 border-blue-400"
+                            : focusedRowIndex === index
+                            ? "bg-gray-100 border-2 border-gray-300"
+                            : index % 2 === 1 
+                            ? "bg-gray-50/30 border-2 border-transparent" 
+                            : "border-2 border-transparent"
                         }`}
+                        onClick={() => handleRowClick(record)}
+                        role="row"
+                        tabIndex={focusedRowIndex === index ? 0 : -1}
+                        aria-selected={selectedRecord?.receipt_id === record.receipt_id}
+                        aria-describedby={focusedRowIndex === index ? "product-keyboard-instructions" : undefined}
                       >
                         <td className="h-[48px] px-4 text-sm font-medium text-gray-900">
                           {record.receipt_id}
@@ -359,6 +408,11 @@ export default function ProductHistoryDialog({
                 </tbody>
               </table>
             </div>
+          </div>
+
+          {/* Keyboard instructions for accessibility */}
+          <div id="product-keyboard-instructions" className="sr-only">
+            Use arrow keys to navigate table rows and Enter to select/deselect product history records.
           </div>
 
           {displayData.length > 0 && (
