@@ -4,6 +4,7 @@ import { FC } from "react";
 import type { KeyboardEvent as ReactKeyboardEvent } from "react";
 import { ChooseMenuProductTable } from "./";
 import type { ProductTableItem, StockData } from "@/types/stock";
+import type { TransactionCorrectionWithReturnType } from "./TransactionCorrectionDialog";
 
 interface ProductTableSectionProps {
   products: ProductTableItem[];
@@ -16,6 +17,7 @@ interface ProductTableSectionProps {
   onDiscountChange?: (id: number, discount: number) => void;
   onMiscChange?: (id: number, miscAmount: number) => void;
   onUpsellingChange?: (id: number) => void;
+  onTransactionReturn?: (transactionData: TransactionCorrectionWithReturnType, returnType: "item-based" | "full-return") => void;
   className?: string;
 }
 
@@ -30,6 +32,7 @@ const ProductTableSection: FC<ProductTableSectionProps> = ({
   onDiscountChange,
   onMiscChange,
   onUpsellingChange,
+  onTransactionReturn,
   className = "",
 }) => {
   return (
@@ -45,6 +48,7 @@ const ProductTableSection: FC<ProductTableSectionProps> = ({
         onDiscountChange={onDiscountChange}
         onMiscChange={onMiscChange}
         onUpsellingChange={onUpsellingChange}
+        onTransactionReturn={onTransactionReturn}
         className="h-full"
       />
     </div>

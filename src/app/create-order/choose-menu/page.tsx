@@ -6,6 +6,8 @@ import { Input } from "@/components/ui/input";
 import { useLogout } from "@/hooks/useLogout";
 import { usePOSKeyboardShortcuts } from "@/hooks/useKeyboardShortcuts";
 import { useParameter } from "@/hooks/useParameter";
+import { useTransactionReturn } from "@/hooks/useTransactionReturn";
+import { showSuccessAlert, showErrorAlert, showLoadingAlert } from "@/lib/swal";
 import type { StockData } from "@/types/stock";
 import { ProductTableItem } from "@/types/stock";
 import { ArrowLeft, Search } from "lucide-react";
@@ -13,7 +15,9 @@ import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import type { KeyboardEvent as ReactKeyboardEvent } from "react";
 import { ProductTableSection } from "./_components";
 import TransactionHistoryDialog from "./_components/TransactionHistoryDialog";
+import type { TransactionCorrectionWithReturnType } from "./_components/TransactionCorrectionDialog";
 import StockWarningDialog from "@/components/shared/stock-warning-dialog";
+import CalculatorModal from "@/components/shared/calculator-modal";
 
 export default function ChooseMenuPage() {
   const [isClient, setIsClient] = useState(false);
@@ -34,6 +38,12 @@ export default function ChooseMenuPage() {
     requestedQuantity: 0,
   });
 
+  const [calculatorModal, setCalculatorModal] = useState({
+    isOpen: false,
+    targetProductId: null as number | null,
+    currentValue: "",
+  });
+
   const [pendingAction, setPendingAction] = useState<{
     type: "quantity-change";
     data: { productId: number; newQuantity: number };
@@ -50,6 +60,7 @@ export default function ChooseMenuPage() {
 
   const { logout, isLoading: isLogoutLoading } = useLogout();
   const { parameterData } = useParameter();
+  const { processReturn, isLoading: _isReturnLoading, error: returnError } = useTransactionReturn();
 
   useEffect(() => {
     setIsClient(true);
@@ -423,6 +434,35 @@ export default function ChooseMenuPage() {
     if (event.key === "Enter") {
       (event.target as HTMLInputElement).blur();
       setShouldFocusSearch(true);
+    } else if (event.ctrlKey && event.key === "/") {
+      event.preventDefault();
+      event.stopPropagation();
+      event.nativeEvent.stopImmediatePropagation();
+      const target = event.target as HTMLInputElement;
+      const productId = parseInt(target.getAttribute("data-product-id") || "0", 10);
+      const currentValue = target.value;
+      
+      if (productId) {
+        setCalculatorModal({
+          isOpen: true,
+          targetProductId: productId,
+          currentValue: currentValue,
+        });
+      }
+    }
+  };
+
+  const handleCalculatorClose = () => {
+    setCalculatorModal({
+      isOpen: false,
+      targetProductId: null,
+      currentValue: "",
+    });
+  };
+
+  const handleCalculatorResult = (result: number) => {
+    if (calculatorModal.targetProductId) {
+      handleQuantityChange(calculatorModal.targetProductId, result);
     }
   };
 
@@ -536,6 +576,51 @@ export default function ChooseMenuPage() {
     setShouldFocusQuantity(true);
   };
 
+  const handleTransactionReturn = async (transactionData: TransactionCorrectionWithReturnType, returnType: "item-based" | "full-return") => {
+    if (returnType === "item-based") {
+      // For item-based return, mark products as returned for selection
+      // This would typically open a dialog to select which items to return
+      console.log("Item-based return for transaction:", transactionData);
+      // Here you would implement logic to:
+      // 1. Load the transaction details 
+      // 2. Show a dialog to select which items to return
+      // 3. Mark those items as returned in the current POS session
+      // For now, just log the action
+    } else if (returnType === "full-return") {
+      // For full return, make API call to return entire transaction
+      try {
+        const returnData = {
+          invoice_number: transactionData.receipt_id,
+          transaction_action: 0 as const, // 0 = full return
+          retur_reason: "Customer request",
+          confirmation_retur_by: "cashier", // You might want to get actual user info
+        };
+
+        showLoadingAlert("Processing return...", "Please wait while we process the transaction return.");
+        
+        const success = await processReturn(returnData);
+        
+        if (success) {
+          showSuccessAlert(
+            "Return Processed", 
+            `Transaction ${transactionData.receipt_id} has been successfully returned.`
+          );
+        } else {
+          showErrorAlert(
+            "Return Failed", 
+            returnError || "Failed to process the return. Please try again."
+          );
+        }
+      } catch (error) {
+        console.error("Error processing return:", error);
+        showErrorAlert(
+          "Return Failed",
+          "An unexpected error occurred while processing the return."
+        );
+      }
+    }
+  };
+
   const handlePendingBill = () => {
     handleClearAllProducts();
   };
@@ -628,6 +713,7 @@ export default function ChooseMenuPage() {
             onDiscountChange={handleDiscountChange}
             onMiscChange={handleMiscChange}
             onUpsellingChange={handleUpsellingChange}
+            onTransactionReturn={handleTransactionReturn}
             className="mb-6"
           />
         </div>
@@ -666,6 +752,13 @@ export default function ChooseMenuPage() {
         warningType={stockWarningDialog.warningType}
         availableStock={stockWarningDialog.availableStock}
         requestedQuantity={stockWarningDialog.requestedQuantity}
+      />
+
+      <CalculatorModal
+        isOpen={calculatorModal.isOpen}
+        onClose={handleCalculatorClose}
+        onCalculate={handleCalculatorResult}
+        initialValue={calculatorModal.currentValue}
       />
     </div>
   );

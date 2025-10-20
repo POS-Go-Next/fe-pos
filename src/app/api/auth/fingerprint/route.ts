@@ -44,6 +44,7 @@ export async function POST(request: NextRequest) {
     const payload: Record<string, unknown> = {
       device_id: body.device_id,
       need_generate_token: body.need_generate_token ?? true,
+      test_print: true,
     };
 
     if (body.type) {

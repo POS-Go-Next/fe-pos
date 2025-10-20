@@ -1,10 +1,11 @@
 "use client";
 
-import React, { useState, useEffect, useRef } from "react";
+import React, { useState, useEffect, useRef, useCallback } from "react";
 import { Search, X, ChevronDown } from "lucide-react";
 import { Input } from "@/components/ui/input";
 import { DateRangePicker } from "@/components/ui/date-range-picker";
 import Pagination from "@/components/shared/pagination";
+import ReturnTypeDialog from "@/components/shared/return-type-dialog";
 import { useTransaction } from "@/hooks/useTransaction";
 
 interface DateRange {
@@ -24,10 +25,76 @@ interface TransactionCorrectionData {
   phone: string;
 }
 
+interface TransactionDetailItem {
+  product_code: string;
+  quantity: number;
+  prescription_code: string;
+  sub_total: number;
+  nominal_discount: number;
+  discount: number;
+  service_fee: number;
+  misc: number;
+  disc_promo: number;
+  value_promo: number;
+  no_promo: string;
+  promo_type: string;
+  up_selling: string;
+  total: number;
+  round_up: number;
+}
+
+interface TransactionDetailData {
+  id: string;
+  invoice_number: string;
+  customer_id: string;
+  doctor_id: number;
+  corporate_code: string;
+  transaction_type: string;
+  transaction_action: string;
+  compounded: boolean;
+  full_prescription: boolean;
+  availability: boolean;
+  notes: string;
+  transaction_date: string;
+  shift: string;
+  kd_kasir: string;
+  kd_kassa: string;
+  retur_reason: string | null;
+  confirmation_retur_by: string | null;
+  retur_information: string | null;
+  cash: number;
+  change_cash: number;
+  change_cc: number;
+  change_dc: number;
+  credit_card: number;
+  debit_card: number;
+  no_cc: string;
+  no_dc: string;
+  edc_cc: string;
+  edc_dc: string;
+  publisher_cc: string;
+  publisher_dc: string;
+  type_cc: string;
+  type_dc: string;
+  sub_total: number;
+  misc: number;
+  service_fee: number;
+  discount: number;
+  promo: number;
+  round_up: number;
+  grand_total: number;
+  items: TransactionDetailItem[];
+}
+
+export interface TransactionCorrectionWithReturnType extends TransactionCorrectionData {
+  returnType: "item-based" | "full-return";
+  returnReason?: string;
+}
+
 interface TransactionCorrectionDialogProps {
   isOpen: boolean;
   onClose: () => void;
-  onSelectTransaction?: (transaction: TransactionCorrectionData) => void;
+  onSelectTransaction?: (transaction: TransactionCorrectionWithReturnType) => void;
 }
 
 export default function TransactionCorrectionDialog({
@@ -38,16 +105,25 @@ export default function TransactionCorrectionDialog({
   const [searchInput, setSearchInput] = useState("");
   const [searchTerm, setSearchTerm] = useState("");
   const [currentPage, setCurrentPage] = useState(1);
-  const [pageSize, setPageSize] = useState(10);
+  const [pageSize, setPageSize] = useState(5);
   const [isPageSizeOpen, setIsPageSizeOpen] = useState(false);
   const [appliedDateRange, setAppliedDateRange] = useState<
     DateRange | undefined
   >(undefined);
+  const [focusedRowIndex, setFocusedRowIndex] = useState<number>(-1);
+  const [showReturnTypeDialog, setShowReturnTypeDialog] = useState(false);
+  const [selectedTransaction, setSelectedTransaction] = useState<TransactionCorrectionData | null>(null);
+  const [transactionDetail, setTransactionDetail] = useState<TransactionDetailData | null>(null);
+  const [isDetailLoading, setIsDetailLoading] = useState(false);
+  const [detailError, setDetailError] = useState<string | null>(null);
+  const [productCurrentPage, setProductCurrentPage] = useState(1);
+  const [productPageSize, setProductPageSize] = useState(5);
+  const [isProductPageSizeOpen, setIsProductPageSizeOpen] = useState(false);
 
   const searchInputRef = useRef<HTMLInputElement>(null);
   const tableContainerRef = useRef<HTMLDivElement>(null);
 
-  const pageSizeOptions = [5, 10, 25, 50, 100];
+  const pageSizeOptions = [5, 10, 25, 50];
 
   const offset = (currentPage - 1) * pageSize;
 
@@ -96,10 +172,20 @@ export default function TransactionCorrectionDialog({
   useEffect(() => {
     if (isOpen) {
       setCurrentPage(1);
-      setPageSize(10);
+      setPageSize(5);
       setSearchInput("");
       setSearchTerm("");
-      setAppliedDateRange(undefined);
+      
+      // Set default date range to today
+      const today = new Date();
+      const todayStart = new Date(today.getFullYear(), today.getMonth(), today.getDate());
+      const todayEnd = new Date(today.getFullYear(), today.getMonth(), today.getDate(), 23, 59, 59);
+      
+      setAppliedDateRange({
+        from: todayStart,
+        to: todayEnd
+      });
+      
       setTimeout(() => {
         searchInputRef.current?.focus();
       }, 100);
@@ -147,6 +233,15 @@ export default function TransactionCorrectionDialog({
   const displayTotalPages = searchTerm ? filteredTotalPages : totalPages;
   const displayTotalDocs = searchTerm ? filteredTotalDocs : totalDocs;
 
+  // Transaction details pagination
+  const transactionItems = transactionDetail?.items || [];
+  const itemStartIndex = (productCurrentPage - 1) * productPageSize;
+  const paginatedItems = transactionItems.slice(
+    itemStartIndex,
+    itemStartIndex + productPageSize
+  );
+  const itemTotalPages = Math.ceil(transactionItems.length / productPageSize);
+
   const handleDateRangeChange = (range: DateRange | undefined) => {
     setAppliedDateRange(range);
     setCurrentPage(1);
@@ -182,6 +277,20 @@ export default function TransactionCorrectionDialog({
     setCurrentPage(1);
   };
 
+  // Reset focused row when transactions change
+  useEffect(() => {
+    setFocusedRowIndex(-1);
+  }, [displayData]);
+
+  // Fetch transaction details when selected
+  useEffect(() => {
+    if (selectedTransaction) {
+      fetchTransactionDetail(selectedTransaction.receipt_id);
+    } else {
+      setTransactionDetail(null);
+    }
+  }, [selectedTransaction]);
+
   const handleClose = () => {
     setSearchInput("");
     setSearchTerm("");
@@ -190,11 +299,138 @@ export default function TransactionCorrectionDialog({
     onClose();
   };
 
-  const handleTransactionClick = (transaction: TransactionCorrectionData) => {
-    if (onSelectTransaction) {
-      onSelectTransaction(transaction);
+  const formatCurrency = (amount: number | null | undefined) => {
+    if (!amount || isNaN(Number(amount))) {
+      return "Rp 0";
+    }
+    return `Rp ${Number(amount).toLocaleString("id-ID")}`;
+  };
+
+  const cleanString = (str: string | null | undefined): string => {
+    if (!str || typeof str !== "string") {
+      return "";
+    }
+    return str.trim();
+  };
+
+  const fetchTransactionDetail = async (invoiceNumber: string) => {
+    try {
+      setIsDetailLoading(true);
+      setDetailError(null);
+
+      const response = await fetch(
+        `/api/transaction/invoice?invoice_number=${encodeURIComponent(
+          invoiceNumber.trim()
+        )}`,
+        {
+          method: "GET",
+          headers: { "Content-Type": "application/json" },
+        }
+      );
+
+      const data = await response.json();
+
+      if (!response.ok) {
+        throw new Error(data.message || `HTTP ${response.status}`);
+      }
+
+      if (data.data) {
+        setTransactionDetail(data.data);
+      } else {
+        throw new Error("Invalid response format");
+      }
+    } catch (err: unknown) {
+      console.error("Error fetching transaction detail:", err);
+      const errorMessage = err instanceof Error ? err.message : "Failed to fetch transaction detail";
+      setDetailError(errorMessage);
+      setTransactionDetail(null);
+    } finally {
+      setIsDetailLoading(false);
     }
   };
+
+  const handleTransactionClick = useCallback((transaction: TransactionCorrectionData) => {
+    setSelectedTransaction(transaction);
+    setShowReturnTypeDialog(true);
+  }, []);
+
+  const handleReturnTypeConfirm = (returnType: "item-based" | "full-return", returnReason?: string) => {
+    if (selectedTransaction && onSelectTransaction) {
+      // Pass both the transaction data and the return type
+      onSelectTransaction({
+        ...selectedTransaction,
+        returnType,
+        returnReason,
+      });
+    }
+    setShowReturnTypeDialog(false);
+    setSelectedTransaction(null);
+    onClose();
+  };
+
+  const handleReturnTypeClose = () => {
+    setShowReturnTypeDialog(false);
+    setSelectedTransaction(null);
+  };
+
+  const handleProductPageChange = (page: number) => {
+    if (page < 1 || page > itemTotalPages) return;
+    setProductCurrentPage(page);
+  };
+
+  const handleProductPageSizeChange = (newPageSize: number) => {
+    setProductPageSize(newPageSize);
+    setProductCurrentPage(1);
+    setIsProductPageSizeOpen(false);
+  };
+
+  // Arrow key navigation for table
+  useEffect(() => {
+    if (!isOpen) return;
+
+    const handleKeyDown = (e: KeyboardEvent) => {
+      // Skip if user is typing in an input field
+      if (e.target instanceof HTMLInputElement || e.target instanceof HTMLTextAreaElement) {
+        return;
+      }
+
+      const currentTransactions = displayData;
+      if (currentTransactions.length === 0) return;
+
+      switch (e.key) {
+        case 'ArrowDown':
+          e.preventDefault();
+          setFocusedRowIndex(prev => 
+            prev < currentTransactions.length - 1 ? prev + 1 : prev
+          );
+          break;
+        case 'ArrowUp':
+          e.preventDefault();
+          setFocusedRowIndex(prev => (prev > 0 ? prev - 1 : prev));
+          break;
+        case 'Enter':
+          e.preventDefault();
+          if (focusedRowIndex >= 0 && focusedRowIndex < currentTransactions.length) {
+            const transaction = currentTransactions[focusedRowIndex];
+            if (e.shiftKey) {
+              // Shift+Enter: Show return type dialog directly
+              handleTransactionClick(transaction);
+            } else {
+              // Enter: Show transaction details
+              setSelectedTransaction(
+                selectedTransaction?.receipt_id === transaction.receipt_id
+                  ? null
+                  : transaction
+              );
+            }
+          }
+          break;
+      }
+    };
+
+    document.addEventListener('keydown', handleKeyDown);
+    return () => document.removeEventListener('keydown', handleKeyDown);
+  }, [isOpen, displayData, focusedRowIndex, handleTransactionClick, selectedTransaction]);
 
   if (!isOpen) return null;
 
@@ -314,9 +550,23 @@ export default function TransactionCorrectionDialog({
                       <tr
                         key={record.receipt_id}
                         className={`border-b border-gray-100 hover:bg-blue-50 cursor-pointer transition-colors ${
-                          index % 2 === 1 ? "bg-gray-50/30" : ""
+                          selectedTransaction?.receipt_id === record.receipt_id
+                            ? "bg-blue-50 border-2 border-blue-400"
+                            : focusedRowIndex === index
+                            ? "bg-gray-100 border-2 border-gray-300"
+                            : "border-2 border-transparent"
                         }`}
-                        onClick={() => handleTransactionClick(record)}
+                         onClick={() => {
+                           setSelectedTransaction(
+                             selectedTransaction?.receipt_id === record.receipt_id
+                               ? null
+                               : record
+                           );
+                         }}
+                         tabIndex={focusedRowIndex === index ? 0 : -1}
+                         role="row"
+                         aria-selected={selectedTransaction?.receipt_id === record.receipt_id}
+                         aria-describedby={focusedRowIndex === index ? "keyboard-instructions" : undefined}
                       >
                         <td className="h-[48px] px-4 text-sm font-medium text-gray-900">
                           {record.receipt_id}
@@ -411,6 +661,193 @@ export default function TransactionCorrectionDialog({
               )}
             </div>
           )}
+
+          {/* Transaction Details Section */}
+          {selectedTransaction && (
+            <div className="mt-4 rounded-lg border border-gray-200 overflow-hidden">
+              <div className="bg-gray-50 px-4 py-3 border-b border-gray-200 flex justify-between items-center">
+                <h3 className="text-lg font-semibold text-gray-900">
+                  Transaction Details - {cleanString(selectedTransaction.receipt_id)}
+                </h3>
+                <div className="text-xs text-gray-500">
+                  Press <kbd className="px-2 py-1 bg-gray-200 rounded">Shift</kbd> +{" "}
+                  <kbd className="px-2 py-1 bg-gray-200 rounded">Enter</kbd> to
+                  process return
+                </div>
+              </div>
+
+              {isDetailLoading && (
+                <div className="p-8 text-center">
+                  <div className="flex items-center justify-center">
+                    <div className="animate-spin rounded-full h-6 w-6 border-b-2 border-blue-500"></div>
+                    <span className="ml-2 text-gray-600">
+                      Loading transaction details...
+                    </span>
+                  </div>
+                </div>
+              )}
+
+              {detailError && (
+                <div className="p-4 bg-red-50 border-t border-red-200">
+                  <div className="text-red-700 text-sm">
+                    Error loading transaction details: {detailError}
+                  </div>
+                </div>
+              )}
+
+              {transactionDetail &&
+                transactionDetail.items &&
+                transactionDetail.items.length > 0 && (
+                  <>
+                    <table className="w-full">
+                      <thead className="sticky top-0 bg-[#F5F5F5]">
+                        <tr className="border-b border-gray-200">
+                          <th className="text-left h-[40px] px-4 text-sm font-medium text-gray-600 w-[60px]">
+                            No
+                          </th>
+                          <th className="text-left h-[40px] px-4 text-sm font-medium text-gray-600 w-[120px]">
+                            Product Code
+                          </th>
+                          <th className="text-left h-[40px] px-4 text-sm font-medium text-gray-600 w-[80px]">
+                            Qty
+                          </th>
+                          <th className="text-left h-[40px] px-4 text-sm font-medium text-gray-600 w-[120px]">
+                            Sub Total
+                          </th>
+                          <th className="text-left h-[40px] px-4 text-sm font-medium text-gray-600 w-[100px]">
+                            Discount
+                          </th>
+                          <th className="text-left h-[40px] px-4 text-sm font-medium text-gray-600 w-[80px]">
+                            SC
+                          </th>
+                          <th className="text-left h-[40px] px-4 text-sm font-medium text-gray-600 w-[80px]">
+                            Misc
+                          </th>
+                          <th className="text-left h-[40px] px-4 text-sm font-medium text-gray-600 w-[120px]">
+                            Total
+                          </th>
+                        </tr>
+                      </thead>
+                      <tbody>
+                        {paginatedItems.map(
+                          (item: TransactionDetailItem, index: number) => (
+                            <tr
+                              key={`${item.product_code}-${index}`}
+                              className="border-b border-gray-100"
+                            >
+                              <td className="h-[40px] px-4 text-sm text-gray-600">
+                                {itemStartIndex + index + 1}
+                              </td>
+                              <td className="h-[40px] px-4 text-sm font-medium text-gray-900">
+                                {cleanString(item.product_code)}
+                              </td>
+                              <td className="h-[40px] px-4 text-sm text-gray-600">
+                                {item.quantity}
+                              </td>
+                              <td className="h-[40px] px-4 text-sm text-gray-900">
+                                {formatCurrency(item.sub_total)}
+                              </td>
+                              <td className="h-[40px] px-4 text-sm text-gray-600">
+                                {item.nominal_discount > 0
+                                  ? formatCurrency(item.nominal_discount)
+                                  : "-"}
+                              </td>
+                              <td className="h-[40px] px-4 text-sm text-gray-600">
+                                {item.service_fee > 0
+                                  ? formatCurrency(item.service_fee)
+                                  : "-"}
+                              </td>
+                              <td className="h-[40px] px-4 text-sm text-gray-600">
+                                {item.misc > 0 ? formatCurrency(item.misc) : "-"}
+                              </td>
+                              <td className="h-[40px] px-4 text-sm font-semibold text-gray-900">
+                                {formatCurrency(item.total)}
+                              </td>
+                            </tr>
+                          )
+                        )}
+                      </tbody>
+                    </table>
+
+                    {transactionItems.length > productPageSize && (
+                      <div className="p-4 border-t border-gray-200 flex justify-between items-center bg-gray-50">
+                        <div className="flex items-center gap-4">
+                          <div className="flex items-center gap-2">
+                            <span className="text-sm text-gray-600">Show</span>
+                            <div className="relative">
+                              <button
+                                onClick={() =>
+                                  setIsProductPageSizeOpen(
+                                    !isProductPageSizeOpen
+                                  )
+                                }
+                                className="flex items-center gap-1 px-3 py-1 border border-gray-300 rounded bg-white hover:bg-gray-50 text-sm"
+                              >
+                                {productPageSize}
+                                <ChevronDown size={14} />
+                              </button>
+                              {isProductPageSizeOpen && (
+                                <div className="absolute bottom-full mb-1 left-0 bg-white border border-gray-200 rounded shadow-lg z-10">
+                                  {pageSizeOptions.map((option) => (
+                                    <button
+                                      key={option}
+                                      onClick={() =>
+                                        handleProductPageSizeChange(option)
+                                      }
+                                      className={`block w-full px-4 py-2 text-left text-sm hover:bg-gray-50 ${
+                                        option === productPageSize
+                                          ? "bg-blue-50 text-blue-600"
+                                          : ""
+                                      }`}
+                                    >
+                                      {option}
+                                    </button>
+                                  ))}
+                                </div>
+                              )}
+                            </div>
+                            <span className="text-sm text-gray-600">
+                              from {transactionItems.length}
+                            </span>
+                          </div>
+                        </div>
+                        {itemTotalPages > 1 && (
+                          <Pagination
+                            currentPage={productCurrentPage}
+                            totalPages={itemTotalPages}
+                            onPageChange={handleProductPageChange}
+                            size="sm"
+                          />
+                        )}
+                      </div>
+                    )}
+                  </>
+                )}
+
+              {transactionDetail &&
+                (!transactionDetail.items ||
+                  transactionDetail.items.length === 0) && (
+                  <div className="p-8 text-center text-gray-500">
+                    No items found for this transaction.
+                  </div>
+                )}
+            </div>
+          )}
+        </div>
+
+        {/* Keyboard instructions */}
+        <div 
+          id="keyboard-instructions" 
+          className="px-6 pb-4 text-xs text-gray-500 border-t border-gray-100"
+          aria-describedby={focusedRowIndex >= 0 ? "keyboard-instructions" : undefined}
+        >
+          <div className="flex items-center justify-center gap-4">
+            <span>Use ↑↓ arrow keys to navigate</span>
+            <span>•</span>
+            <span><kbd className="px-1 py-0.5 bg-gray-200 rounded text-xs">Enter</kbd> to show details</span>
+            <span>•</span>
+            <span><kbd className="px-1 py-0.5 bg-gray-200 rounded text-xs">Shift</kbd> + <kbd className="px-1 py-0.5 bg-gray-200 rounded text-xs">Enter</kbd> to process return</span>
+          </div>
         </div>
       </div>
 
@@ -444,6 +881,18 @@ export default function TransactionCorrectionDialog({
           background: #f1f5f9;
         }
       `}</style>
+
+      <ReturnTypeDialog
+        isOpen={showReturnTypeDialog}
+        onClose={handleReturnTypeClose}
+        onConfirm={handleReturnTypeConfirm}
+        transactionData={selectedTransaction ? {
+          receipt_id: selectedTransaction.receipt_id,
+          customer_name: selectedTransaction.customer_name,
+          date: selectedTransaction.date,
+          time: selectedTransaction.time,
+        } : undefined}
+      />
     </div>
   );
 }

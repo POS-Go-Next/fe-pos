@@ -9,6 +9,7 @@ import { Input } from "@/components/ui/input";
 import { usePOSKeyboardShortcuts } from "@/hooks/useKeyboardShortcuts";
 import { useParameter } from "@/hooks/useParameter";
 import type { ProductTableItem, StockData } from "@/types/stock";
+import type { TransactionCorrectionWithReturnType } from "./TransactionCorrectionDialog";
 import { Plus, Trash } from "lucide-react";
 import { useEffect, useMemo, useRef, useState } from "react";
 import type { ChangeEvent, KeyboardEvent as ReactKeyboardEvent } from "react";
@@ -139,6 +140,7 @@ interface ChooseMenuProductTableProps {
   onDiscountChange?: (id: number, discount: number) => void;
   onMiscChange?: (id: number, miscAmount: number) => void;
   onUpsellingChange?: (id: number) => void;
+  onTransactionReturn?: (transactionData: TransactionCorrectionWithReturnType, returnType: "item-based" | "full-return") => void;
   className?: string;
 }
 
@@ -154,6 +156,7 @@ export default function ChooseMenuProductTable({
   onDiscountChange,
   onMiscChange,
   onUpsellingChange,
+  onTransactionReturn,
   className = "",
 }: ChooseMenuProductTableProps) {
   const [hasMounted, setHasMounted] = useState(false);
@@ -774,7 +777,9 @@ export default function ChooseMenuProductTable({
         isOpen={dialogStates.transactionCorrection}
         onClose={() => closeDialog("transactionCorrection")}
         onSelectTransaction={(transaction) => {
-          void transaction;
+          if (onTransactionReturn) {
+            onTransactionReturn(transaction, transaction.returnType);
+          }
           closeDialog("transactionCorrection");
         }}
       />

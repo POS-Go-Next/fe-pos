@@ -111,9 +111,15 @@ export default function ProductHistoryDialog({
       setPageSize(10);
       setSearchInput("");
       setSearchTerm("");
-      // Set default date range to current date
+      // Set default date range to today
       const today = new Date();
-      setAppliedDateRange({ from: today, to: today });
+      const todayStart = new Date(today.getFullYear(), today.getMonth(), today.getDate());
+      const todayEnd = new Date(today.getFullYear(), today.getMonth(), today.getDate(), 23, 59, 59);
+      
+      setAppliedDateRange({
+        from: todayStart,
+        to: todayEnd
+      });
       setTimeout(() => {
         searchInputRef.current?.focus();
       }, 100);
