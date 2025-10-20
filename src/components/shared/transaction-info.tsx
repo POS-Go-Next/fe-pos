@@ -19,11 +19,18 @@ interface UserData {
 interface TransactionInfoProps {
     className?: string;
     useRealTimeData?: boolean;
+    returnTransactionInfo?: {
+        customerName?: string;
+        doctorName?: string;
+        invoiceNumber?: string;
+        isReturnTransaction: boolean;
+    };
 }
 
 export default function TransactionInfo({
     className = "",
     useRealTimeData = true,
+    returnTransactionInfo,
 }: TransactionInfoProps) {
     const [userData, setUserData] = useState<UserData | null>(null);
     const [isClient, setIsClient] = useState(false);
@@ -58,7 +65,9 @@ export default function TransactionInfo({
         useRealTimeData && isClient ? currentDate : "August 17, 2025";
     const displayDateTime = `${displayDate}, ${displayTime}`;
 
-    const displayInvoiceNumber = invoiceNumber || "S25080315";
+    const displayInvoiceNumber = returnTransactionInfo?.isReturnTransaction && returnTransactionInfo.invoiceNumber 
+        ? `RETURN: ${returnTransactionInfo.invoiceNumber}` 
+        : (invoiceNumber || "S25080315");
     const displayCounterInfo = counterInfo || "#guest/0";
     const displayBadge =
         queueNumber || (isClient && userData?.id ? userData.id : "??");
@@ -92,6 +101,17 @@ export default function TransactionInfo({
                         <p className="text-xs text-red-500 mt-1">
                             API Error: Using fallback data
                         </p>
+                    )}
+                    {returnTransactionInfo?.isReturnTransaction && (
+                        <div className="mt-2 p-2 bg-orange-50 border border-orange-200 rounded">
+                            <p className="text-xs text-orange-800 font-medium">Return Transaction</p>
+                            {returnTransactionInfo.customerName && (
+                                <p className="text-xs text-orange-700">Customer: {returnTransactionInfo.customerName}</p>
+                            )}
+                            {returnTransactionInfo.doctorName && (
+                                <p className="text-xs text-orange-700">Doctor: {returnTransactionInfo.doctorName}</p>
+                            )}
+                        </div>
                     )}
                 </div>
 

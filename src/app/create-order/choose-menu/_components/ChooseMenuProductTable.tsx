@@ -10,7 +10,7 @@ import { usePOSKeyboardShortcuts } from "@/hooks/useKeyboardShortcuts";
 import { useParameter } from "@/hooks/useParameter";
 import type { ProductTableItem, StockData } from "@/types/stock";
 import type { TransactionCorrectionWithReturnType } from "./TransactionCorrectionDialog";
-import { Plus, Trash } from "lucide-react";
+import { Plus, Trash, Undo } from "lucide-react";
 import { useEffect, useMemo, useRef, useState } from "react";
 import type { ChangeEvent, KeyboardEvent as ReactKeyboardEvent } from "react";
 import KeyboardShortcutGuide from "./KeyboardShortcutGuide";
@@ -63,25 +63,42 @@ const ProductActionIcons = ({
   onBranchStockClick,
   onMedicationDetailsClick,
   onDeleteClick,
+  onUndeleteClick,
+  product,
   showIcons = true,
 }: {
   onBranchStockClick: () => void;
   onMedicationDetailsClick: () => void;
   onDeleteClick: () => void;
+  onUndeleteClick?: () => void;
+  product: ProductTableItem;
   showIcons?: boolean;
 }) => {
   if (!showIcons) return null;
 
+  const isDeletedOriginalItem = product.isOriginalReturnItem && product.isDeleted;
+
   return (
     <div className="flex items-center gap-2">
-      <button
-        className="flex h-8 w-8 items-center justify-center rounded bg-red-100 transition-colors hover:bg-red-200"
-        onClick={onDeleteClick}
-        title="Delete Product"
-        type="button"
-      >
-        <Trash className="h-4 w-4 text-red-600" />
-      </button>
+      {isDeletedOriginalItem ? (
+        <button
+          className="flex h-8 w-8 items-center justify-center rounded bg-green-100 transition-colors hover:bg-green-200"
+          onClick={onUndeleteClick}
+          title="Restore Product"
+          type="button"
+        >
+          <Undo className="h-4 w-4 text-green-600" />
+        </button>
+      ) : (
+        <button
+          className="flex h-8 w-8 items-center justify-center rounded bg-red-100 transition-colors hover:bg-red-200"
+          onClick={onDeleteClick}
+          title="Delete Product"
+          type="button"
+        >
+          <Trash className="h-4 w-4 text-red-600" />
+        </button>
+      )}
 
       <button
         className="flex h-8 w-8 items-center justify-center rounded bg-blue-100 transition-colors hover:bg-blue-200"
@@ -134,6 +151,7 @@ interface ChooseMenuProductTableProps {
   onQuantityBlur?: () => void;
   onQuantityKeyPress?: (e: ReactKeyboardEvent<HTMLInputElement>) => void;
   onRemoveProduct: (id: number) => void;
+  onUndeleteProduct?: (id: number) => void;
   onProductNameClick?: (id: number) => void;
   onProductSelect?: (product: StockData) => void;
   onTypeChange?: (id: number, type: string) => void;
@@ -150,6 +168,7 @@ export default function ChooseMenuProductTable({
   onQuantityBlur,
   onQuantityKeyPress,
   onRemoveProduct,
+  onUndeleteProduct,
   onProductNameClick,
   onProductSelect,
   onTypeChange,
@@ -333,12 +352,18 @@ export default function ChooseMenuProductTable({
   };
 
   const handleBranchStockClick = (product: ProductTableItem) => {
+    console.log('🔍 handleBranchStockClick - product:', product);
+    console.log('🔍 handleBranchStockClick - stockData:', product.stockData);
+    console.log('🔍 handleBranchStockClick - kode_brg:', product.stockData?.kode_brg);
     setSelectedRowId(product.id);
     setSelectedProduct(product);
     openDialog("branchStock");
   };
 
   const handleMedicationDetailsClick = (product: ProductTableItem) => {
+    console.log('🔍 handleMedicationDetailsClick - product:', product);
+    console.log('🔍 handleMedicationDetailsClick - stockData:', product.stockData);
+    console.log('🔍 handleMedicationDetailsClick - kode_brg:', product.stockData?.kode_brg);
     setSelectedRowId(product.id);
     setSelectedProduct(product);
     openDialog("medicationDetails");
@@ -505,19 +530,27 @@ export default function ChooseMenuProductTable({
                     ? getSCValueByType(product.type || "")
                     : 0;
 
+                  const isDeletedOriginalItem = product.isOriginalReturnItem && product.isDeleted;
+                  
                   const rowBackground =
-                    isSearchRow && index === 0
+                    isDeletedOriginalItem
+                      ? "bg-red-100/60"
+                      : isSearchRow && index === 0
                       ? "bg-blue-50 sticky top-14 z-5"
                       : index % 2 === 0
                       ? "bg-gray-50/30"
                       : "";
 
+                  const rowHoverClass = isDeletedOriginalItem
+                    ? "hover:bg-red-100"
+                    : "hover:bg-blue-50";
+
                   return (
                     <tr
                       key={product.id}
-                      className={`cursor-pointer border-b border-gray-100 hover:bg-blue-50 ${rowBackground} ${
+                      className={`cursor-pointer border-b border-gray-100 ${rowHoverClass} ${rowBackground} ${
                         selectedRowId === product.id ? "bg-blue-50" : ""
-                      }`}
+                      } ${isDeletedOriginalItem ? "line-through text-red-600/70" : ""}`}
                       onClick={() => handleRowClick(product)}
                     >
                       <td className="p-3">
@@ -546,6 +579,10 @@ export default function ChooseMenuProductTable({
                                 onDeleteClick={() =>
                                   onRemoveProduct(product.id)
                                 }
+                                onUndeleteClick={() =>
+                                  onUndeleteProduct?.(product.id)
+                                }
+                                product={product}
                               />
                               <span
                                 className="max-w-[180px] truncate text-sm font-medium hover:text-blue-600"

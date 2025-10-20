@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { Button } from "@/components/ui/button";
 import CustomerDoctorDialog from "@/components/shared/customer-doctor-dialog";
 import TransactionTypeDialog, {
@@ -62,6 +62,11 @@ interface OrderSummaryProps {
   onCustomerDoctorDialogClose?: () => void;
   triggerPaymentFlow?: boolean;
   payNowButtonRef?: React.RefObject<HTMLButtonElement>;
+  returnTransactionInfo?: {
+    customerName?: string;
+    doctorName?: string;
+    isReturnTransaction: boolean;
+  };
 }
 
 export default function OrderSummary({
@@ -78,6 +83,7 @@ export default function OrderSummary({
   onCustomerDoctorDialogClose,
   triggerPaymentFlow = false,
   payNowButtonRef,
+  returnTransactionInfo,
 }: OrderSummaryProps) {
   const [internalDialogOpen, setInternalDialogOpen] = useState(false);
   const [isTransactionTypeDialogOpen, setIsTransactionTypeDialogOpen] =
@@ -104,6 +110,33 @@ export default function OrderSummary({
   const [dialogKey, setDialogKey] = useState(0);
   const grandTotal = subtotal - discount + serviceCharge + misc - promo;
   const isDialogOpen = isCustomerDoctorDialogOpen || internalDialogOpen;
+
+  // Pre-populate customer/doctor info from return transaction
+  useEffect(() => {
+    if (returnTransactionInfo?.isReturnTransaction) {
+      if (returnTransactionInfo.customerName) {
+        setSelectedCustomer({
+          id: 0, // We don't have the ID from the return transaction
+          name: returnTransactionInfo.customerName,
+          gender: "female", // Default values since we only have the name
+          age: "",
+          phone: "",
+          address: "",
+          status: "true",
+        });
+      }
+      
+      if (returnTransactionInfo.doctorName) {
+        setSelectedDoctor({
+          id: 0, // We don't have the ID from the return transaction
+          fullname: returnTransactionInfo.doctorName,
+          phone: "",
+          address: "",
+          sip: "",
+        });
+      }
+    }
+  }, [returnTransactionInfo]);
 
   const refetchInvoiceNumber = async () => {
     try {window.dispatchEvent(new CustomEvent("refetch-transaction-info"));
@@ -237,6 +270,22 @@ export default function OrderSummary({
   return (
     <>
       <div className={className}>
+        {returnTransactionInfo?.isReturnTransaction && (
+          <div className="mb-4 p-3 bg-orange-50 border border-orange-200 rounded-lg">
+            <div className="flex items-center gap-2">
+              <svg className="w-4 h-4 text-orange-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-2.5L13.732 4c-.77-.833-1.732-.833-2.5 0L4.268 18.5c-.77.833.192 2.5 1.732 2.5z" />
+              </svg>
+              <span className="text-orange-800 text-sm font-medium">Return Transaction</span>
+            </div>
+            {returnTransactionInfo.customerName && (
+              <p className="text-orange-700 text-xs mt-1">
+                Customer: {returnTransactionInfo.customerName}
+                {returnTransactionInfo.doctorName && ` | Doctor: ${returnTransactionInfo.doctorName}`}
+              </p>
+            )}
+          </div>
+        )}
         <div className="space-y-2">
           <div className="flex justify-between">
             <span className="text-gray-600">Sub Total</span>
@@ -315,6 +364,8 @@ export default function OrderSummary({
         onSelectCustomer={handleCustomerSelect}
         onSelectDoctor={handleDoctorSelect}
         onSubmit={handleCustomerDoctorSubmit}
+        initialCustomer={selectedCustomer || undefined}
+        initialDoctor={selectedDoctor || undefined}
         mode="both"
         initialFocus="customer"
         triggerPaymentFlow={triggerPaymentFlow || !isCustomerDoctorDialogOpen}

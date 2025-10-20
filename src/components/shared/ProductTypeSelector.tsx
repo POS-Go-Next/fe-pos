@@ -17,7 +17,7 @@ const ProductTypeSelector: React.FC<ProductTypeSelectorProps> = ({
   const [isOpen, setIsOpen] = useState(false);
   const [buttonRect, setButtonRect] = useState<DOMRect | null>(null);
   const buttonRef = useRef<HTMLButtonElement>(null);
-  const types = ["R/", "RC"];
+  const types = ["R/", "RC", ""];
 
   const handleToggle = () => {
     if (disabled) return;

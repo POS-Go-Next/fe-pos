@@ -9,7 +9,7 @@ interface ReturnTypeDialogProps {
   onClose: () => void;
   onConfirm: (returnType: "item-based" | "full-return", returnReason?: string) => void;
   transactionData?: {
-    receipt_id: string;
+    invoice_number: string;
     customer_name: string;
     date: string;
     time: string;

@@ -25,6 +25,16 @@ const MedicationDetailsDialog: React.FC<MedicationDetailsDialogProps> = ({
         enabled: isOpen && !!productCode,
     });
 
+    // Debug log
+    useEffect(() => {
+        console.log('🔍 MedicationDetailsDialog - Dialog opened with:', {
+            isOpen,
+            productCode,
+            productName,
+            enabled: isOpen && !!productCode
+        });
+    }, [isOpen, productCode, productName]);
+
     useEffect(() => {
         if (isOpen) {
             setCurrentImageIndex(0);

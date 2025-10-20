@@ -12,6 +12,7 @@ interface ProductTableSectionProps {
   onQuantityBlur?: () => void;
   onQuantityKeyPress?: (e: ReactKeyboardEvent<HTMLInputElement>) => void;
   onRemoveProduct: (id: number) => void;
+  onUndeleteProduct?: (id: number) => void;
   onProductSelect: (product: StockData) => void;
   onTypeChange: (id: number, type: string) => void;
   onDiscountChange?: (id: number, discount: number) => void;
@@ -27,6 +28,7 @@ const ProductTableSection: FC<ProductTableSectionProps> = ({
   onQuantityBlur,
   onQuantityKeyPress,
   onRemoveProduct,
+  onUndeleteProduct,
   onProductSelect,
   onTypeChange,
   onDiscountChange,
@@ -43,6 +45,7 @@ const ProductTableSection: FC<ProductTableSectionProps> = ({
         onQuantityBlur={onQuantityBlur}
         onQuantityKeyPress={onQuantityKeyPress}
         onRemoveProduct={onRemoveProduct}
+        onUndeleteProduct={onUndeleteProduct}
         onProductSelect={onProductSelect}
         onTypeChange={onTypeChange}
         onDiscountChange={onDiscountChange}

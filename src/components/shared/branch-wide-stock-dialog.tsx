@@ -46,6 +46,16 @@ const BranchWideStockDialog: React.FC<BranchWideStockDialogProps> = ({
       enabled: isOpen && !!productCode,
     });
 
+  // Debug log
+  React.useEffect(() => {
+    console.log('🔍 BranchWideStockDialog - Dialog opened with:', {
+      isOpen,
+      productCode,
+      productName,
+      enabled: isOpen && !!productCode
+    });
+  }, [isOpen, productCode, productName]);
+
   const pageSizeOptions = [5, 10, 25, 50];
 
   const filteredData: BranchStockTableData[] = branchTableData.filter(

@@ -74,10 +74,22 @@ export interface TransactionExternalApiResponse {
 export interface TransactionItem {
   product_code: string;
   product_name: string;
-  quantity: number;
   price: number;
-  discount: number;
+  quantity: number;
+  prescription_code?: string;
   sub_total: number;
+  nominal_discount: number;
+  discount: number;
+  service_fee: number;
+  misc: number;
+  disc_promo: number;
+  value_promo: number;
+  no_promo?: string;
+  promo_type?: string;
+  up_selling: string;
+  total: number;
+  round_up: number;
+  // Legacy fields that may still be used
   unit?: string;
   batch?: string;
   expired_date?: string;

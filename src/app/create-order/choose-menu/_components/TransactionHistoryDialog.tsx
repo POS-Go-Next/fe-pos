@@ -17,6 +17,14 @@ interface DateRange {
   to?: Date;
 }
 
+// Helper function to get today's date range
+const getTodayDateRange = (): DateRange => {
+  const today = new Date();
+  const todayStart = new Date(today.getFullYear(), today.getMonth(), today.getDate());
+  const todayEnd = new Date(today.getFullYear(), today.getMonth(), today.getDate(), 23, 59, 59);
+  return { from: todayStart, to: todayEnd };
+};
+
 interface TransactionHistoryDialogProps {
   isOpen: boolean;
   onClose: () => void;
@@ -106,7 +114,7 @@ const TransactionHistoryDialog: React.FC<TransactionHistoryDialogProps> = ({
 
   const [appliedDateRange, setAppliedDateRange] = useState<
     DateRange | undefined
-  >(undefined);
+  >(getTodayDateRange());
 
   const [productCurrentPage, setProductCurrentPage] = useState(1);
   const [productPageSize, setProductPageSize] = useState(5);
@@ -233,15 +241,8 @@ const TransactionHistoryDialog: React.FC<TransactionHistoryDialogProps> = ({
       setSearchTerm("");
       setSelectedTransaction(null);
       setTransactionDetail(null);
-      // Set default date range to today
-      const today = new Date();
-      const todayStart = new Date(today.getFullYear(), today.getMonth(), today.getDate());
-      const todayEnd = new Date(today.getFullYear(), today.getMonth(), today.getDate(), 23, 59, 59);
-      
-      setAppliedDateRange({
-        from: todayStart,
-        to: todayEnd
-      });
+      // Reset date range to today
+      setAppliedDateRange(getTodayDateRange());
       setProductCurrentPage(1);
       setProductPageSize(5);
     }

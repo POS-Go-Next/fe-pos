@@ -73,10 +73,14 @@ export const useMedicationDetail = ({
     const [error, setError] = useState<string | null>(null);
 
     const fetchMedicationDetail = useCallback(async () => {
+        console.log('🔍 useMedicationDetail - Parameters:', { kode_brg, enabled });
         if (!kode_brg || !enabled) {
+            console.log('❌ useMedicationDetail - Skipping fetch:', { kode_brg_missing: !kode_brg, enabled_false: !enabled });
             setMedicationDetail(null);
             return;
         }
+
+        console.log('✅ useMedicationDetail - Making API call to:', `/api/stock/${kode_brg}?with_info_obat=true&with_product_images=true`);
 
         try {
             setIsLoading(true);

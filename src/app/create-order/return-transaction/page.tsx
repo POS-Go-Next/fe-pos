@@ -3,16 +3,14 @@
 import OrderSummary from "@/components/shared/order-summary";
 import TransactionInfo from "@/components/shared/transaction-info";
 import { Input } from "@/components/ui/input";
-import { useLogout } from "@/hooks/useLogout";
 import { usePOSKeyboardShortcuts } from "@/hooks/useKeyboardShortcuts";
+import { useRouter } from "next/navigation";
 import { useParameter } from "@/hooks/useParameter";
 import { useTransactionReturn } from "@/hooks/useTransactionReturn";
 import { showSuccessAlert, showErrorAlert, showLoadingAlert } from "@/lib/swal";
 import { 
-  REGULAR_TRANSACTION_CONFIG,
+  RETURN_TRANSACTION_CONFIG,
   createInitialTransactionState,
-  convertStockToProduct,
-  convertTransactionItemToProduct,
   calculateTotals,
   loadTransactionFromStorage,
   saveTransactionToStorage,
@@ -22,18 +20,18 @@ import Swal from "sweetalert2";
 import type { StockData } from "@/types/stock";
 import { ProductTableItem } from "@/types/stock";
 import type { TransactionItem } from "@/types/transaction";
-import { ArrowLeft, Search } from "lucide-react";
+import { ArrowLeft, Search, Undo } from "lucide-react";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import type { KeyboardEvent as ReactKeyboardEvent } from "react";
-import { ProductTableSection } from "./_components";
-import TransactionHistoryDialog from "./_components/TransactionHistoryDialog";
-import TransactionCorrectionDialog from "./_components/TransactionCorrectionDialog";
-import type { TransactionCorrectionWithReturnType } from "./_components/TransactionCorrectionDialog";
+import { ProductTableSection } from "../choose-menu/_components";
+import TransactionHistoryDialog from "../choose-menu/_components/TransactionHistoryDialog";
+import TransactionCorrectionDialog from "../choose-menu/_components/TransactionCorrectionDialog";
+import type { TransactionCorrectionWithReturnType } from "../choose-menu/_components/TransactionCorrectionDialog";
 import StockWarningDialog from "@/components/shared/stock-warning-dialog";
 import CalculatorModal from "@/components/shared/calculator-modal";
 
-export default function ChooseMenuPage() {
-  const config = REGULAR_TRANSACTION_CONFIG;
+export default function ReturnTransactionPage() {
+  const config = RETURN_TRANSACTION_CONFIG;
   const initialState = createInitialTransactionState(config);
   
   const [isClient, setIsClient] = useState(initialState.isClient);
@@ -54,7 +52,7 @@ export default function ChooseMenuPage() {
   const payNowButtonRef = useRef<HTMLButtonElement>(null);
   const isClearingRef = useRef(false);
 
-  const { logout, isLoading: isLogoutLoading } = useLogout();
+  const router = useRouter();
   const { parameterData } = useParameter();
   const { processReturn, isLoading: _isReturnLoading, error: returnError } = useTransactionReturn();
 
@@ -220,7 +218,7 @@ export default function ChooseMenuPage() {
     
     // Reset return transaction info when clearing products
     setReturnTransactionInfo({
-      isReturnTransaction: false,
+      isReturnTransaction: true, // Keep as return transaction
     });
 
     if (typeof window !== "undefined") {
@@ -267,24 +265,35 @@ export default function ChooseMenuPage() {
     }
   );
 
-  // Load transaction data from local storage using shared utility
+  // Load return transaction data from local storage using shared utility
   useEffect(() => {
     if (isClient) {
       const { products: savedProducts, nextId: savedNextId } = loadTransactionFromStorage(config);
       setProducts(savedProducts);
       setNextId(savedNextId);
+      
+      // Load return transaction info from localStorage
+      const savedReturnInfo = localStorage.getItem("return-transaction-info");
+      if (savedReturnInfo) {
+        try {
+          const returnInfo = JSON.parse(savedReturnInfo);
+          setReturnTransactionInfo(returnInfo);
+        } catch (error) {
+          console.error("Error parsing return transaction info:", error);
+        }
+      }
     }
   }, [isClient, config]);
 
-  // Save transaction data to local storage using shared utility
+  // Save return transaction data to local storage using shared utility
   useEffect(() => {
     if (isClient && !isClearingRef.current) {
       saveTransactionToStorage(config, products, nextId);
     }
   }, [products, nextId, isClient, config]);
 
-  const handleLogout = async () => {
-    await logout();
+  const handleBackNavigation = () => {
+    router.push('/create-order/choose-menu');
   };
 
   // Calculate totals using shared utility
@@ -294,7 +303,7 @@ export default function ChooseMenuPage() {
 
   const paymentProducts = useMemo(() => {
     return products
-      .filter((p) => p.name && p.quantity > 0)
+      .filter((p) => p.name && p.quantity > 0 && !(p.isOriginalReturnItem && p.isDeleted))
       .map((product) => ({
         id: product.id,
         name: product.name,
@@ -471,8 +480,112 @@ export default function ChooseMenuPage() {
 
   const handleRemoveProduct = (id: number) => {
     if (!isClient) return;
-    setProducts(products.filter((product) => product.id !== id));
+    
+    setProducts((prevProducts) => {
+      const updatedProducts: ProductTableItem[] = [];
+      
+      for (const product of prevProducts) {
+        if (product.id === id) {
+          // If it's an original return item, mark as deleted instead of removing
+          if (product.isOriginalReturnItem) {
+            updatedProducts.push({
+              ...product,
+              isDeleted: true,
+            });
+          }
+          // For non-original items, don't add to the array (effectively removing)
+        } else {
+          // Keep all other products
+          updatedProducts.push(product);
+        }
+      }
+      
+      return updatedProducts;
+    });
+    
     setShouldFocusSearch(true);
+  };
+
+  const handleUndeleteProduct = (id: number) => {
+    if (!isClient) return;
+    
+    setProducts((prevProducts) => 
+      prevProducts.map((product) => 
+        product.id === id && product.isOriginalReturnItem
+          ? { ...product, isDeleted: false }
+          : product
+      )
+    );
+    
+    setShouldFocusSearch(true);
+  };
+
+  const convertStockToProduct = (stockData: StockData): ProductTableItem => {
+    return {
+      id: nextId,
+      name: stockData.nama_brg,
+      type: "",
+      price: stockData.hj_ecer || 0,
+      quantity: 1,
+      subtotal: stockData.hj_ecer || 0,
+      discount: 0,
+      sc: 0,
+      misc: 0,
+      promo: 0,
+      promoPercent: 0,
+      up: "N",
+      noVoucher: 0,
+      total: stockData.hj_ecer || 0,
+      stockData: stockData,
+      isOriginalReturnItem: false, // Mark as new item
+      isDeleted: false,
+    };
+  };
+
+  // Convert transaction detail item to product table item for returns
+  const convertTransactionItemToProduct = (item: TransactionItem, itemId: number): ProductTableItem => {
+    const convertedProduct = {
+      id: itemId,
+      name: item.product_name?.trim() || item.product_code,
+      type: item.prescription_code?.trim() || "",
+      price: item.price,
+      quantity: item.quantity,
+      subtotal: item.sub_total,
+      discount: item.nominal_discount,
+      sc: item.service_fee,
+      misc: item.misc,
+      promo: item.disc_promo,
+      promoPercent: item.value_promo,
+      up: item.up_selling,
+      noVoucher: 0,
+      total: item.total,
+      stockData: {
+        kode_brg: item.product_code,
+        nama_brg: item.product_name,
+        hj_ecer: item.price,
+        // Minimal properties for dialogs to work
+        id_dept: "",
+        isi: 1,
+        id_satuan: 0,
+        strip: 1,
+        mark_up: 0,
+        hb_netto: 0,
+        hb_gross: 0,
+        hj_bbs: 0,
+        id_kategori: "",
+        id_pabrik: "",
+        barcode: "",
+        q_bbs: 0,
+        satuan: "",
+        hna: 0,
+      },
+      isOriginalReturnItem: true, // Mark as original return item
+      isDeleted: false, // Initially not deleted
+    };
+    
+    console.log("🔍 Converted transaction item:", convertedProduct);
+    console.log("🔍 StockData created:", convertedProduct.stockData);
+    return convertedProduct;
   };
 
   const handleProductSelect = (selectedStockData: StockData) => {
@@ -493,7 +606,7 @@ export default function ChooseMenuPage() {
       return;
     }
 
-    const newProduct = convertStockToProduct(selectedStockData, nextId);
+    const newProduct = convertStockToProduct(selectedStockData);
     setProducts((prevProducts) => [...prevProducts, newProduct]);
     setLastAddedProductId(nextId);
     setNextId((prevId) => prevId + 1);
@@ -503,10 +616,8 @@ export default function ChooseMenuPage() {
   const handleTransactionReturn = async (transactionData: TransactionCorrectionWithReturnType) => {
     if (transactionData.returnType === "item-based") {
       try {
-        // Show loading while fetching transaction details
         showLoadingAlert("Loading transaction details...", "Please wait while we load the transaction items for return.");
 
-        // Fetch transaction details to get the items
         const response = await fetch(
           `/api/transaction/invoice?invoice_number=${encodeURIComponent(transactionData.invoice_number.trim())}`,
           {
@@ -522,32 +633,33 @@ export default function ChooseMenuPage() {
         }
 
         if (data.data && data.data.items) {
-          // Save return transaction data to return transaction storage
+          setProducts([]);
+          
+          // Debug: Log the first item to see the data structure
+          if (data.data.items.length > 0) {
+            console.log("Transaction item sample:", data.data.items[0]);
+          }
+          
           const returnProducts: ProductTableItem[] = data.data.items.map((item: TransactionItem, index: number) => 
             convertTransactionItemToProduct(item, index + 1)
           );
           
-          // Save to return transaction storage
-          if (typeof window !== "undefined") {
-            localStorage.setItem("return-pos-products", JSON.stringify(returnProducts));
-            localStorage.setItem("return-pos-next-id", (returnProducts.length + 1).toString());
-            
-            // Save return transaction info
-            localStorage.setItem("return-transaction-info", JSON.stringify({
-              customerName: data.data.customer_name || undefined,
-              doctorName: data.data.doctor_name || undefined,
-              isReturnTransaction: true,
-              invoiceNumber: transactionData.invoice_number,
-            }));
-          }
+          setProducts(returnProducts);
+          setNextId(returnProducts.length + 1);
           
-          // Close the correction dialog
+          setReturnTransactionInfo({
+            customerName: data.data.customer_name || undefined,
+            doctorName: data.data.doctor_name || undefined,
+            isReturnTransaction: true,
+          });
+          
           setIsTransactionCorrectionOpen(false);
           
           Swal.close();
-          
-          // Redirect to return transaction page
-          window.location.href = "/create-order/return-transaction";
+          showSuccessAlert(
+            "Return Items Loaded",
+            `Transaction ${transactionData.invoice_number} items have been loaded for return processing. Customer: ${data.data.customer_name || 'N/A'}${data.data.doctor_name ? `, Doctor: ${data.data.doctor_name}` : ''}`
+          );
         } else {
           throw new Error("No items found in transaction");
         }
@@ -560,13 +672,12 @@ export default function ChooseMenuPage() {
         );
       }
     } else if (transactionData.returnType === "full-return") {
-      // For full return, make API call to return entire transaction
       try {
         const returnData = {
           invoice_number: transactionData.invoice_number,
-          transaction_action: 0 as const, // 0 = full return
+          transaction_action: 0 as const,
           retur_reason: transactionData.returnReason || "Customer request",
-          confirmation_retur_by: "cashier", // You might want to get actual user info
+          confirmation_retur_by: "cashier",
         };
 
         showLoadingAlert("Processing return...", "Please wait while we process the transaction return.");
@@ -574,7 +685,6 @@ export default function ChooseMenuPage() {
         const success = await processReturn(returnData);
         
         if (success) {
-          // Close the correction dialog
           setIsTransactionCorrectionOpen(false);
           
           showSuccessAlert(
@@ -626,7 +736,7 @@ export default function ChooseMenuPage() {
         );
       } else if (pendingAction.type === "product-select") {
         const { stockData } = pendingAction.data;
-        const newProduct = convertStockToProduct(stockData, nextId);
+        const newProduct = convertStockToProduct(stockData);
         setProducts((prevProducts) => [...prevProducts, newProduct]);
         setLastAddedProductId(nextId);
         setNextId((prevId) => prevId + 1);
@@ -649,18 +759,20 @@ export default function ChooseMenuPage() {
   }
 
   return (
-    <div className="flex flex-col h-screen bg-gradient-to-b from-blue-50 to-white">
+    <div className="flex flex-col h-screen bg-gradient-to-b from-orange-50 to-white">
       <div className="flex flex-1 gap-6 p-5">
         <div className="w-4/5 overflow-auto">
-          <div className="bg-white rounded-2xl shadow-sm border border-gray-100 p-5 mb-6">
+          <div className="bg-white rounded-2xl shadow-sm border border-orange-200 p-5 mb-6">
             <div className="flex items-center">
               <button
-                onClick={handleLogout}
-                disabled={isLogoutLoading}
-                className="flex items-center text-gray-800 hover:text-gray-600 transition-colors disabled:opacity-50"
+                onClick={handleBackNavigation}
+                className="flex items-center text-gray-800 hover:text-gray-600 transition-colors"
               >
                 <ArrowLeft className="mr-2" size={20} />
-                <h1 className="text-lg font-semibold">POS Transaction</h1>
+                <div className="flex items-center gap-2">
+                  <Undo className="text-orange-600" size={20} />
+                  <h1 className="text-lg font-semibold text-orange-800">Return Transaction</h1>
+                </div>
               </button>
               <div className="flex-grow flex justify-end ml-4">
                 <div className="relative w-full max-w-md">
@@ -684,6 +796,7 @@ export default function ChooseMenuPage() {
             onQuantityBlur={handleQuantityBlur}
             onQuantityKeyPress={handleQuantityKeyPress}
             onRemoveProduct={handleRemoveProduct}
+            onUndeleteProduct={handleUndeleteProduct}
             onProductSelect={handleProductSelect}
             onTypeChange={handleTypeChange}
             onDiscountChange={handleDiscountChange}
@@ -695,8 +808,12 @@ export default function ChooseMenuPage() {
         </div>
 
         <div className="w-1/5">
-          <div className="p-5 bg-white shadow-md overflow-auto w-full rounded-2xl">
-            <TransactionInfo useRealTimeData={true} className="mb-6" />
+          <div className="p-5 bg-white shadow-md overflow-auto w-full rounded-2xl border border-orange-200">
+            <TransactionInfo 
+              useRealTimeData={true} 
+              className="mb-6" 
+              returnTransactionInfo={returnTransactionInfo}
+            />
 
             <OrderSummary
               subtotal={totals.subtotal}

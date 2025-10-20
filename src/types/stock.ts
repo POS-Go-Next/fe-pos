@@ -72,6 +72,8 @@ export interface ProductTableItem {
     noVoucher?: number;
     total?: number;
     stockData?: StockData;
+    isOriginalReturnItem?: boolean; // Indicates if this item is from the original transaction being returned
+    isDeleted?: boolean; // Indicates if this original return item has been marked as deleted
 }
 
 export const STOCK_CATEGORIES = {
