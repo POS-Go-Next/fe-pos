@@ -7,7 +7,7 @@ import { Button } from "@/components/ui/button";
 interface ReturnTypeDialogProps {
   isOpen: boolean;
   onClose: () => void;
-  onConfirm: (returnType: "item-based" | "full-return", returnReason?: string) => void;
+  onConfirm: (returnType: "item-based" | "full-return") => void;
   transactionData?: {
     invoice_number: string;
     customer_name: string;
@@ -24,7 +24,7 @@ export default function ReturnTypeDialog({
   const [selectedType, setSelectedType] = useState<"item-based" | "full-return">("item-based");
 
   const handleConfirm = () => {
-    onConfirm(selectedType, undefined);
+    onConfirm(selectedType);
   };
 
   const handleClose = () => {

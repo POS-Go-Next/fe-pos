@@ -13,6 +13,8 @@ import {
 } from "@/components/ui/select";
 import { showErrorAlert, showLoadingAlert } from "@/lib/swal";
 import Swal from "sweetalert2";
+import { processTransaction } from "@/lib/transaction-processor";
+import type { StockData } from "@/types/stock";
 
 interface CustomerData {
   id: number;
@@ -73,6 +75,12 @@ interface PaymentDialogProps {
   doctorData?: DoctorData | null;
   transactionTypeData?: TransactionTypeData | null;
   products?: ProductItem[];
+  returnTransactionInfo?: {
+    customerName?: string;
+    doctorName?: string;
+    invoiceNumber?: string;
+    isReturnTransaction: boolean;
+  };
 }
 
 export default function PaymentDialog({
@@ -85,6 +93,7 @@ export default function PaymentDialog({
   doctorData,
   transactionTypeData,
   products = [],
+  returnTransactionInfo,
 }: PaymentDialogProps) {
   const [cashAmount, setCashAmount] = useState("");
   const [debitAmount, setDebitAmount] = useState("");
@@ -126,42 +135,7 @@ export default function PaymentDialog({
     setCreditAmount(correctTotalAmount.toString());
   };
 
-  const getSystemInfo = async () => {
-    try {
-      const response = await fetch("http://localhost:8321/api/system/info");
-      const data = await response.json();
 
-      if (data.success && data.data.deviceConfig?.deviceId) {
-        return data.data.deviceConfig.deviceId;
-      }
-      return null;
-    } catch (error) {
-      console.error("Error getting system info:", error);
-      return null;
-    }
-  };
-
-  const getNextInvoice = async () => {
-    try {
-      const response = await fetch("/api/transaction/next-invoice");
-      const data = await response.json();
-      return data.data?.invoice_number || "S25080315";
-    } catch (error) {
-      console.error("Error getting next invoice:", error);
-      return "S25080315";
-    }
-  };
-
-  const getTransactionType = async (deviceId: string) => {
-    try {
-      const response = await fetch(`/api/kassa/${deviceId}`);
-      const data = await response.json();
-      return data.success ? data.data?.default_jual || "1" : "1";
-    } catch (error) {
-      console.error("Error getting transaction type:", error);
-      return "1";
-    }
-  };
 
   const calculatePayment = () => {
     const cash = parseFloat(cashAmount) || 0;
@@ -197,64 +171,6 @@ export default function PaymentDialog({
       changeDC,
       changeCC,
     };
-  };
-
-  const buildTransactionItems = (transactionType: string) => {
-    return products.map((product) => {
-      const nominalDiscount =
-        (product.subtotal || 0) * ((product.discount || 0) / 100);
-
-      const finalTotal = Math.max(
-        0,
-        (product.subtotal || 0) +
-          (product.sc || 0) +
-          (product.misc || 0) -
-          nominalDiscount -
-          (product.promo || 0)
-      );
-
-      const itemData: {
-        transaction_action: string;
-        product_code: string;
-        quantity: number;
-        sub_total: number;
-        nominal_discount: number;
-        discount: number;
-        service_fee: number;
-        misc: number;
-        disc_promo: number;
-        value_promo: number;
-        no_promo: string;
-        promo_type: string;
-        up_selling: string;
-        total: number;
-        round_up: number;
-        prescription_code?: string;
-      } = {
-        transaction_action: "1",
-        product_code: product.stockData?.kode_brg || "",
-        quantity: product.quantity,
-        sub_total: product.subtotal || 0,
-        nominal_discount: nominalDiscount,
-        discount: product.discount || 0,
-        service_fee: product.sc || 0,
-        misc: product.misc || 0,
-        disc_promo: 0,
-        value_promo: product.promo || 0,
-        no_promo: "",
-        promo_type: "1",
-        up_selling: product.up === "Y" ? "Y" : "N",
-        total: finalTotal,
-        round_up: 0,
-      };
-
-      if (transactionType === "2") {
-        itemData.prescription_code =
-          transactionTypeData?.medicineType === "Compounded" ? "RC" : "R/";
-      }
-
-      return itemData;
-    });
   };
 
   const handlePayment = async () => {
@@ -297,22 +213,6 @@ export default function PaymentDialog({
         return;
       }
 
-      const [deviceId, invoiceNumber] = await Promise.all([
-        getSystemInfo(),
-        getNextInvoice(),
-      ]);
-
-      if (!deviceId) {
-        Swal.close();
-        showErrorAlert(
-          "System Error",
-          "Unable to get system device ID. Please try again."
-        );
-        return;
-      }
-
-      const transactionType = await getTransactionType(deviceId);
-
       const subTotal = products.reduce((sum, p) => sum + (p.subtotal || 0), 0);
       const totalMisc = products.reduce((sum, p) => sum + (p.misc || 0), 0);
       const totalServiceFee = products.reduce((sum, p) => sum + (p.sc || 0), 0);
@@ -322,84 +222,121 @@ export default function PaymentDialog({
       );
       const totalPromo = products.reduce((sum, p) => sum + (p.promo || 0), 0);
 
-      const transactionPayload = {
-        device_id: deviceId,
-        invoice_number: invoiceNumber,
-        notes: "",
-        customer_id: customerData.id,
-        doctor_id: doctorData?.id || null,
-        corporate_code: null,
-        transaction_type: transactionType,
-        transaction_action: "1",
-        need_print_invoice: true,
+      // Convert products to ProductTableItem format for transaction processor
+      const convertedProducts = products.map(product => ({
+        ...product,
+        stockData: (product.stockData && 'nama_brg' in product.stockData && 'id_dept' in product.stockData)
+          ? product.stockData as StockData
+          : {
+              kode_brg: product.stockData?.kode_brg || product.id.toString(),
+              nama_brg: product.name,
+              id_dept: "A2",
+              isi: 1,
+              id_satuan: 1,
+              strip: 1,
+              mark_up: 0,
+              hb_netto: 0,
+              hb_gross: 0,
+              hj_ecer: product.price,
+              hj_bbs: product.price,
+              id_kategori: "001",
+              id_pabrik: "001",
+              barcode: "",
+              q_bbs: 1,
+              satuan: "pcs",
+              hna: product.price,
+            } as StockData,
+      }));
 
-        items: buildTransactionItems(transactionType),
-        cash: payment.cash,
-        change_cash: payment.changeCash,
-        change_cc: payment.changeCC,
-        change_dc: payment.changeDC,
-        credit_card: payment.credit,
-        debit_card: payment.debit,
-        no_cc: creditAccountNumber || null,
-        no_dc: debitAccountNumber || null,
-        edc_cc: creditEDCMachine || null,
-        edc_dc: debitEDCMachine || null,
-        publisher_cc: creditBank || null,
-        publisher_dc: debitBank || null,
-        type_cc: creditCardType || null,
-        type_dc: debitCardType || null,
-
-        compunded:
-          transactionType === "2" &&
-          transactionTypeData?.medicineType === "Compounded",
-        full_prescription:
-          transactionType === "2" &&
-          transactionTypeData?.transactionType === "Full Prescription",
-        availability:
-          transactionType === "2" &&
-          transactionTypeData?.availability === "Available",
-
-        sub_total: subTotal,
-        misc: totalMisc,
-        service_fee: totalServiceFee,
-        discount: totalDiscount,
-        promo: totalPromo,
-        round_up: 0,
-        grand_total: correctTotalAmount,
-      };const response = await fetch("/api/transaction", {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-        },
-        body: JSON.stringify(transactionPayload),
-      });
-
-      const result = await response.json();
+      // Process transaction using unified processor
+      const result = returnTransactionInfo?.isReturnTransaction 
+        ? await processTransaction({
+            type: "item-based-return",
+            products: convertedProducts,
+            customerData: {
+              id: customerData.id.toString(),
+              name: customerData.name,
+              phone: customerData.phone,
+            },
+            doctorData: doctorData ? {
+              id: doctorData.id.toString(),
+              fullname: doctorData.fullname,
+            } : null,
+            paymentInfo: {
+              cash: payment.cash,
+              changeCash: payment.changeCash,
+              changeCC: payment.changeCC,
+              changeDC: payment.changeDC,
+              credit: payment.credit,
+              debit: payment.debit,
+              creditAccountNumber,
+              debitAccountNumber,
+              creditEDCMachine,
+              debitEDCMachine,
+              creditBank,
+              debitBank,
+              creditCardType,
+              debitCardType,
+            },
+            totals: {
+              subTotal,
+              totalMisc,
+              totalServiceFee,
+              totalDiscount,
+              totalPromo,
+              correctTotalAmount,
+            },
+            transactionTypeData,
+            returnReason: "Item-based return",
+            originalInvoiceNumber: returnTransactionInfo.invoiceNumber || "", // Pass original invoice number
+          })
+        : await processTransaction({
+            type: "regular",
+            products: convertedProducts,
+            customerData: {
+              id: customerData.id.toString(),
+              name: customerData.name,
+              phone: customerData.phone,
+            },
+            doctorData: doctorData ? {
+              id: doctorData.id.toString(),
+              fullname: doctorData.fullname,
+            } : null,
+            paymentInfo: {
+              cash: payment.cash,
+              changeCash: payment.changeCash,
+              changeCC: payment.changeCC,
+              changeDC: payment.changeDC,
+              credit: payment.credit,
+              debit: payment.debit,
+              creditAccountNumber,
+              debitAccountNumber,
+              creditEDCMachine,
+              debitEDCMachine,
+              creditBank,
+              debitBank,
+              creditCardType,
+              debitCardType,
+            },
+            totals: {
+              subTotal,
+              totalMisc,
+              totalServiceFee,
+              totalDiscount,
+              totalPromo,
+              correctTotalAmount,
+            },
+            transactionTypeData,
+          });
 
       Swal.close();
 
-      if (!response.ok) {
-        console.error("Transaction API error:", {
-          status: response.status,
-          result,
-          payload: transactionPayload,
-        });
-
-        let errorMessage = "Payment failed. Please try again.";
-
-        if (result.message) {
-          errorMessage = result.message;
-        } else if (response.status === 400) {
-          errorMessage = "Invalid transaction data. Please check all fields.";
-        } else if (response.status === 401) {
-          errorMessage = "Session expired. Please login again.";
-        } else if (response.status >= 500) {
-          errorMessage = "Server error. Please try again later.";
-        }
-
-        showErrorAlert("Payment Failed", errorMessage);
+      if (!result.success) {
+        showErrorAlert("Payment Failed", result.message || "Payment failed. Please try again.");
         return;
-      }resetForm();
+      }
+
+      resetForm();
       onPaymentSuccess({
         changeCash: payment.changeCash,
         changeCC: payment.changeCC,

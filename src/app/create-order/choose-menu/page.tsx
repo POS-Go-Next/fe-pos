@@ -6,9 +6,9 @@ import { Input } from "@/components/ui/input";
 import { useLogout } from "@/hooks/useLogout";
 import { usePOSKeyboardShortcuts } from "@/hooks/useKeyboardShortcuts";
 import { useParameter } from "@/hooks/useParameter";
-import { useTransactionReturn } from "@/hooks/useTransactionReturn";
+
 import { showSuccessAlert, showErrorAlert, showLoadingAlert } from "@/lib/swal";
-import { 
+import {
   REGULAR_TRANSACTION_CONFIG,
   createInitialTransactionState,
   convertStockToProduct,
@@ -18,6 +18,7 @@ import {
   saveTransactionToStorage,
   clearTransactionStorage,
 } from "@/lib/transaction-utils";
+import { processTransaction } from "@/lib/transaction-processor";
 import Swal from "sweetalert2";
 import type { StockData } from "@/types/stock";
 import { ProductTableItem } from "@/types/stock";
@@ -49,14 +50,14 @@ export default function ChooseMenuPage() {
   const [triggerPayNow, setTriggerPayNow] = useState(initialState.triggerPayNow);
   const [products, setProducts] = useState(initialState.products);
   const [nextId, setNextId] = useState(initialState.nextId);
-  const [returnTransactionInfo, setReturnTransactionInfo] = useState(initialState.returnTransactionInfo);
+
 
   const payNowButtonRef = useRef<HTMLButtonElement>(null);
   const isClearingRef = useRef(false);
 
   const { logout, isLoading: isLogoutLoading } = useLogout();
   const { parameterData } = useParameter();
-  const { processReturn, isLoading: _isReturnLoading, error: returnError } = useTransactionReturn();
+
 
   useEffect(() => {
     setIsClient(true);
@@ -218,11 +219,6 @@ export default function ChooseMenuPage() {
     setLastAddedProductId(null);
     setShouldFocusSearch(true);
     
-    // Reset return transaction info when clearing products
-    setReturnTransactionInfo({
-      isReturnTransaction: false,
-    });
-
     if (typeof window !== "undefined") {
       clearTransactionStorage(config);
     }
@@ -522,7 +518,7 @@ export default function ChooseMenuPage() {
         }
 
         if (data.data && data.data.items) {
-          // Save return transaction data to return transaction storage
+          // Save return transaction data for return transaction page
           const returnProducts: ProductTableItem[] = data.data.items.map((item: TransactionItem, index: number) => 
             convertTransactionItemToProduct(item, index + 1)
           );
@@ -560,38 +556,62 @@ export default function ChooseMenuPage() {
         );
       }
     } else if (transactionData.returnType === "full-return") {
-      // For full return, make API call to return entire transaction
       try {
-        const returnData = {
-          invoice_number: transactionData.invoice_number,
-          transaction_action: 0 as const, // 0 = full return
-          retur_reason: transactionData.returnReason || "Customer request",
-          confirmation_retur_by: "cashier", // You might want to get actual user info
-        };
+        // Show loading while fetching transaction details
+        showLoadingAlert("Loading transaction details...", "Please wait while we load the transaction for full return.");
 
-        showLoadingAlert("Processing return...", "Please wait while we process the transaction return.");
-        
-        const success = await processReturn(returnData);
-        
-        if (success) {
+        // Fetch transaction details to get the items for full return
+        const response = await fetch(
+          `/api/transaction/invoice?invoice_number=${encodeURIComponent(transactionData.invoice_number.trim())}`,
+          {
+            method: "GET",
+            headers: { "Content-Type": "application/json" },
+          }
+        );
+
+        const data = await response.json();
+
+        if (!response.ok) {
+          throw new Error(data.message || `HTTP ${response.status}`);
+        }
+
+        if (data.data && data.data.items) {
+          // Convert transaction items to products for the processor
+          const originalProducts: ProductTableItem[] = data.data.items.map((item: TransactionItem, index: number) => 
+            convertTransactionItemToProduct(item, index + 1)
+          );
+          
+          // Update loading message
+          showLoadingAlert("Processing return...", "Please wait while we process the full transaction return.");
+          
+          const result = await processTransaction({
+            type: "full-return",
+            originalTransactionData: transactionData,
+            originalProducts: originalProducts,
+            returnReason: transactionData.returnReason || "Customer request",
+          });
+
+          if (!result.success) {
+            throw new Error(result.message || "Failed to process return");
+          }
+
           // Close the correction dialog
           setIsTransactionCorrectionOpen(false);
           
+          Swal.close();
           showSuccessAlert(
             "Return Processed", 
             `Transaction ${transactionData.invoice_number} has been successfully returned.`
           );
         } else {
-          showErrorAlert(
-            "Return Failed", 
-            returnError || "Failed to process the return. Please try again."
-          );
+          throw new Error("No items found in transaction");
         }
       } catch (error) {
-        console.error("Error processing return:", error);
+        console.error("Error loading transaction for full return:", error);
+        Swal.close();
         showErrorAlert(
-          "Return Failed",
-          "An unexpected error occurred while processing the return."
+          "Failed to Load Transaction",
+          error instanceof Error ? error.message : "Failed to load transaction details for return processing."
         );
       }
     }
@@ -708,7 +728,6 @@ export default function ChooseMenuPage() {
               onPendingBill={handlePendingBill}
               onPaymentComplete={handlePaymentComplete}
               payNowButtonRef={payNowButtonRef}
-              returnTransactionInfo={returnTransactionInfo}
             />
           </div>
         </div>

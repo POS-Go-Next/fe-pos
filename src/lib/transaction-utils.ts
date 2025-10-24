@@ -2,6 +2,24 @@ import type { StockData } from "@/types/stock";
 import { ProductTableItem } from "@/types/stock";
 import type { TransactionItem } from "@/types/transaction";
 
+// Simple product item interface (for payment dialog)
+export interface ProductItem {
+  id: number;
+  name: string;
+  quantity: number;
+  price: number;
+  subtotal: number;
+  discount: number;
+  sc: number;
+  misc: number;
+  promo: number;
+  total: number;
+  stockData?: {
+    kode_brg: string;
+  };
+  up?: string;
+}
+
 export interface TransactionPageConfig {
   isReturnTransaction: boolean;
   storageKeys: {
@@ -260,4 +278,255 @@ export const clearTransactionStorage = (config: TransactionPageConfig) => {
     localStorage.setItem(config.storageKeys.PRODUCTS, "[]");
     localStorage.setItem(config.storageKeys.NEXT_ID, "1");
   }
+};
+
+// Transaction payload builder types
+export interface TransactionPaymentInfo {
+  cash: number;
+  changeCash: number;
+  changeCC: number;
+  changeDC: number;
+  credit: number;
+  debit: number;
+  creditAccountNumber?: string | null;
+  debitAccountNumber?: string | null;
+  creditEDCMachine?: string | null;
+  debitEDCMachine?: string | null;
+  creditBank?: string | null;
+  debitBank?: string | null;
+  creditCardType?: string | null;
+  debitCardType?: string | null;
+}
+
+export interface TransactionCustomerInfo {
+  id: string;
+}
+
+export interface TransactionDoctorInfo {
+  id: string;
+}
+
+export interface TransactionTypeInfo {
+  medicineType?: string;
+  transactionType?: string;
+  availability?: string;
+}
+
+export interface TransactionReturnInfo {
+  isReturnTransaction?: boolean;
+  returnReason?: string;
+  confirmationBy?: string;
+}
+
+export interface TransactionPayload {
+  device_id: string;
+  invoice_number: string;
+  notes: string;
+  customer_id: number;
+  doctor_id: number | null;
+  corporate_code: string | null;
+  transaction_type: string;
+  transaction_action: string;
+  need_print_invoice: boolean;
+  items: Array<{
+    transaction_action: string;
+    product_code: string;
+    quantity: number;
+    sub_total: number;
+    nominal_discount: number;
+    discount: number;
+    service_fee: number;
+    misc: number;
+    disc_promo: number;
+    value_promo: number;
+    no_promo: string;
+    promo_type: string;
+    up_selling: string;
+    total: number;
+    round_up: number;
+    prescription_code?: string;
+  }>;
+  cash: number;
+  change_cash: number;
+  change_cc: number;
+  change_dc: number;
+  credit_card: number;
+  debit_card: number;
+  no_cc: string | null;
+  no_dc: string | null;
+  edc_cc: string | null;
+  edc_dc: string | null;
+  publisher_cc: string | null;
+  publisher_dc: string | null;
+  type_cc: string | null;
+  type_dc: string | null;
+  compunded: boolean;
+  full_prescription: boolean;
+  availability: boolean;
+  sub_total: number;
+  misc: number;
+  service_fee: number;
+  discount: number;
+  promo: number;
+  round_up: number;
+  grand_total: number;
+  retur_reason?: string;
+  confirmation_retur_by?: string;
+}
+
+export interface TransactionTotals {
+  subTotal: number;
+  totalMisc: number;
+  totalServiceFee: number;
+  totalDiscount: number;
+  totalPromo: number;
+  correctTotalAmount: number;
+}
+
+export interface TransactionPayloadOptions {
+  deviceId: string;
+  invoiceNumber: string;
+  customerData: TransactionCustomerInfo;
+  doctorData?: TransactionDoctorInfo | null;
+  transactionType: string;
+  transactionAction: string;
+  products: ProductTableItem[] | ProductItem[];
+  paymentInfo: TransactionPaymentInfo;
+  totals: TransactionTotals;
+  transactionTypeData?: TransactionTypeInfo | null;
+  returnInfo?: TransactionReturnInfo;
+  notes?: string;
+  corporateCode?: string | null;
+  needPrintInvoice?: boolean;
+}
+
+export const buildTransactionItems = (
+  products: ProductTableItem[] | ProductItem[],
+  transactionType: string,
+  transactionAction: string,
+  transactionTypeData?: TransactionTypeInfo
+) => {
+  return products.map((product) => {
+    const nominalDiscount =
+      (product.subtotal || 0) * ((product.discount || 0) / 100);
+
+    const finalTotal = Math.max(
+      0,
+      (product.subtotal || 0) +
+        (product.sc || 0) +
+        (product.misc || 0) -
+        nominalDiscount -
+        (product.promo || 0)
+    );
+
+    const itemData: {
+      transaction_action: string;
+      product_code: string;
+      quantity: number;
+      sub_total: number;
+      nominal_discount: number;
+      discount: number;
+      service_fee: number;
+      misc: number;
+      disc_promo: number;
+      value_promo: number;
+      no_promo: string;
+      promo_type: string;
+      up_selling: string;
+      total: number;
+      round_up: number;
+      prescription_code?: string;
+    } = {
+      transaction_action: transactionAction,
+      product_code: product.stockData?.kode_brg || "",
+      quantity: product.quantity,
+      sub_total: product.subtotal || 0,
+      nominal_discount: nominalDiscount,
+      discount: product.discount || 0,
+      service_fee: product.sc || 0,
+      misc: product.misc || 0,
+      disc_promo: 0,
+      value_promo: product.promo || 0,
+      no_promo: "",
+      promo_type: "1",
+      up_selling: product.up === "Y" ? "Y" : "N",
+      total: finalTotal,
+      round_up: 0,
+    };
+
+    if (transactionType === "2") {
+      itemData.prescription_code =
+        transactionTypeData?.medicineType === "Compounded" ? "RC" : "R/";
+    }
+
+    return itemData;
+  });
+};
+
+export const buildTransactionPayload = (options: TransactionPayloadOptions): TransactionPayload => {
+  const {
+    deviceId,
+    invoiceNumber,
+    customerData,
+    doctorData,
+    transactionType,
+    transactionAction,
+    products,
+    paymentInfo,
+    totals,
+    transactionTypeData,
+    returnInfo,
+    notes = "",
+    corporateCode = null,
+    needPrintInvoice = false,
+  } = options;
+
+  const basePayload: TransactionPayload = {
+    device_id: deviceId,
+    invoice_number: invoiceNumber,
+    notes,
+    // customer_id: customerData.id,
+    customer_id: parseInt(customerData.id),
+    doctor_id: doctorData ? parseInt(doctorData.id) : null,
+    corporate_code: corporateCode,
+    transaction_type: transactionType,
+    transaction_action: transactionAction,
+    need_print_invoice: needPrintInvoice,
+
+    items: buildTransactionItems(products, transactionType, transactionAction, transactionTypeData || undefined),
+    cash: paymentInfo.cash,
+    change_cash: paymentInfo.changeCash,
+    change_cc: paymentInfo.changeCC,
+    change_dc: paymentInfo.changeDC,
+    credit_card: paymentInfo.credit,
+    debit_card: paymentInfo.debit,
+    no_cc: paymentInfo.creditAccountNumber || null,
+    no_dc: paymentInfo.debitAccountNumber || null,
+    edc_cc: paymentInfo.creditEDCMachine || null,
+    edc_dc: paymentInfo.debitEDCMachine || null,
+    publisher_cc: paymentInfo.creditBank || null,
+    publisher_dc: paymentInfo.debitBank || null,
+    type_cc: paymentInfo.creditCardType || null,
+    type_dc: paymentInfo.debitCardType || null,
+
+    compunded: transactionTypeData?.medicineType === "Compounded",
+    full_prescription: transactionTypeData?.transactionType === "Full Prescription",
+    availability: transactionTypeData?.availability === "Available",
+
+    sub_total: totals.subTotal,
+    misc: totals.totalMisc,
+    service_fee: totals.totalServiceFee,
+    discount: totals.totalDiscount,
+    promo: totals.totalPromo,
+    round_up: 0,
+    grand_total: totals.correctTotalAmount,
+  };
+
+  // Add return-specific fields if this is a return transaction
+  if (returnInfo?.isReturnTransaction) {
+    basePayload.retur_reason = returnInfo.returnReason || "Item-based return";
+    basePayload.confirmation_retur_by = returnInfo.confirmationBy || "cashier";
+  }
+
+  return basePayload;
 };

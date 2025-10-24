@@ -6,7 +6,6 @@ import { Input } from "@/components/ui/input";
 import { usePOSKeyboardShortcuts } from "@/hooks/useKeyboardShortcuts";
 import { useRouter } from "next/navigation";
 import { useParameter } from "@/hooks/useParameter";
-import { useTransactionReturn } from "@/hooks/useTransactionReturn";
 import { showSuccessAlert, showErrorAlert, showLoadingAlert } from "@/lib/swal";
 import { 
   RETURN_TRANSACTION_CONFIG,
@@ -15,7 +14,10 @@ import {
   loadTransactionFromStorage,
   saveTransactionToStorage,
   clearTransactionStorage,
+  convertStockToProduct,
+  convertTransactionItemToProduct,
 } from "@/lib/transaction-utils";
+import { processTransaction } from "@/lib/transaction-processor";
 import Swal from "sweetalert2";
 import type { StockData } from "@/types/stock";
 import { ProductTableItem } from "@/types/stock";
@@ -54,7 +56,6 @@ export default function ReturnTransactionPage() {
 
   const router = useRouter();
   const { parameterData } = useParameter();
-  const { processReturn, isLoading: _isReturnLoading, error: returnError } = useTransactionReturn();
 
   useEffect(() => {
     setIsClient(true);
@@ -520,74 +521,6 @@ export default function ReturnTransactionPage() {
     setShouldFocusSearch(true);
   };
 
-  const convertStockToProduct = (stockData: StockData): ProductTableItem => {
-    return {
-      id: nextId,
-      name: stockData.nama_brg,
-      type: "",
-      price: stockData.hj_ecer || 0,
-      quantity: 1,
-      subtotal: stockData.hj_ecer || 0,
-      discount: 0,
-      sc: 0,
-      misc: 0,
-      promo: 0,
-      promoPercent: 0,
-      up: "N",
-      noVoucher: 0,
-      total: stockData.hj_ecer || 0,
-      stockData: stockData,
-      isOriginalReturnItem: false, // Mark as new item
-      isDeleted: false,
-    };
-  };
-
-  // Convert transaction detail item to product table item for returns
-  const convertTransactionItemToProduct = (item: TransactionItem, itemId: number): ProductTableItem => {
-    const convertedProduct = {
-      id: itemId,
-      name: item.product_name?.trim() || item.product_code,
-      type: item.prescription_code?.trim() || "",
-      price: item.price,
-      quantity: item.quantity,
-      subtotal: item.sub_total,
-      discount: item.nominal_discount,
-      sc: item.service_fee,
-      misc: item.misc,
-      promo: item.disc_promo,
-      promoPercent: item.value_promo,
-      up: item.up_selling,
-      noVoucher: 0,
-      total: item.total,
-      stockData: {
-        kode_brg: item.product_code,
-        nama_brg: item.product_name,
-        hj_ecer: item.price,
-        // Minimal properties for dialogs to work
-        id_dept: "",
-        isi: 1,
-        id_satuan: 0,
-        strip: 1,
-        mark_up: 0,
-        hb_netto: 0,
-        hb_gross: 0,
-        hj_bbs: 0,
-        id_kategori: "",
-        id_pabrik: "",
-        barcode: "",
-        q_bbs: 0,
-        satuan: "",
-        hna: 0,
-      },
-      isOriginalReturnItem: true, // Mark as original return item
-      isDeleted: false, // Initially not deleted
-    };
-    
-    console.log("🔍 Converted transaction item:", convertedProduct);
-    console.log("🔍 StockData created:", convertedProduct.stockData);
-    return convertedProduct;
-  };
-
   const handleProductSelect = (selectedStockData: StockData) => {
     const availableStock = selectedStockData.q_akhir;
 
@@ -606,7 +539,10 @@ export default function ReturnTransactionPage() {
       return;
     }
 
-    const newProduct = convertStockToProduct(selectedStockData);
+    const newProduct = convertStockToProduct(selectedStockData, nextId);
+    // Add return-specific properties
+    newProduct.isOriginalReturnItem = false; // Mark as new item
+    newProduct.isDeleted = false;
     setProducts((prevProducts) => [...prevProducts, newProduct]);
     setLastAddedProductId(nextId);
     setNextId((prevId) => prevId + 1);
@@ -640,9 +576,13 @@ export default function ReturnTransactionPage() {
             console.log("Transaction item sample:", data.data.items[0]);
           }
           
-          const returnProducts: ProductTableItem[] = data.data.items.map((item: TransactionItem, index: number) => 
-            convertTransactionItemToProduct(item, index + 1)
-          );
+          const returnProducts: ProductTableItem[] = data.data.items.map((item: TransactionItem, index: number) => {
+            const product = convertTransactionItemToProduct(item, index + 1);
+            // Add return-specific properties
+            product.isOriginalReturnItem = true; // Mark as original return item
+            product.isDeleted = false; // Initially not deleted
+            return product;
+          });
           
           setProducts(returnProducts);
           setNextId(returnProducts.length + 1);
@@ -651,6 +591,7 @@ export default function ReturnTransactionPage() {
             customerName: data.data.customer_name || undefined,
             doctorName: data.data.doctor_name || undefined,
             isReturnTransaction: true,
+            invoiceNumber: transactionData.invoice_number, // Store original invoice number
           });
           
           setIsTransactionCorrectionOpen(false);
@@ -673,18 +614,44 @@ export default function ReturnTransactionPage() {
       }
     } else if (transactionData.returnType === "full-return") {
       try {
-        const returnData = {
-          invoice_number: transactionData.invoice_number,
-          transaction_action: 0 as const,
-          retur_reason: transactionData.returnReason || "Customer request",
-          confirmation_retur_by: "cashier",
-        };
+        // Show loading while fetching transaction details
+        showLoadingAlert("Loading transaction details...", "Please wait while we load the transaction for full return.");
 
-        showLoadingAlert("Processing return...", "Please wait while we process the transaction return.");
-        
-        const success = await processReturn(returnData);
-        
-        if (success) {
+        // Fetch transaction details to get the items for full return
+        const response = await fetch(
+          `/api/transaction/invoice?invoice_number=${encodeURIComponent(transactionData.invoice_number.trim())}`,
+          {
+            method: "GET",
+            headers: { "Content-Type": "application/json" },
+          }
+        );
+
+        const data = await response.json();
+
+        if (!response.ok) {
+          throw new Error(data.message || `HTTP ${response.status}`);
+        }
+
+        if (data.data && data.data.items) {
+          // Convert transaction items to products for the processor
+          const originalProducts: ProductTableItem[] = data.data.items.map((item: TransactionItem, index: number) => 
+            convertTransactionItemToProduct(item, index + 1)
+          );
+          
+          // Update loading message
+          showLoadingAlert("Processing return...", "Please wait while we process the full transaction return.");
+          
+          const result = await processTransaction({
+            type: "full-return",
+            originalTransactionData: transactionData,
+            originalProducts: originalProducts,
+            returnReason: transactionData.returnReason || "Customer request",
+          });
+
+          if (!result.success) {
+            throw new Error(result.message || "Failed to process return");
+          }
+
           setIsTransactionCorrectionOpen(false);
           
           showSuccessAlert(
@@ -692,16 +659,13 @@ export default function ReturnTransactionPage() {
             `Transaction ${transactionData.invoice_number} has been successfully returned.`
           );
         } else {
-          showErrorAlert(
-            "Return Failed", 
-            returnError || "Failed to process the return. Please try again."
-          );
+          throw new Error("No items found in transaction");
         }
       } catch (error) {
-        console.error("Error processing return:", error);
+        console.error("Error loading transaction for full return:", error);
         showErrorAlert(
-          "Return Failed",
-          "An unexpected error occurred while processing the return."
+          "Failed to Load Transaction",
+          error instanceof Error ? error.message : "Failed to load transaction details for return processing."
         );
       }
     }
@@ -736,7 +700,10 @@ export default function ReturnTransactionPage() {
         );
       } else if (pendingAction.type === "product-select") {
         const { stockData } = pendingAction.data;
-        const newProduct = convertStockToProduct(stockData);
+        const newProduct = convertStockToProduct(stockData, nextId);
+        // Add return-specific properties
+        newProduct.isOriginalReturnItem = false; // Mark as new item
+        newProduct.isDeleted = false;
         setProducts((prevProducts) => [...prevProducts, newProduct]);
         setLastAddedProductId(nextId);
         setNextId((prevId) => prevId + 1);

@@ -29,7 +29,9 @@ export async function POST(request: NextRequest) {
     }
 
     // Get request body
-    const body = await request.json();// Validate required fields
+    const body = await request.json();
+    
+    // Validate required fields
     if (!body.device_id) {
       return NextResponse.json(
         {

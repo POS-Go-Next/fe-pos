@@ -6,6 +6,7 @@ import { Input } from "@/components/ui/input";
 import Pagination from "@/components/shared/pagination";
 import { DateRangePicker } from "@/components/ui/date-range-picker";
 import ReturnTypeDialog from "@/components/shared/return-type-dialog";
+import ReturnNoteDialog from "@/components/shared/return-note-dialog";
 import { useTransaction } from "@/hooks/useTransaction";
 import type { TransactionData } from "@/types/transaction";
 
@@ -114,6 +115,8 @@ const TransactionCorrectionDialog: React.FC<TransactionCorrectionDialogProps> = 
   const [detailError, setDetailError] = useState<string | null>(null);
   const [focusedRowIndex, setFocusedRowIndex] = useState<number>(-1);
   const [showReturnTypeDialog, setShowReturnTypeDialog] = useState(false);
+  const [showReturnNoteDialog, setShowReturnNoteDialog] = useState(false);
+  const [selectedReturnType, setSelectedReturnType] = useState<"item-based" | "full-return">("item-based");
 
   const [appliedDateRange, setAppliedDateRange] = useState<
     DateRange | undefined
@@ -192,21 +195,32 @@ const TransactionCorrectionDialog: React.FC<TransactionCorrectionDialogProps> = 
     setShowReturnTypeDialog(true);
   }, []);
 
-  const handleReturnTypeConfirm = (returnType: "item-based" | "full-return", returnReason?: string) => {
+  const handleReturnTypeConfirm = (returnType: "item-based" | "full-return") => {
+    setSelectedReturnType(returnType);
+    setShowReturnTypeDialog(false);
+    setShowReturnNoteDialog(true);
+  };
+
+  const handleReturnNoteConfirm = (returnReason: string) => {
     if (selectedTransaction && onSelectTransaction) {
       onSelectTransaction({
         ...selectedTransaction,
-        returnType,
+        returnType: selectedReturnType,
         returnReason,
       });
     }
-    setShowReturnTypeDialog(false);
+    setShowReturnNoteDialog(false);
     setSelectedTransaction(null);
     onClose();
   };
 
   const handleReturnTypeClose = () => {
     setShowReturnTypeDialog(false);
+    setSelectedTransaction(null);
+  };
+
+  const handleReturnNoteClose = () => {
+    setShowReturnNoteDialog(false);
     setSelectedTransaction(null);
   };
 
@@ -786,6 +800,19 @@ const TransactionCorrectionDialog: React.FC<TransactionCorrectionDialogProps> = 
         isOpen={showReturnTypeDialog}
         onClose={handleReturnTypeClose}
         onConfirm={handleReturnTypeConfirm}
+        transactionData={selectedTransaction ? {
+          invoice_number: selectedTransaction.invoice_number,
+          customer_name: selectedTransaction.customer_name || "Walk-in Customer",
+          date: formatDateForDisplay(selectedTransaction.transaction_date),
+          time: formatTimeForDisplay(selectedTransaction.transaction_date),
+        } : undefined}
+      />
+
+      <ReturnNoteDialog
+        isOpen={showReturnNoteDialog}
+        onClose={handleReturnNoteClose}
+        onConfirm={handleReturnNoteConfirm}
+        returnType={selectedReturnType}
         transactionData={selectedTransaction ? {
           invoice_number: selectedTransaction.invoice_number,
           customer_name: selectedTransaction.customer_name || "Walk-in Customer",

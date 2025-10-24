@@ -18,7 +18,7 @@ export async function POST(request: NextRequest) {
       ...validatedData,
       device_id: body.device_id,
       need_generate_token: true,
-      test_print: true,
+      test_print: false,
     };
 
     if (body.type) {
