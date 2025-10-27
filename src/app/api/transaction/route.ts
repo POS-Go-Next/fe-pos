@@ -156,6 +156,8 @@ export async function GET(request: NextRequest) {
     const { searchParams } = new URL(request.url);
     const offset = parseInt(searchParams.get("offset") || "0");
     const limit = parseInt(searchParams.get("limit") || "10");
+    const sort_by = searchParams.get("sort_by") || "tgl_ril";
+    const sort_order = searchParams.get("sort_order") || "desc";
     const dateGte = searchParams.get("date_gte") || "";
     const dateLte = searchParams.get("date_lte") || "";
     const boughtProductCode = searchParams.get("bought_product_code") || "";
@@ -173,6 +175,8 @@ export async function GET(request: NextRequest) {
     const apiUrl = new URL(`${API_BASE_URL}/transaction`);
     apiUrl.searchParams.set("offset", offset.toString());
     apiUrl.searchParams.set("limit", limit.toString());
+    apiUrl.searchParams.set("sort_by", sort_by);
+    apiUrl.searchParams.set("sort_order", sort_order);
     if (dateGte) apiUrl.searchParams.set("date_gte", dateGte);
     if (dateLte) apiUrl.searchParams.set("date_lte", dateLte);
     if (boughtProductCode)

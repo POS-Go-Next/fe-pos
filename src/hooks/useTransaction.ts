@@ -18,7 +18,8 @@ interface UseTransactionReturn {
 }
 
 export const useTransaction = (
-  params: TransactionApiParams = {}
+  params: TransactionApiParams = {},
+  enabled: boolean = true
 ): UseTransactionReturn => {
   const {
     limit = 10,
@@ -27,6 +28,8 @@ export const useTransaction = (
     date_lte = "",
     bought_product_code = "",
     search = "",
+    sort_by="tgl_ril",
+    sort_order="desc",
   } = params;
 
   const [transactionList, setTransactionList] = useState<TransactionData[]>([]);
@@ -44,6 +47,8 @@ export const useTransaction = (
       const queryParams = new URLSearchParams({
         offset: offset.toString(),
         limit: limit.toString(),
+        sort_by,
+        sort_order,
       });
 
       if (date_gte) queryParams.append("date_gte", date_gte);
@@ -85,11 +90,13 @@ export const useTransaction = (
     } finally {
       setIsLoading(false);
     }
-  }, [limit, offset, date_gte, date_lte, bought_product_code, search]);
+  }, [limit, offset, date_gte, date_lte, bought_product_code, search, sort_by, sort_order]);
 
   useEffect(() => {
-    fetchTransactions();
-  }, [fetchTransactions]);
+    if (enabled) {
+      fetchTransactions();
+    }
+  }, [fetchTransactions, enabled]);
 
   const refetch = () => fetchTransactions();
 

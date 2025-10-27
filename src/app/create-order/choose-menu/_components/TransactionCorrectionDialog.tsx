@@ -1,7 +1,7 @@
 "use client";
 
 import React, { useState, useEffect, useCallback } from "react";
-import { X, Search, ChevronDown } from "lucide-react";
+import { X, Search, ChevronDown, RefreshCw } from "lucide-react";
 import { Input } from "@/components/ui/input";
 import Pagination from "@/components/shared/pagination";
 import { DateRangePicker } from "@/components/ui/date-range-picker";
@@ -94,12 +94,14 @@ export interface TransactionCorrectionWithReturnType extends TransactionData {
 interface TransactionCorrectionDialogProps {
   isOpen: boolean;
   onClose: () => void;
+  onRefetch?: () => void;
   onSelectTransaction?: (transaction: TransactionCorrectionWithReturnType) => void;
 }
 
 const TransactionCorrectionDialog: React.FC<TransactionCorrectionDialogProps> = ({
   isOpen,
   onClose,
+  onRefetch,
   onSelectTransaction,
 }) => {
   const [searchInput, setSearchInput] = useState("");
@@ -117,6 +119,8 @@ const TransactionCorrectionDialog: React.FC<TransactionCorrectionDialogProps> = 
   const [showReturnTypeDialog, setShowReturnTypeDialog] = useState(false);
   const [showReturnNoteDialog, setShowReturnNoteDialog] = useState(false);
   const [selectedReturnType, setSelectedReturnType] = useState<"item-based" | "full-return">("item-based");
+  const [isRefreshLoading, setIsRefreshLoading] = useState(false);
+  const [isHookEnabled, setIsHookEnabled] = useState(false);
 
   const [appliedDateRange, setAppliedDateRange] = useState<
     DateRange | undefined
@@ -152,7 +156,9 @@ const TransactionCorrectionDialog: React.FC<TransactionCorrectionDialogProps> = 
       : "",
     date_lte: appliedDateRange?.to ? formatDateForAPI(appliedDateRange.to) : "",
     search: searchTerm,
-  });
+    sort_by: "tgl_ril",
+    sort_order: "desc",
+  }, isHookEnabled);
 
   const fetchTransactionDetail = async (invoiceNumber: string) => {
     try {
@@ -211,8 +217,25 @@ const TransactionCorrectionDialog: React.FC<TransactionCorrectionDialogProps> = 
     }
     setShowReturnNoteDialog(false);
     setSelectedTransaction(null);
-    onClose();
+    handleClose();
   };
+
+  const handleManualRefresh = useCallback(async () => {
+    setIsRefreshLoading(true);
+    try {
+      await _refetch();
+    } finally {
+      setIsRefreshLoading(false);
+    }
+  }, [_refetch]);
+
+  const handleClose = useCallback(() => {
+    onClose();
+    // Optional external refetch callback
+    if (onRefetch) {
+      onRefetch();
+    }
+  }, [onClose, onRefetch]);
 
   const handleReturnTypeClose = () => {
     setShowReturnTypeDialog(false);
@@ -234,16 +257,25 @@ const TransactionCorrectionDialog: React.FC<TransactionCorrectionDialogProps> = 
 
   useEffect(() => {
     if (isOpen) {
+      // First disable the hook to prevent multiple API calls
+      setIsHookEnabled(false);
+      
+      // Reset all state when modal opens
       setCurrentPage(1);
       setPageSize(5);
       setSearchInput("");
       setSearchTerm("");
       setSelectedTransaction(null);
       setTransactionDetail(null);
-      // Reset date range to today
       setAppliedDateRange(getTodayDateRange());
       setProductCurrentPage(1);
       setProductPageSize(5);
+      
+      // Re-enable the hook after all state is reset to trigger single API call
+      setTimeout(() => setIsHookEnabled(true), 0);
+    } else {
+      // Disable hook when modal is closed
+      setIsHookEnabled(false);
     }
   }, [isOpen]);
 
@@ -340,13 +372,20 @@ const TransactionCorrectionDialog: React.FC<TransactionCorrectionDialogProps> = 
         return;
       }
 
+      // Handle Ctrl+R for refresh
+      if (e.ctrlKey && e.key === "r") {
+        e.preventDefault();
+        handleManualRefresh();
+        return;
+      }
+
       const currentTransactions = displayTransactions;
       if (currentTransactions.length === 0) return;
 
       switch (e.key) {
         case 'ArrowDown':
           e.preventDefault();
-          setFocusedRowIndex(prev => 
+          setFocusedRowIndex(prev =>
             prev < currentTransactions.length - 1 ? prev + 1 : prev
           );
           break;
@@ -372,7 +411,7 @@ const TransactionCorrectionDialog: React.FC<TransactionCorrectionDialogProps> = 
 
     document.addEventListener('keydown', handleKeyDown);
     return () => document.removeEventListener('keydown', handleKeyDown);
-  }, [isOpen, displayTransactions, focusedRowIndex, handleRowClick, handleTransactionClick]);
+  }, [isOpen, displayTransactions, focusedRowIndex, handleRowClick, handleTransactionClick, handleManualRefresh]);
 
   // Reset focused row when transactions change
   useEffect(() => {
@@ -410,12 +449,24 @@ const TransactionCorrectionDialog: React.FC<TransactionCorrectionDialogProps> = 
           <h2 className="text-2xl font-bold text-gray-900">
             Transaction Correction / Return
           </h2>
-          <button
-            onClick={onClose}
-            className="w-8 h-8 flex items-center justify-center rounded-full hover:bg-gray-100 transition-colors"
-          >
-            <X className="w-5 h-5 text-gray-600" />
-          </button>
+          <div className="flex items-center gap-2">
+            <button
+              onClick={handleManualRefresh}
+              disabled={isRefreshLoading}
+              className="w-8 h-8 flex items-center justify-center rounded-full hover:bg-gray-100 transition-colors disabled:opacity-50"
+              title="Refresh transaction list"
+            >
+              <RefreshCw 
+                className={`w-4 h-4 text-gray-600 ${isRefreshLoading ? 'animate-spin' : ''}`} 
+              />
+            </button>
+            <button
+              onClick={handleClose}
+              className="w-8 h-8 flex items-center justify-center rounded-full hover:bg-gray-100 transition-colors"
+            >
+              <X className="w-5 h-5 text-gray-600" />
+            </button>
+          </div>
         </div>
 
         <div className="p-6 border-b border-gray-200">
@@ -494,14 +545,13 @@ const TransactionCorrectionDialog: React.FC<TransactionCorrectionDialogProps> = 
                   displayTransactions.map((transaction, index) => (
                     <tr
                       key={transaction.invoice_number}
-                      className={`border-b border-gray-100 hover:bg-blue-50 cursor-pointer transition-colors ${
-                        selectedTransaction?.invoice_number ===
-                        transaction.invoice_number
+                      className={`border-b border-gray-100 hover:bg-blue-50 cursor-pointer transition-colors ${selectedTransaction?.invoice_number ===
+                          transaction.invoice_number
                           ? "bg-blue-50 border-2 border-blue-400"
                           : focusedRowIndex === index
-                          ? "bg-gray-100 border-2 border-gray-300"
-                          : "border-2 border-transparent"
-                      }`}
+                            ? "bg-gray-100 border-2 border-gray-300"
+                            : "border-2 border-transparent"
+                        }`}
                       onClick={() => handleRowClick(transaction)}
                       role="row"
                       tabIndex={focusedRowIndex === index ? 0 : -1}
@@ -539,8 +589,8 @@ const TransactionCorrectionDialog: React.FC<TransactionCorrectionDialogProps> = 
                         : searchTerm &&
                           searchInput.trim().length > 0 &&
                           searchInput.trim().length < 3
-                        ? "Please enter at least 3 characters to search."
-                        : "No transactions found for correction."}
+                          ? "Please enter at least 3 characters to search."
+                          : "No transactions found for correction."}
                     </td>
                   </tr>
                 )}
@@ -550,7 +600,7 @@ const TransactionCorrectionDialog: React.FC<TransactionCorrectionDialogProps> = 
 
           {/* Keyboard instructions for accessibility */}
           <div id="keyboard-instructions" className="sr-only">
-            Use arrow keys to navigate table rows, Enter to select/deselect, and Shift+Enter to process return for selected transaction.
+            Use arrow keys to navigate table rows, Enter to select/deselect, Shift+Enter to process return for selected transaction, and Ctrl+R to refresh.
           </div>
 
           {displayTransactions.length > 0 && (
@@ -572,11 +622,10 @@ const TransactionCorrectionDialog: React.FC<TransactionCorrectionDialogProps> = 
                           <button
                             key={option}
                             onClick={() => handlePageSizeChange(option)}
-                            className={`block w-full px-4 py-2 text-left text-sm hover:bg-gray-50 ${
-                              option === pageSize
+                            className={`block w-full px-4 py-2 text-left text-sm hover:bg-gray-50 ${option === pageSize
                                 ? "bg-blue-50 text-blue-600"
                                 : ""
-                            }`}
+                              }`}
                           >
                             {option}
                           </button>
@@ -615,11 +664,14 @@ const TransactionCorrectionDialog: React.FC<TransactionCorrectionDialogProps> = 
                   >
                     Return
                   </button>
-                  <div className="text-xs text-gray-500">
-                    or press{" "}
-                    <kbd className="px-2 py-1 bg-gray-200 rounded">Shift</kbd> +{" "}
-                    <kbd className="px-2 py-1 bg-gray-200 rounded">Enter</kbd>
-                  </div>
+                   <div className="text-xs text-gray-500">
+                     or press{" "}
+                     <kbd className="px-2 py-1 bg-gray-200 rounded">Shift</kbd> +{" "}
+                     <kbd className="px-2 py-1 bg-gray-200 rounded">Enter</kbd>{" "}
+                     or{" "}
+                     <kbd className="px-2 py-1 bg-gray-200 rounded">Ctrl</kbd> +{" "}
+                     <kbd className="px-2 py-1 bg-gray-200 rounded">R</kbd> to refresh
+                   </div>
                 </div>
               </div>
 
@@ -646,12 +698,12 @@ const TransactionCorrectionDialog: React.FC<TransactionCorrectionDialogProps> = 
                 transactionDetail.items &&
                 transactionDetail.items.length > 0 && (
                   <>
-            <table 
-              className="w-full" 
-              role="table" 
-              aria-label="Transaction correction data"
-              aria-describedby={focusedRowIndex >= 0 ? "keyboard-instructions" : undefined}
-            >
+                    <table
+                      className="w-full"
+                      role="table"
+                      aria-label="Transaction correction data"
+                      aria-describedby={focusedRowIndex >= 0 ? "keyboard-instructions" : undefined}
+                    >
                       <thead className="sticky top-0 bg-[#F5F5F5]">
                         <tr className="border-b border-gray-200">
                           <th className="text-left h-[40px] px-4 text-sm font-medium text-gray-600 w-[60px]">
@@ -754,11 +806,10 @@ const TransactionCorrectionDialog: React.FC<TransactionCorrectionDialogProps> = 
                                       onClick={() =>
                                         handleProductPageSizeChange(option)
                                       }
-                                      className={`block w-full px-4 py-2 text-left text-sm hover:bg-gray-50 ${
-                                        option === productPageSize
+                                      className={`block w-full px-4 py-2 text-left text-sm hover:bg-gray-50 ${option === productPageSize
                                           ? "bg-blue-50 text-blue-600"
                                           : ""
-                                      }`}
+                                        }`}
                                     >
                                       {option}
                                     </button>

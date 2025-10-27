@@ -232,7 +232,7 @@ export const processTransaction = async (
         returnInfo: {
           isReturnTransaction: true,
           returnReason: options.returnReason || "Customer request",
-          confirmationBy: "cashier",
+          confirmationBy: "2",
         },
         notes: originalData.notes,
         needPrintInvoice: false,
@@ -242,7 +242,7 @@ export const processTransaction = async (
       payload.items = originalData.items.map((item: TransactionItem) => ({
         transaction_action: "0",
         product_code: item.product_code,
-        quantity: 0, // Zero quantity for full return
+        quantity: -item.quantity, // Zero quantity for full return
         sub_total: 0,
         nominal_discount: 0,
         discount: 0,
@@ -251,8 +251,8 @@ export const processTransaction = async (
         disc_promo: 0,
         value_promo: 0,
         no_promo: "",
-        promo_type: "1",
-        up_selling: "N",
+        promo_type: item.promo_type || "",
+        up_selling: item.up_selling,
         total: 0,
         round_up: 0,
         prescription_code: item.prescription_code || "",

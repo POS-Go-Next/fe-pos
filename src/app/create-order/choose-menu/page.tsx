@@ -576,18 +576,12 @@ export default function ChooseMenuPage() {
         }
 
         if (data.data && data.data.items) {
-          // Convert transaction items to products for the processor
-          const originalProducts: ProductTableItem[] = data.data.items.map((item: TransactionItem, index: number) => 
-            convertTransactionItemToProduct(item, index + 1)
-          );
-          
-          // Update loading message
           showLoadingAlert("Processing return...", "Please wait while we process the full transaction return.");
           
           const result = await processTransaction({
             type: "full-return",
-            originalTransactionData: transactionData,
-            originalProducts: originalProducts,
+            originalTransactionData: data.data,
+            originalProducts: [],
             returnReason: transactionData.returnReason || "Customer request",
           });
 

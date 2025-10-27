@@ -5,6 +5,8 @@ export interface TransactionApiParams {
   date_lte?: string;
   bought_product_code?: string;
   search?: string;
+  sort_by?: string;
+  sort_order?: "asc" | "desc";
 }
 
 export interface TransactionData {
