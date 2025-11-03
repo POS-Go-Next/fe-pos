@@ -6,6 +6,12 @@ import { useDoctor } from "@/hooks/useDoctor";
 import { showErrorAlert } from "@/lib/swal";
 import type { CustomerData as CustomerApiData } from "@/types/customer";
 import type { DoctorData } from "@/types/doctor";
+import {
+  saveCustomerToStorage,
+  getCustomerFromStorage,
+  saveDoctorToStorage,
+  getDoctorFromStorage,
+} from "@/lib/customer-doctor-storage";
 import { X } from "lucide-react";
 import React, { useEffect, useState, useCallback } from "react";
 import { CustomerSection } from "./customer-section";
@@ -148,10 +154,50 @@ export default function CustomerDoctorDialog({
         setIsCreatingDoctor(false);
     }, [initialFocus]);
 
-    useEffect(() => {
-        if (isOpen) {resetAllFormData();
-        }
-    }, [isOpen, initialFocus, resetAllFormData]);
+     useEffect(() => {
+          if (isOpen) {
+              resetAllFormData();
+              
+              // Try to load customer data from localStorage first
+              const storedCustomer = getCustomerFromStorage();
+              if (storedCustomer) {
+                  setCustomerForm({
+                      id: storedCustomer.id,
+                      name: storedCustomer.name,
+                      gender: storedCustomer.gender,
+                      age: storedCustomer.age,
+                      phone: storedCustomer.phone,
+                      address: storedCustomer.address,
+                      status: storedCustomer.status,
+                  });
+                  setSelectedCustomerId(storedCustomer.id);
+              }
+              
+              // Try to load doctor data from localStorage first
+              const storedDoctor = getDoctorFromStorage();
+              if (storedDoctor) {
+                  setDoctorForm({
+                      id: storedDoctor.id,
+                      fullname: storedDoctor.fullname,
+                      phone: storedDoctor.phone,
+                      address: storedDoctor.address,
+                      fee_consultation: storedDoctor.fee_consultation,
+                      sip: storedDoctor.sip,
+                  });
+                  setSelectedDoctorId(storedDoctor.id);
+              }
+              
+              // Apply initial data if provided (override localStorage)
+              if (_initialCustomer) {
+                  setCustomerForm(_initialCustomer);
+                  setSelectedCustomerId(_initialCustomer.id);
+              }
+              if (_initialDoctor) {
+                  setDoctorForm(_initialDoctor);
+                  setSelectedDoctorId(_initialDoctor.id);
+              }
+          }
+      }, [isOpen, initialFocus, resetAllFormData, _initialCustomer, _initialDoctor]);
 
     const validateCustomerForm = (): boolean => {
         const errors: Record<string, string> = {};
@@ -242,37 +288,64 @@ export default function CustomerDoctorDialog({
         }
     };
 
-    const handleCustomerSelect = (customer: CustomerApiData) => {
-        setSelectedCustomerId(customer.kd_cust);
+     const handleCustomerSelect = (customer: CustomerApiData) => {
+         setSelectedCustomerId(customer.kd_cust);
 
-        setCustomerForm({
-            id: customer.kd_cust,
-            name: customer.nm_cust,
-            gender: customer.gender,
-            age: customer.usia_cust?.toString(),
-            phone: customer.telp_cust,
-            address: customer.al_cust,
-            status: customer.status ? "true" : "false",
-        });
+         const customerData: CustomerData = {
+             id: customer.kd_cust,
+             name: customer.nm_cust,
+             gender: customer.gender,
+             age: customer.usia_cust?.toString(),
+             phone: customer.telp_cust,
+             address: customer.al_cust,
+             status: customer.status ? "true" : "false",
+         };
 
-        setIsCustomerDropdownOpen(false);
-        setCustomerSearch("");
-        setValidationErrors({});
-    };
+         setCustomerForm(customerData);
+         
+         // Save to localStorage
+         saveCustomerToStorage({
+             id: customerData.id,
+             name: customerData.name,
+             gender: customerData.gender,
+             age: customerData.age || "",
+             phone: customerData.phone,
+             address: customerData.address,
+             status: customerData.status,
+         });
 
-    const handleDoctorSelect = (doctor: DoctorData) => {
-        setSelectedDoctorId(doctor.id);
-        setDoctorForm({
-            id: doctor.id,
-            fullname: doctor.fullname,
-            phone: doctor.phone.toString(),
-            address: doctor.address,
-            fee_consultation: doctor.fee_consultation,
-            sip: doctor.sip,
-        });
-        setIsDoctorDropdownOpen(false);
-        setDoctorSearch("");
-    };
+         setIsCustomerDropdownOpen(false);
+         setCustomerSearch("");
+         setValidationErrors({});
+     };
+
+     const handleDoctorSelect = (doctor: DoctorData) => {
+         setSelectedDoctorId(doctor.id);
+         
+         const doctorData: DoctorFormData = {
+             id: doctor.id,
+             fullname: doctor.fullname,
+             phone: doctor.phone.toString(),
+             address: doctor.address,
+             fee_consultation: doctor.fee_consultation,
+             sip: doctor.sip,
+         };
+         
+         setDoctorForm(doctorData);
+         
+         // Save to localStorage
+         saveDoctorToStorage({
+             id: doctorData.id,
+             fullname: doctorData.fullname,
+             phone: doctorData.phone,
+             address: doctorData.address,
+             fee_consultation: doctorData.fee_consultation,
+             sip: doctorData.sip,
+         });
+         
+         setIsDoctorDropdownOpen(false);
+         setDoctorSearch("");
+     };
 
     const handleDoctorInputChange = (
         e: React.ChangeEvent<HTMLInputElement>
@@ -435,74 +508,118 @@ export default function CustomerDoctorDialog({
         }
     };
 
-    const handleSubmit = async () => {
-        if (viewMode === "customer-only" && customerForm.name) {
-            if (!validateCustomerForm()) {
-                return;
-            }
+     const handleSubmit = async () => {
+         if (viewMode === "customer-only" && customerForm.name) {
+             if (!validateCustomerForm()) {
+                 return;
+             }
 
-            const createdCustomer = await createCustomerViaAPI();
-            if (createdCustomer) {
-                setCustomerForm(createdCustomer);
-                setSelectedCustomerId(createdCustomer.id);
-                setCustomerSearch("");
-                setViewMode("both");
-                onSelectCustomer(createdCustomer);
-            }
-        } else if (viewMode === "doctor-only" && doctorForm.fullname) {
-            if (!validateDoctorForm()) {
-                return;
-            }
+             const createdCustomer = await createCustomerViaAPI();
+             if (createdCustomer) {
+                 setCustomerForm(createdCustomer);
+                 setSelectedCustomerId(createdCustomer.id);
+                 
+                 // Save to localStorage
+                 saveCustomerToStorage({
+                     id: createdCustomer.id,
+                     name: createdCustomer.name,
+                     gender: createdCustomer.gender,
+                     age: createdCustomer.age || "",
+                     phone: createdCustomer.phone,
+                     address: createdCustomer.address,
+                     status: createdCustomer.status,
+                 });
+                 
+                 setCustomerSearch("");
+                 setViewMode("both");
+                 onSelectCustomer(createdCustomer);
+             }
+         } else if (viewMode === "doctor-only" && doctorForm.fullname) {
+             if (!validateDoctorForm()) {
+                 return;
+             }
 
-            const createdDoctor = await createDoctorViaAPI();
-            if (createdDoctor) {
-                setDoctorForm(createdDoctor);
-                setSelectedDoctorId(createdDoctor.id);
-                setDoctorSearch("");
-                setViewMode("both");
-                onSelectDoctor(createdDoctor);
-            }
+             const createdDoctor = await createDoctorViaAPI();
+             if (createdDoctor) {
+                 setDoctorForm(createdDoctor);
+                 setSelectedDoctorId(createdDoctor.id);
+                 
+                 // Save to localStorage
+                 saveDoctorToStorage({
+                     id: createdDoctor.id,
+                     fullname: createdDoctor.fullname,
+                     phone: createdDoctor.phone,
+                     address: createdDoctor.address,
+                     fee_consultation: createdDoctor.fee_consultation,
+                     sip: createdDoctor.sip,
+                 });
+                 
+                 setDoctorSearch("");
+                 setViewMode("both");
+                 onSelectDoctor(createdDoctor);
+             }
 
-            if (!triggerPaymentFlow) {
-                onClose();
-            }
-        } else if (viewMode === "both" && customerForm.name) {
-            if (!validateCustomerForm()) {
-                return;
-            }
+             if (!triggerPaymentFlow) {
+                 onClose();
+             }
+         } else if (viewMode === "both" && customerForm.name) {
+             if (!validateCustomerForm()) {
+                 return;
+             }
 
-            let finalCustomerData = customerForm;
+             let finalCustomerData = customerForm;
 
-            if (!selectedCustomerId) {
-                const createdCustomer = await createCustomerViaAPI();
-                if (!createdCustomer) {
-                    return;
-                }
-                finalCustomerData = createdCustomer;
-            }
+             if (!selectedCustomerId) {
+                 const createdCustomer = await createCustomerViaAPI();
+                 if (!createdCustomer) {
+                     return;
+                 }
+                 finalCustomerData = createdCustomer;
+                 
+                 // Save to localStorage
+                 saveCustomerToStorage({
+                     id: createdCustomer.id,
+                     name: createdCustomer.name,
+                     gender: createdCustomer.gender,
+                     age: createdCustomer.age || "",
+                     phone: createdCustomer.phone,
+                     address: createdCustomer.address,
+                     status: createdCustomer.status,
+                 });
+             }
 
-            let finalDoctorData = doctorForm.fullname ? doctorForm : undefined;
+             let finalDoctorData = doctorForm.fullname ? doctorForm : undefined;
 
-            if (doctorForm.fullname && !selectedDoctorId) {
-                if (validateDoctorForm()) {
-                    const createdDoctor = await createDoctorViaAPI();
-                    if (createdDoctor) {
-                        finalDoctorData = createdDoctor;
-                    } else {
-                        finalDoctorData = undefined;
-                    }
-                } else {
-                    finalDoctorData = undefined;
-                }
-            }
+             if (doctorForm.fullname && !selectedDoctorId) {
+                 if (validateDoctorForm()) {
+                     const createdDoctor = await createDoctorViaAPI();
+                     if (createdDoctor) {
+                         finalDoctorData = createdDoctor;
+                         
+                         // Save to localStorage
+                         saveDoctorToStorage({
+                             id: createdDoctor.id,
+                             fullname: createdDoctor.fullname,
+                             phone: createdDoctor.phone,
+                             address: createdDoctor.address,
+                             fee_consultation: createdDoctor.fee_consultation,
+                             sip: createdDoctor.sip,
+                         });
+                     } else {
+                         finalDoctorData = undefined;
+                     }
+                 } else {
+                     finalDoctorData = undefined;
+                 }
+             }
 
-            onSubmit(finalCustomerData, finalDoctorData);
+             onSubmit(finalCustomerData, finalDoctorData);
 
-            if (!triggerPaymentFlow) {
-                onClose();
-            }
-        }
-    };
+             if (!triggerPaymentFlow) {
+                 onClose();
+             }
+         }
+     };
 
     const handleClose = () => {resetAllFormData();
         onClose();
@@ -518,6 +635,18 @@ export default function CustomerDoctorDialog({
                 return "Enter Customer and Doctor Data";
         }
     };
+
+    const getSubmitButtonLabel = () => {
+        switch (viewMode) {
+            case "customer-only":
+                return isCreatingCustomer ? "Creating Customer..." : "Add Customer";
+            case "doctor-only":
+                return isCreatingDoctor ? "Creating Doctor..." : "Add Doctor";
+            default:
+                return "Continue";
+        }
+    }
+    
 
     const isFormValid = () => {
         if (viewMode === "customer-only") {
@@ -607,7 +736,7 @@ export default function CustomerDoctorDialog({
                         className="px-6 bg-blue-600 hover:bg-blue-700 text-white transform hover:scale-105 transition-all duration-200"
                         disabled={!isFormValid() || isSubmitLoading}
                     >
-                        {isSubmitLoading ? "Creating..." : "Submit"}
+                        {getSubmitButtonLabel()}
                     </Button>
                 </div>
             </div>

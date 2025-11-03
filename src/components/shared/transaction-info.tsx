@@ -5,6 +5,7 @@ import { Button } from "@/components/ui/button";
 import Calculator from "./calculator";
 import { useRealTimeClock } from "@/lib/useRealTimeClock";
 import { useTransactionInfo } from "@/hooks/useTransactionInfo";
+import NotesModal from "./notes-modal";
 
 interface UserData {
     id: number;
@@ -25,15 +26,20 @@ interface TransactionInfoProps {
         invoiceNumber?: string;
         isReturnTransaction: boolean;
     };
+    onNotesChange?: (notes: string) => void;
+    currentNotes?: string;
 }
 
 export default function TransactionInfo({
     className = "",
     useRealTimeData = true,
     returnTransactionInfo,
+    onNotesChange,
+    currentNotes = "",
 }: TransactionInfoProps) {
     const [userData, setUserData] = useState<UserData | null>(null);
     const [isClient, setIsClient] = useState(false);
+    const [isNotesModalOpen, setIsNotesModalOpen] = useState(false);
     const { time: currentTime, date: currentDate } = useRealTimeClock();
 
     const {
@@ -72,14 +78,12 @@ export default function TransactionInfo({
     const displayBadge =
         queueNumber || (isClient && userData?.id ? userData.id : "??");
 
-    const _getUserInitials = () => {
-        if (!userData?.fullname) return "??";
-        return userData.fullname
-            .split(" ")
-            .map((name) => name.charAt(0))
-            .join("")
-            .toUpperCase()
-            .slice(0, 2);
+    const handleNotesClose = () => {
+        setIsNotesModalOpen(false);
+    };
+
+    const handleNotesSave = (notes: string) => {
+        onNotesChange?.(notes);
     };
 
     return (
@@ -121,6 +125,7 @@ export default function TransactionInfo({
             </div>
 
             <Button
+                onClick={() => setIsNotesModalOpen(true)}
                 variant="outline"
                 className="w-full mb-6 text-left justify-start border-blue-200 text-blue-500"
             >
@@ -137,7 +142,7 @@ export default function TransactionInfo({
                         d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z"
                     />
                 </svg>
-                Add Notes
+                Add Notes {currentNotes && `(${currentNotes.length})`}
             </Button>
 
             <div>
@@ -146,6 +151,13 @@ export default function TransactionInfo({
                 </h3>
                 <Calculator />
             </div>
+
+            <NotesModal
+                isOpen={isNotesModalOpen}
+                onClose={handleNotesClose}
+                onSave={handleNotesSave}
+                initialNotes={currentNotes}
+            />
         </div>
     );
 }

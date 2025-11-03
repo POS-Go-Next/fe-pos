@@ -62,15 +62,38 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    if (!body.items || !Array.isArray(body.items) || body.items.length === 0) {
-      return NextResponse.json(
-        {
-          success: false,
-          message: "Transaction items are required",
-        },
-        { status: 400 }
-      );
-    }
+     if (!body.items || !Array.isArray(body.items) || body.items.length === 0) {
+       return NextResponse.json(
+         {
+           success: false,
+           message: "Transaction items are required",
+         },
+         { status: 400 }
+       );
+     }
+
+     // Validate return transaction fields if applicable
+     if (body.transaction_action === "0" || body.transaction_action === "2") {
+       // transaction_action "0" = full return, "2" = item-based return
+       if (!body.retur_reason || !body.retur_reason.trim()) {
+         return NextResponse.json(
+           {
+             success: false,
+             message: "Return reason is required for return transactions",
+           },
+           { status: 400 }
+         );
+       }
+       if (!body.confirmation_retur_by || !body.confirmation_retur_by.trim()) {
+         return NextResponse.json(
+           {
+             success: false,
+             message: "Confirmation person is required for return transactions",
+           },
+           { status: 400 }
+         );
+       }
+     }
 
     // Call external API
     const response = await fetch(`${API_BASE_URL}/transaction`, {

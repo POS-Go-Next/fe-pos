@@ -9,6 +9,7 @@ import { Input } from "@/components/ui/input";
 import { usePOSKeyboardShortcuts } from "@/hooks/useKeyboardShortcuts";
 import { useParameter } from "@/hooks/useParameter";
 import type { ProductTableItem, StockData } from "@/types/stock";
+import type { PromoData } from "@/types/promo";
 import type { TransactionCorrectionWithReturnType } from "./TransactionCorrectionDialog";
 import { Plus, Trash, Undo } from "lucide-react";
 import { useEffect, useMemo, useRef, useState } from "react";
@@ -24,6 +25,7 @@ import MonthlyPromoDialog from "./MonthlyPromoDialog";
 import TransactionCorrectionDialog from "./TransactionCorrectionDialog";
 import AddPendingBillDialog from "./AddPendingBillDialog";
 import ViewPendingBillDialog from "./ViewPendingBillDialog";
+import ItemPromoDialog from "./ItemPromoDialog";
 
 const SEARCH_ROW_ID = 999;
 
@@ -40,6 +42,7 @@ const dialogStateTemplate = {
   globalDiscount: false,
   productHistory: false,
   monthlyPromo: false,
+  itemPromo: false,
   transactionCorrection: false,
   addPendingBill: false,
   viewPendingBill: false,
@@ -139,10 +142,10 @@ const ProductActionIcons = ({
             strokeWidth={2}
             d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"
           />
-        </svg>
-      </button>
-    </div>
-  );
+       </svg>
+       </button>
+     </div>
+   );
 };
 
 interface ChooseMenuProductTableProps {
@@ -159,6 +162,12 @@ interface ChooseMenuProductTableProps {
   onMiscChange?: (id: number, miscAmount: number) => void;
   onUpsellingChange?: (id: number) => void;
   onTransactionReturn?: (transactionData: TransactionCorrectionWithReturnType, returnType: "item-based" | "full-return") => void;
+  onPromoApply?: (id: number, promoData: {
+    noPromo: string;
+    discPromo: number;
+    valuePromo: number;
+    promoType: string;
+  }) => void;
   className?: string;
 }
 
@@ -176,6 +185,7 @@ export default function ChooseMenuProductTable({
   onMiscChange,
   onUpsellingChange,
   onTransactionReturn,
+  onPromoApply,
   className = "",
 }: ChooseMenuProductTableProps) {
   const [hasMounted, setHasMounted] = useState(false);
@@ -277,6 +287,8 @@ export default function ChooseMenuProductTable({
         return parameterData.service || 0;
       case "RC":
         return parameterData.service_dokter || 0;
+      case "R-Commitment":
+        return parameterData.service_dokter || 0;
       default:
         return 0;
     }
@@ -360,14 +372,28 @@ export default function ChooseMenuProductTable({
     openDialog("branchStock");
   };
 
-  const handleMedicationDetailsClick = (product: ProductTableItem) => {
-    console.log('🔍 handleMedicationDetailsClick - product:', product);
-    console.log('🔍 handleMedicationDetailsClick - stockData:', product.stockData);
-    console.log('🔍 handleMedicationDetailsClick - kode_brg:', product.stockData?.kode_brg);
-    setSelectedRowId(product.id);
-    setSelectedProduct(product);
-    openDialog("medicationDetails");
-  };
+   const handleMedicationDetailsClick = (product: ProductTableItem) => {
+     console.log('🔍 handleMedicationDetailsClick - product:', product);
+     console.log('🔍 handleMedicationDetailsClick - stockData:', product.stockData);
+     console.log('🔍 handleMedicationDetailsClick - kode_brg:', product.stockData?.kode_brg);
+     setSelectedRowId(product.id);
+     setSelectedProduct(product);
+     openDialog("medicationDetails");
+    };
+
+    const handlePromoSelected = (promo: PromoData, discount: number, value: number) => {
+     if (!selectedProduct) return;
+     
+     const promoData = {
+       noPromo: promo.no_promo,
+       discPromo: discount,
+       valuePromo: value,
+       promoType: promo.jenis_promo?.nm_promo || "Standard Promo",
+     };
+     
+     onPromoApply?.(selectedProduct.id, promoData);
+     closeDialog("itemPromo");
+   };
 
   const handleTypeChange = (productId: number, newType: string) => {
     if (productId === SEARCH_ROW_ID) return;
@@ -531,26 +557,33 @@ export default function ChooseMenuProductTable({
                     : 0;
 
                   const isDeletedOriginalItem = product.isOriginalReturnItem && product.isDeleted;
+                  const isOriginalReturnItem = product.isOriginalReturnItem && !product.isDeleted;
+                  
+                  const isNegativeQuantity = hasProductData && product.quantity < 0;
                   
                   const rowBackground =
                     isDeletedOriginalItem
                       ? "bg-red-100/60"
+                      : isNegativeQuantity
+                      ? "bg-orange-50/60"
                       : isSearchRow && index === 0
                       ? "bg-blue-50 sticky top-14 z-5"
                       : index % 2 === 0
                       ? "bg-gray-50/30"
                       : "";
 
-                  const rowHoverClass = isDeletedOriginalItem
-                    ? "hover:bg-red-100"
-                    : "hover:bg-blue-50";
+                   const rowHoverClass = isDeletedOriginalItem
+                     ? "hover:bg-red-100"
+                     : isNegativeQuantity
+                     ? "hover:bg-orange-50"
+                     : "hover:bg-blue-50";
 
                   return (
                     <tr
                       key={product.id}
                       className={`cursor-pointer border-b border-gray-100 ${rowHoverClass} ${rowBackground} ${
                         selectedRowId === product.id ? "bg-blue-50" : ""
-                      } ${isDeletedOriginalItem ? "line-through text-red-600/70" : ""}`}
+                      } ${isDeletedOriginalItem ? "line-through text-red-600/70" : ""} ${isNegativeQuantity ? "text-orange-700" : ""}`}
                       onClick={() => handleRowClick(product)}
                     >
                       <td className="p-3">
@@ -565,58 +598,76 @@ export default function ChooseMenuProductTable({
                           <div className="h-4 w-4" />
                         )}
                       </td>
-                      <td className="p-3">
-                        <div className="flex items-center gap-3">
-                          {hasProductData ? (
-                            <>
-                              <ProductActionIcons
-                                onBranchStockClick={() =>
-                                  handleBranchStockClick(product)
-                                }
-                                onMedicationDetailsClick={() =>
-                                  handleMedicationDetailsClick(product)
-                                }
-                                onDeleteClick={() =>
-                                  onRemoveProduct(product.id)
-                                }
-                                onUndeleteClick={() =>
-                                  onUndeleteProduct?.(product.id)
-                                }
-                                product={product}
-                              />
-                              <span
-                                className="max-w-[180px] truncate text-sm font-medium hover:text-blue-600"
-                                onClick={() => onProductNameClick?.(product.id)}
-                                title={product.name}
-                              >
-                                {product.name}
-                              </span>
-                            </>
-                          ) : (
-                            <div className="flex w-full items-center gap-3">
-                              <button
-                                className="flex h-8 w-8 items-center justify-center rounded bg-blue-100 transition-colors hover:bg-blue-200"
-                                onClick={(event) => {
-                                  event.stopPropagation();
-                                  handleOpenSelectProductDialog();
-                                }}
-                                title="Add Product"
-                                type="button"
-                              >
-                                <Plus className="h-5 w-5 text-blue-600" />
-                              </button>
-                              <Input
-                                ref={searchInputRef}
-                                placeholder="Cari nama produk disini"
-                                className="h-11 flex-1 border-[#F0F0F0] bg-white text-sm shadow-none"
-                                value={searchValue}
-                                onChange={handleSearchInputChange}
-                                onKeyDown={handleSearchKeyDown}
-                              />
-                            </div>
-                          )}
-                        </div>
-                      </td>
+                       <td className="p-3">
+                         <div className="flex items-center gap-3">
+                           {hasProductData ? (
+                             <>
+                                <ProductActionIcons
+                                  onBranchStockClick={() =>
+                                    handleBranchStockClick(product)
+                                  }
+                                  onMedicationDetailsClick={() =>
+                                    handleMedicationDetailsClick(product)
+                                  }
+                                  onDeleteClick={() =>
+                                    onRemoveProduct(product.id)
+                                  }
+                                  onUndeleteClick={() =>
+                                    onUndeleteProduct?.(product.id)
+                                  }
+                                  product={product}
+                                />
+                               <div className="flex items-center gap-2">
+                                  <span
+                                    className="max-w-[180px] truncate text-sm font-medium hover:text-blue-600"
+                                    onClick={() => onProductNameClick?.(product.id)}
+                                    title={product.name}
+                                  >
+                                    {product.name}
+                                  </span>
+                                  {product.noPromo && (product.valuePromo ?? 0) > 0 && (
+                                    <span className="inline-flex items-center gap-1 px-2 py-1 text-xs font-semibold text-purple-700 bg-purple-100 rounded-full whitespace-nowrap">
+                                      <svg className="w-3 h-3" fill="currentColor" viewBox="0 0 20 20">
+                                        <path d="M7 3a1 1 0 000 2h6a1 1 0 100-2H7zM4 7a2 2 0 012-2h8a2 2 0 012 2v10a2 2 0 01-2 2H6a2 2 0 01-2-2V7zm2 0v10h8V7H6z" />
+                                      </svg>
+                                      Promo
+                                    </span>
+                                  )}
+                                  {isNegativeQuantity && (
+                                    <span className="inline-flex items-center gap-1 px-2 py-1 text-xs font-semibold text-orange-700 bg-orange-100 rounded-full whitespace-nowrap">
+                                      <svg className="w-3 h-3" fill="currentColor" viewBox="0 0 20 20">
+                                        <path fillRule="evenodd" d="M12.316 3.051a1 1 0 01.633 1.265l-4 12a1 1 0 11-1.898-.632l4-12a1 1 0 011.265-.633zM5.707 6.293a1 1 0 010 1.414L3.414 10l2.293 2.293a1 1 0 11-1.414 1.414l-3-3a1 1 0 010-1.414l3-3a1 1 0 011.414 0zm8.586 0a1 1 0 011.414 0l3 3a1 1 0 010 1.414l-3 3a1 1 0 11-1.414-1.414L16.586 10l-2.293-2.293a1 1 0 010-1.414z" clipRule="evenodd" />
+                                      </svg>
+                                      Return
+                                    </span>
+                                  )}
+                                </div>
+                             </>
+                           ) : (
+                             <div className="flex w-full items-center gap-3">
+                               <button
+                                 className="flex h-8 w-8 items-center justify-center rounded bg-blue-100 transition-colors hover:bg-blue-200"
+                                 onClick={(event) => {
+                                   event.stopPropagation();
+                                   handleOpenSelectProductDialog();
+                                 }}
+                                 title="Add Product"
+                                 type="button"
+                               >
+                                 <Plus className="h-5 w-5 text-blue-600" />
+                               </button>
+                               <Input
+                                 ref={searchInputRef}
+                                 placeholder="Cari nama produk disini"
+                                 className="h-11 flex-1 border-[#F0F0F0] bg-white text-sm shadow-none"
+                                 value={searchValue}
+                                 onChange={handleSearchInputChange}
+                                 onKeyDown={handleSearchKeyDown}
+                               />
+                             </div>
+                           )}
+                         </div>
+                       </td>
                       <td className="p-3">
                         <ProductTypeSelector
                           type={product.type || ""}
@@ -631,28 +682,35 @@ export default function ChooseMenuProductTable({
                           {formatCurrency(product.price)}
                         </div>
                       </td>
-                      <td className="p-3">
-                        <div className="flex justify-center">
-                          <Input
-                            type="number"
-                            value={hasProductData ? product.quantity : ""}
-                            onChange={(event) =>
-                              handleQuantityChange(
-                                product.id,
-                                parseInt(event.target.value, 10) || 0
-                              )
-                            }
-                            onBlur={() => onQuantityBlur?.()}
-                            onKeyDown={(event) =>
-                              onQuantityKeyPress?.(event)
-                            }
-                            className="h-11 w-[76px] border-[#F0F0F0] text-center text-sm"
-                            min="0"
-                            data-product-id={product.id}
-                            disabled={!hasProductData}
-                          />
-                        </div>
-                      </td>
+                       <td className="p-3">
+                         <div className="flex justify-center">
+                           <div className={`flex items-center gap-1 px-2 py-1 rounded ${isNegativeQuantity ? "bg-orange-100 border border-orange-300" : ""}`}>
+                             <Input
+                               type="number"
+                               value={hasProductData ? product.quantity : ""}
+                               onChange={(event) =>
+                                 handleQuantityChange(
+                                   product.id,
+                                   parseInt(event.target.value, 10) || 0
+                                 )
+                               }
+                               onBlur={() => onQuantityBlur?.()}
+                               onKeyDown={(event) =>
+                                 onQuantityKeyPress?.(event)
+                               }
+                               className={`h-11 w-[76px] border-[#F0F0F0] text-center text-sm ${isNegativeQuantity ? "font-bold text-orange-700" : ""}`}
+                                min="0"
+                                data-product-id={product.id}
+                                disabled={!hasProductData || isOriginalReturnItem}
+                              />
+                             {isNegativeQuantity && (
+                               <span className="text-xs font-semibold text-orange-700 whitespace-nowrap">
+                                 (Return)
+                               </span>
+                             )}
+                           </div>
+                         </div>
+                       </td>
                       <td className="p-3 text-sm font-semibold">
                         <div className="whitespace-nowrap">
                           {formatCurrency(product.subtotal)}
@@ -830,12 +888,19 @@ export default function ChooseMenuProductTable({
         }}
       />
 
-      <MonthlyPromoDialog
-        isOpen={dialogStates.monthlyPromo}
-        onClose={() => closeDialog("monthlyPromo")}
-      />
+       <MonthlyPromoDialog
+         isOpen={dialogStates.monthlyPromo}
+         onClose={() => closeDialog("monthlyPromo")}
+       />
 
-      <AddPendingBillDialog
+       <ItemPromoDialog
+         isOpen={dialogStates.itemPromo}
+         onClose={() => closeDialog("itemPromo")}
+         productItem={selectedProduct || undefined}
+         onPromoSelected={handlePromoSelected}
+       />
+
+       <AddPendingBillDialog
         isOpen={dialogStates.addPendingBill}
         onClose={() => closeDialog("addPendingBill")}
         onSubmit={handlePendingBillSubmit}

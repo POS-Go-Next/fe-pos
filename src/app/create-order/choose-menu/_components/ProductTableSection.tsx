@@ -19,6 +19,12 @@ interface ProductTableSectionProps {
   onMiscChange?: (id: number, miscAmount: number) => void;
   onUpsellingChange?: (id: number) => void;
   onTransactionReturn?: (transactionData: TransactionCorrectionWithReturnType, returnType: "item-based" | "full-return") => void;
+  onPromoApply?: (id: number, promoData: {
+    noPromo: string;
+    discPromo: number;
+    valuePromo: number;
+    promoType: string;
+  }) => void;
   className?: string;
 }
 
@@ -35,6 +41,7 @@ const ProductTableSection: FC<ProductTableSectionProps> = ({
   onMiscChange,
   onUpsellingChange,
   onTransactionReturn,
+  onPromoApply,
   className = "",
 }) => {
   return (
@@ -52,6 +59,7 @@ const ProductTableSection: FC<ProductTableSectionProps> = ({
         onMiscChange={onMiscChange}
         onUpsellingChange={onUpsellingChange}
         onTransactionReturn={onTransactionReturn}
+        onPromoApply={onPromoApply}
         className="h-full"
       />
     </div>

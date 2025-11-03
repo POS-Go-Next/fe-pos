@@ -7,6 +7,7 @@ import Pagination from "@/components/shared/pagination";
 import { DateRangePicker } from "@/components/ui/date-range-picker";
 import ReturnTypeDialog from "@/components/shared/return-type-dialog";
 import ReturnNoteDialog from "@/components/shared/return-note-dialog";
+import ReturnConfirmationLoginDialog from "@/components/shared/return-confirmation-login-dialog";
 import { useTransaction } from "@/hooks/useTransaction";
 import type { TransactionData } from "@/types/transaction";
 
@@ -27,6 +28,7 @@ interface TransactionDetailItem {
   product_code: string;
   product_name: string;
   price: number;
+  transaction_action: string;
   quantity: number;
   prescription_code?: string;
   sub_total: number;
@@ -47,7 +49,9 @@ interface TransactionDetailData {
   id: string;
   invoice_number: string;
   customer_id: string;
+  customer_name?: string;
   doctor_id: number;
+  doctor_name?: string;
   corporate_code: string;
   transaction_type: string;
   transaction_action: string;
@@ -89,6 +93,7 @@ interface TransactionDetailData {
 export interface TransactionCorrectionWithReturnType extends TransactionData {
   returnType: "item-based" | "full-return";
   returnReason?: string;
+  confirmationReturBy?: string;
 }
 
 interface TransactionCorrectionDialogProps {
@@ -116,11 +121,13 @@ const TransactionCorrectionDialog: React.FC<TransactionCorrectionDialogProps> = 
   const [isDetailLoading, setIsDetailLoading] = useState(false);
   const [detailError, setDetailError] = useState<string | null>(null);
   const [focusedRowIndex, setFocusedRowIndex] = useState<number>(-1);
-  const [showReturnTypeDialog, setShowReturnTypeDialog] = useState(false);
-  const [showReturnNoteDialog, setShowReturnNoteDialog] = useState(false);
-  const [selectedReturnType, setSelectedReturnType] = useState<"item-based" | "full-return">("item-based");
-  const [isRefreshLoading, setIsRefreshLoading] = useState(false);
-  const [isHookEnabled, setIsHookEnabled] = useState(false);
+   const [showReturnTypeDialog, setShowReturnTypeDialog] = useState(false);
+   const [showReturnNoteDialog, setShowReturnNoteDialog] = useState(false);
+   const [showConfirmationLoginDialog, setShowConfirmationLoginDialog] = useState(false);
+   const [selectedReturnType, setSelectedReturnType] = useState<"item-based" | "full-return">("item-based");
+   const [userConfirmationData, setUserConfirmationData] = useState<{ id: string | number; username: string; fullname?: string } | null>(null);
+   const [isRefreshLoading, setIsRefreshLoading] = useState(false);
+   const [isHookEnabled, setIsHookEnabled] = useState(false);
 
   const [appliedDateRange, setAppliedDateRange] = useState<
     DateRange | undefined
@@ -160,20 +167,20 @@ const TransactionCorrectionDialog: React.FC<TransactionCorrectionDialogProps> = 
     sort_order: "desc",
   }, isHookEnabled);
 
-  const fetchTransactionDetail = async (invoiceNumber: string) => {
-    try {
-      setIsDetailLoading(true);
-      setDetailError(null);
+   const fetchTransactionDetail = async (transactionId: string) => {
+     try {
+       setIsDetailLoading(true);
+       setDetailError(null);
 
-      const response = await fetch(
-        `/api/transaction/invoice?invoice_number=${encodeURIComponent(
-          invoiceNumber.trim()
-        )}`,
-        {
-          method: "GET",
-          headers: { "Content-Type": "application/json" },
-        }
-      );
+       const response = await fetch(
+         `/api/transaction/one?id=${encodeURIComponent(
+           transactionId.trim()
+         )}`,
+         {
+           method: "GET",
+           headers: { "Content-Type": "application/json" },
+         }
+       );
 
       const data = await response.json();
 
@@ -196,31 +203,44 @@ const TransactionCorrectionDialog: React.FC<TransactionCorrectionDialogProps> = 
     }
   };
 
-  const handleTransactionClick = useCallback((transaction: TransactionData) => {
-    setSelectedTransaction(transaction);
-    setShowReturnTypeDialog(true);
-  }, []);
+   const handleTransactionClick = useCallback((transaction: TransactionData) => {
+     setSelectedTransaction(transaction);
+     setShowConfirmationLoginDialog(true);
+   }, []);
 
-  const handleReturnTypeConfirm = (returnType: "item-based" | "full-return") => {
-    setSelectedReturnType(returnType);
-    setShowReturnTypeDialog(false);
-    setShowReturnNoteDialog(true);
-  };
+   const handleConfirmationLoginClose = () => {
+     setShowConfirmationLoginDialog(false);
+     setSelectedTransaction(null);
+   };
 
-  const handleReturnNoteConfirm = (returnReason: string) => {
-    if (selectedTransaction && onSelectTransaction) {
-      onSelectTransaction({
-        ...selectedTransaction,
-        returnType: selectedReturnType,
-        returnReason,
-      });
-    }
-    setShowReturnNoteDialog(false);
-    setSelectedTransaction(null);
-    handleClose();
-  };
+   const handleConfirmationLoginConfirm = (userData: { id: string | number; username: string; fullname?: string }) => {
+     setUserConfirmationData(userData);
+     setShowConfirmationLoginDialog(false);
+     setShowReturnTypeDialog(true);
+   };
 
-  const handleManualRefresh = useCallback(async () => {
+   const handleReturnTypeConfirm = (returnType: "item-based" | "full-return") => {
+     setSelectedReturnType(returnType);
+     setShowReturnTypeDialog(false);
+     setShowReturnNoteDialog(true);
+   };
+
+   const handleReturnNoteConfirm = (returnReason: string) => {
+     if (selectedTransaction && onSelectTransaction && userConfirmationData) {
+       onSelectTransaction({
+         ...selectedTransaction,
+         returnType: selectedReturnType,
+         returnReason,
+         confirmationReturBy: userConfirmationData.id.toString(),
+       });
+     }
+     setShowReturnNoteDialog(false);
+     setSelectedTransaction(null);
+     setUserConfirmationData(null);
+     handleClose();
+   };
+
+   const handleManualRefresh = useCallback(async () => {
     setIsRefreshLoading(true);
     try {
       await _refetch();
@@ -295,14 +315,14 @@ const TransactionCorrectionDialog: React.FC<TransactionCorrectionDialogProps> = 
     }
   }, [searchInput]);
 
-  useEffect(() => {
-    if (selectedTransaction) {
-      fetchTransactionDetail(selectedTransaction.invoice_number);
-      setProductCurrentPage(1);
-    } else {
-      setTransactionDetail(null);
-    }
-  }, [selectedTransaction]);
+   useEffect(() => {
+     if (selectedTransaction) {
+       fetchTransactionDetail(selectedTransaction.id);
+       setProductCurrentPage(1);
+     } else {
+       setTransactionDetail(null);
+     }
+   }, [selectedTransaction]);
 
   const displayTransactions = transactionList;
   const displayTotalPages = totalPages;
@@ -342,17 +362,42 @@ const TransactionCorrectionDialog: React.FC<TransactionCorrectionDialogProps> = 
     return `Rp ${Number(amount).toLocaleString("id-ID")}`;
   };
 
-  const cleanString = (str: string | null | undefined): string => {
-    if (!str || typeof str !== "string") {
-      return "";
-    }
-    return str.trim();
-  };
+   const cleanString = (str: string | null | undefined): string => {
+     if (!str || typeof str !== "string") {
+       return "";
+     }
+     return str.trim();
+   };
 
-  const handleDateRangeChange = (range: DateRange | undefined) => {
-    setAppliedDateRange(range);
-    setCurrentPage(1);
-  };
+   const getTransactionActionColor = (action: string | undefined) => {
+     // transaction_action: "1" = normal, "0" = full return, "2" = item-based return
+     switch (action) {
+       case "0":
+         return "bg-red-50 hover:bg-red-100 border-red-200";
+       case "1":
+         return "bg-blue-50 hover:bg-blue-100 border-blue-200";
+       case "2":
+       default:
+         return "bg-orange-50 hover:bg-orange-100 border-orange-200";
+     }
+   };
+
+   const getTransactionActionBadge = (action: string | undefined) => {
+     switch (action) {
+       case "0":
+         return <span className="px-2 py-1 bg-red-100 text-red-700 rounded text-xs font-medium">Full Return</span>;
+       case "2":
+         return <span className="px-2 py-1 bg-orange-100 text-orange-700 rounded text-xs font-medium">Item Return</span>;
+       case "1":
+       default:
+         return <span className="px-2 py-1 bg-blue-100 text-blue-700 rounded text-xs font-medium">Regular</span>;
+     }
+   };
+
+   const handleDateRangeChange = (range: DateRange | undefined) => {
+     setAppliedDateRange(range);
+     setCurrentPage(1);
+   };
 
   const handleRowClick = useCallback((transaction: TransactionData) => {
     setSelectedTransaction(
@@ -443,6 +488,7 @@ const TransactionCorrectionDialog: React.FC<TransactionCorrectionDialogProps> = 
   if (!isOpen) return null;
 
   return (
+    <>
     <div className="fixed inset-0 bg-black/50 z-50 flex items-center justify-center p-4">
       <div className="bg-white rounded-2xl w-full max-w-7xl max-h-[95vh] flex flex-col shadow-2xl">
         <div className="flex justify-between items-center p-6 border-b border-gray-200">
@@ -518,21 +564,27 @@ const TransactionCorrectionDialog: React.FC<TransactionCorrectionDialogProps> = 
                   <th className="text-left h-[48px] px-4 text-sm font-medium text-gray-600 w-[80px]">
                     Shift
                   </th>
-                  <th className="text-left h-[48px] px-4 text-sm font-medium text-gray-600 w-[100px]">
-                    Cashier
-                  </th>
-                  <th className="text-left h-[48px] px-4 text-sm font-medium text-gray-600 w-[80px]">
-                    Kassa
-                  </th>
-                  <th className="text-left h-[48px] px-4 text-sm font-medium text-gray-600 w-[120px]">
-                    Grand Total
-                  </th>
+                   <th className="text-left h-[48px] px-4 text-sm font-medium text-gray-600 w-[100px]">
+                     Cashier
+                   </th>
+                   <th className="text-left h-[48px] px-4 text-sm font-medium text-gray-600 w-[120px]">
+                     Customer
+                   </th>
+                   <th className="text-left h-[48px] px-4 text-sm font-medium text-gray-600 w-[120px]">
+                     Doctor
+                   </th>
+                   <th className="text-left h-[48px] px-4 text-sm font-medium text-gray-600 w-[80px]">
+                     Kassa
+                   </th>
+                   <th className="text-left h-[48px] px-4 text-sm font-medium text-gray-600 w-[120px]">
+                     Grand Total
+                   </th>
                 </tr>
               </thead>
               <tbody>
-                {isLoading ? (
-                  <tr>
-                    <td colSpan={7} className="text-center py-20">
+                 {isLoading ? (
+                   <tr>
+                     <td colSpan={9} className="text-center py-20">
                       <div className="flex items-center justify-center">
                         <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-500"></div>
                         <span className="ml-2 text-gray-600">
@@ -545,12 +597,12 @@ const TransactionCorrectionDialog: React.FC<TransactionCorrectionDialogProps> = 
                   displayTransactions.map((transaction, index) => (
                     <tr
                       key={transaction.invoice_number}
-                      className={`border-b border-gray-100 hover:bg-blue-50 cursor-pointer transition-colors ${selectedTransaction?.invoice_number ===
+                      className={`border-b border-gray-100 cursor-pointer transition-colors ${selectedTransaction?.invoice_number ===
                           transaction.invoice_number
-                          ? "bg-blue-50 border-2 border-blue-400"
+                          ? `${getTransactionActionColor(transaction.transaction_action)} border-2`
                           : focusedRowIndex === index
-                            ? "bg-gray-100 border-2 border-gray-300"
-                            : "border-2 border-transparent"
+                            ? `${getTransactionActionColor(transaction.transaction_action)} border-2`
+                            : `${getTransactionActionColor(transaction.transaction_action)} border-2 border-transparent`
                         }`}
                       onClick={() => handleRowClick(transaction)}
                       role="row"
@@ -570,30 +622,36 @@ const TransactionCorrectionDialog: React.FC<TransactionCorrectionDialogProps> = 
                       <td className="h-[48px] px-4 text-sm text-gray-600">
                         {cleanString(transaction.shift)}
                       </td>
-                      <td className="h-[48px] px-4 text-sm text-gray-600">
-                        {cleanString(transaction.kd_kasir)}
-                      </td>
-                      <td className="h-[48px] px-4 text-sm text-gray-600">
-                        {cleanString(transaction.kd_kassa)}
-                      </td>
-                      <td className="h-[48px] px-4 text-sm font-semibold text-gray-900">
-                        {formatCurrency(transaction.grand_total)}
-                      </td>
+                       <td className="h-[48px] px-4 text-sm text-gray-600">
+                         {cleanString(transaction.kd_kasir)}
+                       </td>
+                       <td className="h-[48px] px-4 text-sm text-gray-600">
+                         {cleanString(transaction.customer_name)}
+                       </td>
+                       <td className="h-[48px] px-4 text-sm text-gray-600">
+                         {cleanString(transaction.doctor_name)}
+                       </td>
+                       <td className="h-[48px] px-4 text-sm text-gray-600">
+                         {cleanString(transaction.kd_kassa)}
+                       </td>
+                       <td className="h-[48px] px-4 text-sm font-semibold text-gray-900">
+                         {formatCurrency(transaction.grand_total)}
+                       </td>
                     </tr>
-                  ))
-                ) : (
-                  <tr>
-                    <td colSpan={7} className="p-8 text-center text-gray-500">
-                      {searchTerm && searchInput.trim().length >= 3
-                        ? "No transactions found for your search."
-                        : searchTerm &&
-                          searchInput.trim().length > 0 &&
-                          searchInput.trim().length < 3
-                          ? "Please enter at least 3 characters to search."
-                          : "No transactions found for correction."}
-                    </td>
-                  </tr>
-                )}
+                   ))
+                 ) : (
+                   <tr>
+                     <td colSpan={9} className="p-8 text-center text-gray-500">
+                       {searchTerm && searchInput.trim().length >= 3
+                         ? "No transactions found for your search."
+                         : searchTerm &&
+                           searchInput.trim().length > 0 &&
+                           searchInput.trim().length < 3
+                           ? "Please enter at least 3 characters to search."
+                           : "No transactions found for correction."}
+                     </td>
+                   </tr>
+                 )}
               </tbody>
             </table>
           </div>
@@ -649,31 +707,34 @@ const TransactionCorrectionDialog: React.FC<TransactionCorrectionDialogProps> = 
             </div>
           )}
 
-          {selectedTransaction && (
-            <div className="rounded-lg border border-gray-200 overflow-hidden">
-              <div className="bg-gray-50 px-4 py-3 border-b border-gray-200 flex justify-between items-center">
-                <h3 className="text-lg font-semibold text-gray-900">
-                  Transaction Details -{" "}
-                  {cleanString(selectedTransaction.invoice_number)}
-                </h3>
-                <div className="flex items-center gap-3">
-                  <button
-                    onClick={() => handleTransactionClick(selectedTransaction)}
-                    className="px-4 py-2 bg-orange-600 hover:bg-orange-700 text-white text-sm font-medium rounded-lg transition-colors"
-                    disabled={!selectedTransaction}
-                  >
-                    Return
-                  </button>
-                   <div className="text-xs text-gray-500">
-                     or press{" "}
-                     <kbd className="px-2 py-1 bg-gray-200 rounded">Shift</kbd> +{" "}
-                     <kbd className="px-2 py-1 bg-gray-200 rounded">Enter</kbd>{" "}
-                     or{" "}
-                     <kbd className="px-2 py-1 bg-gray-200 rounded">Ctrl</kbd> +{" "}
-                     <kbd className="px-2 py-1 bg-gray-200 rounded">R</kbd> to refresh
-                   </div>
-                </div>
-              </div>
+           {selectedTransaction && (
+             <div className="rounded-lg border border-gray-200 overflow-hidden">
+               <div className={`px-4 py-3 border-b border-gray-200 flex justify-between items-center`}>
+                 <div className="flex items-center gap-3">
+                   <h3 className="text-lg font-semibold text-gray-900">
+                     Transaction Details -{" "}
+                     {cleanString(selectedTransaction.invoice_number)}
+                   </h3>
+                   {getTransactionActionBadge(selectedTransaction.transaction_action)}
+                 </div>
+                 <div className="flex items-center gap-3">
+                   <button
+                     onClick={() => handleTransactionClick(selectedTransaction)}
+                     className="px-4 py-2 bg-orange-600 hover:bg-orange-700 text-white text-sm font-medium rounded-lg transition-colors"
+                     disabled={!selectedTransaction}
+                   >
+                     Return
+                   </button>
+                    <div className="text-xs text-gray-500">
+                      or press{" "}
+                      <kbd className="px-2 py-1 bg-gray-200 rounded">Shift</kbd> +{" "}
+                      <kbd className="px-2 py-1 bg-gray-200 rounded">Enter</kbd>{" "}
+                      or{" "}
+                      <kbd className="px-2 py-1 bg-gray-200 rounded">Ctrl</kbd> +{" "}
+                      <kbd className="px-2 py-1 bg-gray-200 rounded">R</kbd> to refresh
+                    </div>
+                 </div>
+               </div>
 
               {isDetailLoading && (
                 <div className="p-8 text-center">
@@ -712,12 +773,18 @@ const TransactionCorrectionDialog: React.FC<TransactionCorrectionDialogProps> = 
                           <th className="text-left h-[40px] px-4 text-sm font-medium text-gray-600 w-[120px]">
                             Product Code
                           </th>
-                          <th className="text-left h-[40px] px-4 text-sm font-medium text-gray-600 w-[200px]">
-                            Product Name
-                          </th>
-                          <th className="text-left h-[40px] px-4 text-sm font-medium text-gray-600 w-[80px]">
-                            Qty
-                          </th>
+                           <th className="text-left h-[40px] px-4 text-sm font-medium text-gray-600 w-[200px]">
+                             Product Name
+                           </th>
+                           <th className="text-left h-[40px] px-4 text-sm font-medium text-gray-600 w-[120px]">
+                             Customer
+                           </th>
+                           <th className="text-left h-[40px] px-4 text-sm font-medium text-gray-600 w-[120px]">
+                             Doctor
+                           </th>
+                           <th className="text-left h-[40px] px-4 text-sm font-medium text-gray-600 w-[80px]">
+                             Qty
+                           </th>
                           <th className="text-left h-[40px] px-4 text-sm font-medium text-gray-600 w-[120px]">
                             Sub Total
                           </th>
@@ -740,7 +807,7 @@ const TransactionCorrectionDialog: React.FC<TransactionCorrectionDialogProps> = 
                           (item: TransactionDetailItem, index: number) => (
                             <tr
                               key={`${item.product_code}-${index}`}
-                              className="border-b border-gray-100"
+                              className={`border-b border-gray-100 ${getTransactionActionColor(item.transaction_action)}`}
                             >
                               <td className="h-[40px] px-4 text-sm text-gray-600">
                                 {itemStartIndex + index + 1}
@@ -750,6 +817,12 @@ const TransactionCorrectionDialog: React.FC<TransactionCorrectionDialogProps> = 
                               </td>
                               <td className="h-[40px] px-4 text-sm text-gray-900">
                                 {cleanString(item.product_name)}
+                              </td>
+                              <td className="h-[40px] px-4 text-sm text-gray-600">
+                                {cleanString(transactionDetail?.customer_name)}
+                              </td>
+                              <td className="h-[40px] px-4 text-sm text-gray-600">
+                                {cleanString(transactionDetail?.doctor_name)}
                               </td>
                               <td className="h-[40px] px-4 text-sm text-gray-600">
                                 {item.quantity}
@@ -846,32 +919,43 @@ const TransactionCorrectionDialog: React.FC<TransactionCorrectionDialogProps> = 
           )}
         </div>
       </div>
+      </div>
 
-      <ReturnTypeDialog
-        isOpen={showReturnTypeDialog}
-        onClose={handleReturnTypeClose}
-        onConfirm={handleReturnTypeConfirm}
-        transactionData={selectedTransaction ? {
-          invoice_number: selectedTransaction.invoice_number,
-          customer_name: selectedTransaction.customer_name || "Walk-in Customer",
-          date: formatDateForDisplay(selectedTransaction.transaction_date),
-          time: formatTimeForDisplay(selectedTransaction.transaction_date),
-        } : undefined}
-      />
+     <ReturnConfirmationLoginDialog
+       isOpen={showConfirmationLoginDialog}
+       onClose={handleConfirmationLoginClose}
+       onConfirm={handleConfirmationLoginConfirm}
+       transactionData={selectedTransaction ? {
+         invoiceNumber: selectedTransaction.invoice_number,
+         customerName: selectedTransaction.customer_name || "Walk-in Customer",
+       } : undefined}
+     />
 
-      <ReturnNoteDialog
-        isOpen={showReturnNoteDialog}
-        onClose={handleReturnNoteClose}
-        onConfirm={handleReturnNoteConfirm}
-        returnType={selectedReturnType}
-        transactionData={selectedTransaction ? {
-          invoice_number: selectedTransaction.invoice_number,
-          customer_name: selectedTransaction.customer_name || "Walk-in Customer",
-          date: formatDateForDisplay(selectedTransaction.transaction_date),
-          time: formatTimeForDisplay(selectedTransaction.transaction_date),
-        } : undefined}
-      />
-    </div>
+     <ReturnTypeDialog
+       isOpen={showReturnTypeDialog}
+       onClose={handleReturnTypeClose}
+       onConfirm={handleReturnTypeConfirm}
+       transactionData={selectedTransaction ? {
+         invoice_number: selectedTransaction.invoice_number,
+         customer_name: selectedTransaction.customer_name || "Walk-in Customer",
+         date: formatDateForDisplay(selectedTransaction.transaction_date),
+         time: formatTimeForDisplay(selectedTransaction.transaction_date),
+       } : undefined}
+     />
+
+     <ReturnNoteDialog
+       isOpen={showReturnNoteDialog}
+       onClose={handleReturnNoteClose}
+       onConfirm={handleReturnNoteConfirm}
+       returnType={selectedReturnType}
+       transactionData={selectedTransaction ? {
+         invoice_number: selectedTransaction.invoice_number,
+         customer_name: selectedTransaction.customer_name || "Walk-in Customer",
+         date: formatDateForDisplay(selectedTransaction.transaction_date),
+         time: formatTimeForDisplay(selectedTransaction.transaction_date),
+       } : undefined}
+     />
+    </>
   );
 };
 

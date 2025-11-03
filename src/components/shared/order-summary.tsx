@@ -10,6 +10,10 @@ import PaymentDialog from "@/components/shared/payment-dialog";
 import SavePendingBillDialog from "@/components/shared/save-pending-bill-dialog";
 import PendingBillSavedDialog from "@/components/shared/pending-bill-saved-dialog";
 import PaymentSuccessDialog from "@/components/shared/payment-success-dialog";
+import {
+  getCustomerFromStorage,
+  getDoctorFromStorage,
+} from "@/lib/customer-doctor-storage";
 
 interface CustomerData {
   id: number;
@@ -54,6 +58,7 @@ interface OrderSummaryProps {
   serviceCharge?: number;
   discount?: number;
   promo?: number;
+  totRetJu?: number; // Total return jual: for return transactions
   className?: string;
   onPendingBill?: () => void;
   onPaymentComplete?: () => void;
@@ -63,10 +68,13 @@ interface OrderSummaryProps {
   triggerPaymentFlow?: boolean;
   payNowButtonRef?: React.RefObject<HTMLButtonElement>;
   returnTransactionInfo?: {
-    customerName?: string;
-    doctorName?: string;
+    invoiceNumber?: string;
     isReturnTransaction: boolean;
+    confirmationReturBy?: string;
+    originalTransactionType?: string;
+    returnReason?: string;
   };
+  transactionNotes?: string;
 }
 
 export default function OrderSummary({
@@ -75,6 +83,7 @@ export default function OrderSummary({
   serviceCharge = 0,
   discount = 0,
   promo = 0,
+  totRetJu = 0,
   className = "",
   onPendingBill,
   onPaymentComplete,
@@ -84,6 +93,7 @@ export default function OrderSummary({
   triggerPaymentFlow = false,
   payNowButtonRef,
   returnTransactionInfo,
+  transactionNotes = "",
 }: OrderSummaryProps) {
   const [internalDialogOpen, setInternalDialogOpen] = useState(false);
   const [isTransactionTypeDialogOpen, setIsTransactionTypeDialogOpen] =
@@ -108,34 +118,44 @@ export default function OrderSummary({
   const [transactionTypeData, setTransactionTypeData] =
     useState<TransactionTypeData | null>(null);
   const [dialogKey, setDialogKey] = useState(0);
-  const grandTotal = subtotal - discount + serviceCharge + misc - promo;
+  const grandTotal = subtotal - discount + serviceCharge + misc - promo - totRetJu;
   const isDialogOpen = isCustomerDoctorDialogOpen || internalDialogOpen;
 
-  // Pre-populate customer/doctor info from return transaction
+  // Pre-populate customer/doctor info from localStorage
   useEffect(() => {
-    if (returnTransactionInfo?.isReturnTransaction) {
-      if (returnTransactionInfo.customerName) {
+    const populateCustomerDoctor = async () => {
+      // Try to load from localStorage first
+      const storedCustomer = getCustomerFromStorage();
+      if (storedCustomer) {
         setSelectedCustomer({
-          id: 0, // We don't have the ID from the return transaction
-          name: returnTransactionInfo.customerName,
-          gender: "female", // Default values since we only have the name
-          age: "",
-          phone: "",
-          address: "",
-          status: "true",
+          id: storedCustomer.id,
+          name: storedCustomer.name,
+          gender: storedCustomer.gender,
+          age: storedCustomer.age || "",
+          phone: storedCustomer.phone,
+          address: storedCustomer.address,
+          status: storedCustomer.status,
+        });
+      }
+
+      const storedDoctor = getDoctorFromStorage();
+      if (storedDoctor) {
+        setSelectedDoctor({
+          id: storedDoctor.id,
+          fullname: storedDoctor.fullname,
+          phone: storedDoctor.phone,
+          address: storedDoctor.address,
+          fee_consultation: storedDoctor.fee_consultation,
+          sip: storedDoctor.sip,
         });
       }
       
-      if (returnTransactionInfo.doctorName) {
-        setSelectedDoctor({
-          id: 0, // We don't have the ID from the return transaction
-          fullname: returnTransactionInfo.doctorName,
-          phone: "",
-          address: "",
-          sip: "",
-        });
-      }
-    }
+      // For return transactions, localStorage should already have customer/doctor data
+      // If not loaded from localStorage and it's a return transaction, don't attempt fallback
+      // since customer/doctor data is now managed in dedicated storage
+    };
+
+    populateCustomerDoctor();
   }, [returnTransactionInfo]);
 
   const refetchInvoiceNumber = async () => {
@@ -165,15 +185,16 @@ export default function OrderSummary({
 
   const handleCancelPendingBill = () => {};
 
-  const handlePayNowClick = async () => {
-    if (products.length === 0) {
-      alert("No products to process payment");
-      return;
-    }await refetchInvoiceNumber();
-    setDialogKey((prev) => prev + 1);
-    resetAllStates();
-    setInternalDialogOpen(true);
-  };
+   const handlePayNowClick = async () => {
+     if (products.length === 0) {
+       alert("No products to process payment");
+       return;
+     }await refetchInvoiceNumber();
+     setDialogKey((prev) => prev + 1);
+     // For return transactions, preserve customer/doctor data
+     resetAllStates(returnTransactionInfo?.isReturnTransaction);
+     setInternalDialogOpen(true);
+   };
 
   const handleCustomerDoctorSubmit = (
     customerData: CustomerData,
@@ -213,11 +234,13 @@ export default function OrderSummary({
     resetAllStates();
   };
 
-  const resetAllStates = () => {
-    setSelectedCustomer(null);
-    setSelectedDoctor(null);
-    setTransactionTypeData(null);
-  };
+   const resetAllStates = (preserveCustomerDoctor = false) => {
+     if (!preserveCustomerDoctor) {
+       setSelectedCustomer(null);
+       setSelectedDoctor(null);
+     }
+     setTransactionTypeData(null);
+   };
 
   const handleCustomerSelect = (customer: CustomerData) => {
     setSelectedCustomer(customer);
@@ -270,22 +293,6 @@ export default function OrderSummary({
   return (
     <>
       <div className={className}>
-        {returnTransactionInfo?.isReturnTransaction && (
-          <div className="mb-4 p-3 bg-orange-50 border border-orange-200 rounded-lg">
-            <div className="flex items-center gap-2">
-              <svg className="w-4 h-4 text-orange-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-2.5L13.732 4c-.77-.833-1.732-.833-2.5 0L4.268 18.5c-.77.833.192 2.5 1.732 2.5z" />
-              </svg>
-              <span className="text-orange-800 text-sm font-medium">Return Transaction</span>
-            </div>
-            {returnTransactionInfo.customerName && (
-              <p className="text-orange-700 text-xs mt-1">
-                Customer: {returnTransactionInfo.customerName}
-                {returnTransactionInfo.doctorName && ` | Doctor: ${returnTransactionInfo.doctorName}`}
-              </p>
-            )}
-          </div>
-        )}
         <div className="space-y-2">
           <div className="flex justify-between">
             <span className="text-gray-600">Sub Total</span>
@@ -311,16 +318,24 @@ export default function OrderSummary({
               "id-ID"
             )}`}</span>
           </div>
-          <div className="flex justify-between">
-            <span className="text-gray-600">Promo</span>
-            <span className="font-medium">{`Rp ${promo.toLocaleString(
-              "id-ID"
-            )}`}</span>
-          </div>
-          <div className="flex justify-between font-semibold text-lg">
-            <span>Grand Total</span>
-            <span>{`Rp ${grandTotal.toLocaleString("id-ID")}`}</span>
-          </div>
+           <div className="flex justify-between">
+             <span className="text-gray-600">Promo</span>
+             <span className="font-medium">{`Rp ${promo.toLocaleString(
+               "id-ID"
+             )}`}</span>
+            </div>
+            {returnTransactionInfo?.isReturnTransaction && totRetJu !== 0 && (
+              <div className="flex justify-between text-red-600">
+                <span className="font-medium">Return Jual (Refund)</span>
+                <span className="font-medium">{`Rp ${totRetJu.toLocaleString(
+                  "id-ID"
+                )}`}</span>
+              </div>
+            )}
+            <div className="flex justify-between font-semibold text-lg">
+             <span>Grand Total</span>
+             <span>{`Rp ${grandTotal.toLocaleString("id-ID")}`}</span>
+           </div>
         </div>
 
         <div className="mt-6 space-y-2">
@@ -377,24 +392,26 @@ export default function OrderSummary({
         onSubmit={handleTransactionTypeSubmit}
       />
 
-      <PaymentDialog
-        isOpen={isPaymentDialogOpen}
-        onClose={handlePaymentClose}
-        onPaymentSuccess={handlePaymentSuccess}
-        totalAmount={grandTotal}
-        orderDetails={{
-          customer: selectedCustomer?.name || "Unknown Customer",
-          items: products.map((p) => ({
-            name: p.name,
-            quantity: p.quantity,
-            price: p.price,
-          })),
-        }}
-        customerData={selectedCustomer}
-        doctorData={selectedDoctor}
-        transactionTypeData={transactionTypeData}
-        products={products}
-      />
+       <PaymentDialog
+         isOpen={isPaymentDialogOpen}
+         onClose={handlePaymentClose}
+         onPaymentSuccess={handlePaymentSuccess}
+         totalAmount={grandTotal}
+         orderDetails={{
+           customer: selectedCustomer?.name || "Unknown Customer",
+           items: products.map((p) => ({
+             name: p.name,
+             quantity: p.quantity,
+             price: p.price,
+           })),
+         }}
+         customerData={selectedCustomer}
+         doctorData={selectedDoctor}
+         transactionTypeData={transactionTypeData}
+         products={products}
+         returnTransactionInfo={returnTransactionInfo}
+         transactionNotes={transactionNotes}
+       />
 
       <PaymentSuccessDialog
         isOpen={isPaymentSuccessDialogOpen}

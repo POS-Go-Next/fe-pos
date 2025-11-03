@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useMemo } from "react";
+import { useState, useMemo, useEffect } from "react";
 import { X } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -14,6 +14,7 @@ import {
 import { showErrorAlert, showLoadingAlert } from "@/lib/swal";
 import Swal from "sweetalert2";
 import { processTransaction } from "@/lib/transaction-processor";
+import { validateReturnInfo } from "@/lib/transaction-utils";
 import type { StockData } from "@/types/stock";
 
 interface CustomerData {
@@ -56,6 +57,8 @@ interface ProductItem {
     kode_brg: string;
   };
   up?: string;
+  isDeleted?: boolean;
+  isOriginalReturnItem?: boolean;
 }
 
 interface PaymentDialogProps {
@@ -77,10 +80,16 @@ interface PaymentDialogProps {
   products?: ProductItem[];
   returnTransactionInfo?: {
     customerName?: string;
+    customerID?: number;
     doctorName?: string;
+    doctorID?: number;
     invoiceNumber?: string;
     isReturnTransaction: boolean;
+    confirmationReturBy?: string;
+    originalTransactionType?: string;
+    returnReason?: string;
   };
+  transactionNotes?: string;
 }
 
 export default function PaymentDialog({
@@ -94,6 +103,7 @@ export default function PaymentDialog({
   transactionTypeData,
   products = [],
   returnTransactionInfo,
+  transactionNotes = "",
 }: PaymentDialogProps) {
   const [cashAmount, setCashAmount] = useState("");
   const [debitAmount, setDebitAmount] = useState("");
@@ -108,7 +118,30 @@ export default function PaymentDialog({
   const [creditCardType, setCreditCardType] = useState("Visa");
   const [isProcessing, setIsProcessing] = useState(false);
 
+   // Debug logging for return transactions
+   useEffect(() => {
+     if (returnTransactionInfo?.isReturnTransaction) {
+       console.log("DEBUG: PaymentDialog received for return transaction:", {
+         productsCount: products.length,
+         isReturnTransaction: returnTransactionInfo.isReturnTransaction,
+         invoiceNumber: returnTransactionInfo.invoiceNumber,
+         products: products.map(p => ({
+           id: p.id,
+           name: p.name,
+           quantity: p.quantity,
+         }))
+       });
+     }
+   }, [products, returnTransactionInfo]);
+
   const correctTotalAmount = useMemo(() => {
+    // For return transactions, use the pre-calculated totalAmount from order summary
+    // Order summary correctly accounts for item-based returns with negative quantities
+    if (returnTransactionInfo?.isReturnTransaction) {
+      return _totalAmount;
+    }
+
+    // For regular transactions, calculate from products
     const subtotal = products.reduce((sum, p) => sum + (p.subtotal || 0), 0);
     const misc = products.reduce((sum, p) => sum + (p.misc || 0), 0);
     const sc = products.reduce((sum, p) => sum + (p.sc || 0), 0);
@@ -119,7 +152,7 @@ export default function PaymentDialog({
     const promo = products.reduce((sum, p) => sum + (p.promo || 0), 0);
 
     return subtotal + misc + sc - discount - promo;
-  }, [products]);
+  }, [products, _totalAmount, returnTransactionInfo?.isReturnTransaction]);
 
   if (!isOpen) return null;
 
@@ -137,94 +170,140 @@ export default function PaymentDialog({
 
 
 
-  const calculatePayment = () => {
-    const cash = parseFloat(cashAmount) || 0;
-    const debit = parseFloat(debitAmount) || 0;
-    const credit = parseFloat(creditAmount) || 0;
+   const calculatePayment = () => {
+     const cash = parseFloat(cashAmount) || 0;
+     const debit = parseFloat(debitAmount) || 0;
+     const credit = parseFloat(creditAmount) || 0;
 
-    const totalPaid = cash + debit + credit;
+     const totalPaid = cash + debit + credit;
 
-    let changeCash = 0;
-    let changeDC = 0;
-    let changeCC = 0;
+     let changeCash = 0;
+     let changeDC = 0;
+     let changeCC = 0;
 
-    if (totalPaid > correctTotalAmount) {
-      const totalChange = totalPaid - correctTotalAmount;
+     // Handle mixed transactions with negative amounts (refunds)
+     if (correctTotalAmount < 0) {
+       // This is a refund transaction - customer is owed money
+       // totalPaid represents what customer is paying from the refund
+       const refundAmount = Math.abs(correctTotalAmount);
+       
+       if (totalPaid > refundAmount) {
+         const totalChange = totalPaid - refundAmount;
 
-      if (credit >= totalChange) {
-        changeCC = totalChange;
-      } else if (debit >= totalChange) {
-        changeDC = totalChange;
-      } else if (cash >= totalChange) {
-        changeCash = totalChange;
-      } else {
-        changeCash = totalChange;
-      }
-    }
+         if (credit >= totalChange) {
+           changeCC = totalChange;
+         } else if (debit >= totalChange) {
+           changeDC = totalChange;
+         } else if (cash >= totalChange) {
+           changeCash = totalChange;
+         } else {
+           changeCash = totalChange;
+         }
+       }
+     } else {
+       // Regular transaction - customer pays for purchase
+       if (totalPaid > correctTotalAmount) {
+         const totalChange = totalPaid - correctTotalAmount;
 
-    return {
-      cash,
-      debit,
-      credit,
-      totalPaid,
-      changeCash,
-      changeDC,
-      changeCC,
-    };
-  };
+         if (credit >= totalChange) {
+           changeCC = totalChange;
+         } else if (debit >= totalChange) {
+           changeDC = totalChange;
+         } else if (cash >= totalChange) {
+           changeCash = totalChange;
+         } else {
+           changeCash = totalChange;
+         }
+       }
+     }
 
-  const handlePayment = async () => {
-    if (isProcessing) return;
+     return {
+       cash,
+       debit,
+       credit,
+       totalPaid,
+       changeCash,
+       changeDC,
+       changeCC,
+     };
+   };
 
-    try {
-      setIsProcessing(true);
+   const handlePayment = async () => {
+     if (isProcessing) return;
 
-      showLoadingAlert(
-        "Processing Payment",
-        "Please wait while we process your payment..."
-      );
+     try {
+       setIsProcessing(true);
 
-      const payment = calculatePayment();
+       showLoadingAlert(
+         "Processing Payment",
+         "Please wait while we process your payment..."
+       );
 
-      if (payment.totalPaid < correctTotalAmount) {
-        Swal.close();
-        showErrorAlert(
-          "Insufficient Payment",
-          "Payment amount is less than total amount required."
-        );
-        return;
-      }
+        const payment = calculatePayment();
 
-      if (!customerData?.id) {
-        Swal.close();
-        showErrorAlert(
-          "Missing Customer",
-          "Customer information is required for transaction."
-        );
-        return;
-      }
+        // For refund transactions (negative total), no payment is required
+        // For regular transactions, payment must be >= total amount
+        const isRefundTransaction = correctTotalAmount < 0;
+        const insufficientPayment = !isRefundTransaction && payment.totalPaid < correctTotalAmount;
 
-      if (!products || products.length === 0) {
-        Swal.close();
-        showErrorAlert(
-          "No Products",
-          "At least one product is required for transaction."
-        );
-        return;
-      }
+        if (insufficientPayment) {
+          Swal.close();
+          showErrorAlert(
+            "Insufficient Payment",
+            "Payment amount is less than total amount required."
+          );
+          return;
+        }
 
-      const subTotal = products.reduce((sum, p) => sum + (p.subtotal || 0), 0);
-      const totalMisc = products.reduce((sum, p) => sum + (p.misc || 0), 0);
-      const totalServiceFee = products.reduce((sum, p) => sum + (p.sc || 0), 0);
-      const totalDiscount = products.reduce(
-        (sum, p) => sum + (p.subtotal || 0) * ((p.discount || 0) / 100),
-        0
-      );
-      const totalPromo = products.reduce((sum, p) => sum + (p.promo || 0), 0);
+        // Validate return transaction fields
+        if (returnTransactionInfo?.isReturnTransaction) {
+          const validationError = validateReturnInfo(returnTransactionInfo);
+          if (validationError) {
+            Swal.close();
+            showErrorAlert("Missing Return Information", validationError);
+            return;
+          }
+        }
+
+       if (!customerData?.id) {
+         Swal.close();
+         showErrorAlert(
+           "Missing Customer",
+           "Customer information is required for transaction."
+         );
+         return;
+       }
+
+       if (!products || products.length === 0) {
+         Swal.close();
+         showErrorAlert(
+           "No Products",
+           "At least one product is required for transaction."
+         );
+         return;
+       }
+
+       const subTotal = products.reduce((sum, p) => sum + (p.subtotal || 0), 0);
+       const totalMisc = products.reduce((sum, p) => sum + (p.misc || 0), 0);
+       const totalServiceFee = products.reduce((sum, p) => sum + (p.sc || 0), 0);
+       const totalDiscount = products.reduce(
+         (sum, p) => sum + (p.subtotal || 0) * ((p.discount || 0) / 100),
+         0
+       );
+       const totalPromo = products.reduce((sum, p) => sum + (p.promo || 0), 0);
+
+       // Calculate totRetJu for return transactions (sum of absolute values of items with negative quantities)
+       let totRetJu = 0;
+       if (returnTransactionInfo?.isReturnTransaction) {
+         totRetJu = products
+           .filter((p) => p.quantity < 0) // Only items with negative quantities (being returned)
+           .reduce((sum, p) => sum + Math.abs(p.total || 0), 0);
+       }
 
       // Convert products to ProductTableItem format for transaction processor
-      const convertedProducts = products.map(product => ({
-        ...product,
+      // eslint-disable-next-line prefer-const
+      let convertedProducts = products.map(product => ({
+         ...product,                          
         stockData: (product.stockData && 'nama_brg' in product.stockData && 'id_dept' in product.stockData)
           ? product.stockData as StockData
           : {
@@ -246,11 +325,25 @@ export default function PaymentDialog({
               satuan: "pcs",
               hna: product.price,
             } as StockData,
-      }));
+      }));                            
 
-      // Process transaction using unified processor
-      const result = returnTransactionInfo?.isReturnTransaction 
-        ? await processTransaction({
+      // DEBUG: Log convertedProducts for return transactions
+      if (returnTransactionInfo?.isReturnTransaction) {
+        console.log("DEBUG: Payment dialog - convertedProducts after mapping:", {
+          count: convertedProducts.length,
+          products: convertedProducts.map(p => ({
+            id: p.id,
+            name: p.name,
+            quantity: p.quantity,
+            isDeleted: (p as unknown as Record<string, unknown>).isDeleted,
+            isOriginalReturnItem: (p as unknown as Record<string, unknown>).isOriginalReturnItem,
+          }))
+        });
+      }
+
+       // Process transaction using unified processor
+       const result = returnTransactionInfo?.isReturnTransaction 
+         ? await processTransaction({
             type: "item-based-return",
             products: convertedProducts,
             customerData: {
@@ -278,18 +371,21 @@ export default function PaymentDialog({
               creditCardType,
               debitCardType,
             },
-            totals: {
-              subTotal,
-              totalMisc,
-              totalServiceFee,
-              totalDiscount,
-              totalPromo,
-              correctTotalAmount,
-            },
-            transactionTypeData,
-            returnReason: "Item-based return",
-            originalInvoiceNumber: returnTransactionInfo.invoiceNumber || "", // Pass original invoice number
-          })
+             totals: {
+               subTotal,
+               totalMisc,
+               totalServiceFee,
+               totalDiscount,
+               totalPromo,
+               correctTotalAmount,
+               totRetJu,
+             },
+             transactionTypeData,
+             returnReason: returnTransactionInfo.returnReason || "Item-based return",
+             confirmationReturBy: returnTransactionInfo.confirmationReturBy,
+             originalInvoiceNumber: returnTransactionInfo.invoiceNumber || "", // Pass original invoice number
+             notes: transactionNotes,
+           })
         : await processTransaction({
             type: "regular",
             products: convertedProducts,
@@ -318,16 +414,18 @@ export default function PaymentDialog({
               creditCardType,
               debitCardType,
             },
-            totals: {
-              subTotal,
-              totalMisc,
-              totalServiceFee,
-              totalDiscount,
-              totalPromo,
-              correctTotalAmount,
-            },
-            transactionTypeData,
-          });
+             totals: {
+               subTotal,
+               totalMisc,
+               totalServiceFee,
+               totalDiscount,
+               totalPromo,
+               correctTotalAmount,
+               totRetJu,
+             },
+             transactionTypeData,
+             notes: transactionNotes,
+           });
 
       Swal.close();
 
@@ -687,187 +785,187 @@ export default function PaymentDialog({
     );
   };
 
-  return (
-    <div className="fixed inset-0 bg-black/50 z-50 flex items-center justify-center">
-      <div className="bg-white rounded-2xl w-full max-w-6xl max-h-[95vh] flex flex-col">
-        <div className="flex justify-between items-center p-6 border-b border-gray-200">
-          <h2 className="text-xl font-semibold text-gray-900">
-            Payment Option
-          </h2>
-          <button
-            onClick={handleClose}
-            disabled={isProcessing}
-            className="w-8 h-8 flex items-center justify-center rounded-full border border-gray-300 hover:border-gray-400 transition-colors disabled:opacity-50"
-          >
-            <X className="h-4 w-4 text-gray-600" />
-          </button>
-        </div>
+   return (
+     <div className="fixed inset-0 bg-black/50 z-50 flex items-center justify-center">
+       <div className="bg-white rounded-2xl w-full max-w-6xl max-h-[95vh] flex flex-col">
+         <div className="flex justify-between items-center p-6 border-b border-gray-200">
+           <h2 className="text-xl font-semibold text-gray-900">
+             Payment Option
+           </h2>
+           <button
+             onClick={handleClose}
+             disabled={isProcessing}
+             className="w-8 h-8 flex items-center justify-center rounded-full border border-gray-300 hover:border-gray-400 transition-colors disabled:opacity-50"
+           >
+             <X className="h-4 w-4 text-gray-600" />
+           </button>
+         </div>
 
-        <div className="flex-1 overflow-auto">
-          <div className="grid grid-cols-2 h-full">
-            <div className="p-6">
-              <div className="mb-6">
-                <div className="flex items-center gap-4">
-                  <div className="w-12 h-12 bg-blue-100 rounded-lg flex items-center justify-center">
-                    <span className="text-blue-800 font-semibold text-sm">
-                      {customerData?.id || "??"}
-                    </span>
-                  </div>
-                  <div className="flex-1">
-                    <h3 className="font-semibold text-gray-900">
-                      {customerData?.name || orderDetails.customer}
-                    </h3>
-                    <p className="text-sm text-gray-600">
-                      {customerData?.phone || "+625490047055"}
-                    </p>
-                    {doctorData && (
-                      <p className="text-sm text-blue-600">
-                        Dr. {doctorData.fullname}
-                      </p>
-                    )}
-                  </div>
-                  <div className="text-right text-sm text-gray-600">
-                    <p>
-                      {new Date().toLocaleDateString("en-US", {
-                        year: "numeric",
-                        month: "long",
-                        day: "numeric",
-                      })}
-                    </p>
-                    <p>
-                      {new Date().toLocaleTimeString("en-US", {
-                        hour: "2-digit",
-                        minute: "2-digit",
-                        hour12: true,
-                      })}
-                    </p>
-                  </div>
-                </div>
-              </div>
+         <div className="flex-1 overflow-auto">
+           <div className="grid grid-cols-2 h-full">
+             <div className="p-6">
+               <div className="mb-6">
+                 <div className="flex items-center gap-4">
+                   <div className="w-12 h-12 bg-blue-100 rounded-lg flex items-center justify-center">
+                     <span className="text-blue-800 font-semibold text-sm">
+                       {customerData?.id || "??"}
+                     </span>
+                   </div>
+                   <div className="flex-1">
+                     <h3 className="font-semibold text-gray-900">
+                       {customerData?.name || orderDetails.customer}
+                     </h3>
+                     <p className="text-sm text-gray-600">
+                       {customerData?.phone || "+625490047055"}
+                     </p>
+                     {doctorData && (
+                       <p className="text-sm text-blue-600">
+                         Dr. {doctorData.fullname}
+                       </p>
+                     )}
+                   </div>
+                   <div className="text-right text-sm text-gray-600">
+                     <p>
+                       {new Date().toLocaleDateString("en-US", {
+                         year: "numeric",
+                         month: "long",
+                         day: "numeric",
+                       })}
+                     </p>
+                     <p>
+                       {new Date().toLocaleTimeString("en-US", {
+                         hour: "2-digit",
+                         minute: "2-digit",
+                         hour12: true,
+                       })}
+                     </p>
+                   </div>
+                 </div>
+               </div>
 
-              <div className="border border-gray-300 rounded-2xl p-4">
-                <h4 className="font-semibold text-gray-900 text-lg mb-4">
-                  Transaction Details
-                </h4>
+               <div className="border border-gray-300 rounded-2xl p-4">
+                 <h4 className="font-semibold text-gray-900 text-lg mb-4">
+                   Transaction Details
+                 </h4>
 
-                <div className="max-h-[240px] overflow-y-auto space-y-4 mb-6">
-                  {products.length > 0 ? (
-                    products.map((item, index) => (
-                      <div
-                        key={index}
-                        className="flex justify-between items-start"
-                      >
-                        <div className="flex-1">
-                          <div className="flex justify-between items-center">
-                            <p className="font-medium text-gray-900">
-                              {item.name}
-                            </p>
-                            <span className="font-semibold text-gray-900 ml-4">
-                              {item.quantity}x
-                            </span>
-                          </div>
-                          <p className="font-semibold text-gray-900 mt-1">
-                            Rp {(item.price || 0).toLocaleString("id-ID")}
-                          </p>
-                        </div>
+                 <div className="max-h-[240px] overflow-y-auto space-y-4 mb-6">
+                   {products.length > 0 ? (
+                     products.map((item, index) => (
+                       <div
+                         key={index}
+                         className="flex justify-between items-start"
+                       >
+                         <div className="flex-1">
+                           <div className="flex justify-between items-center">
+                             <p className="font-medium text-gray-900">
+                               {item.name}
+                             </p>
+                             <span className="font-semibold text-gray-900 ml-4">
+                               {item.quantity}x
+                             </span>
+                           </div>
+                           <p className="font-semibold text-gray-900 mt-1">
+                             Rp {(item.price || 0).toLocaleString("id-ID")}
+                           </p>
+                         </div>
+                       </div>
+                     ))
+                   ) : (
+                     <div className="text-center text-gray-500 py-4">
+                       No items in transaction
+                     </div>
+                   )}
+                 </div>
+
+                 <div className="border-t border-gray-300 pt-4 space-y-3">
+                   <div className="flex justify-between">
+                     <span className="font-medium text-gray-900">Sub Total</span>
+                     <span className="font-semibold text-gray-900">
+                       Rp{" "}
+                       {products
+                         .reduce((sum, p) => sum + (p.subtotal || 0), 0)
+                         .toLocaleString("id-ID")}
+                     </span>
+                   </div>
+                   <div className="flex justify-between">
+                     <span className="font-medium text-gray-900">Misc</span>
+                     <span className="font-semibold text-gray-900">
+                       Rp{" "}
+                       {products
+                         .reduce((sum, p) => sum + (p.misc || 0), 0)
+                         .toLocaleString("id-ID")}
+                     </span>
+                   </div>
+                   <div className="flex justify-between">
+                     <span className="font-medium text-gray-900">SC</span>
+                     <span className="font-semibold text-gray-900">
+                       Rp{" "}
+                       {products
+                         .reduce((sum, p) => sum + (p.sc || 0), 0)
+                         .toLocaleString("id-ID")}
+                     </span>
+                   </div>
+                   <div className="flex justify-between">
+                     <span className="font-medium text-gray-900">Discount</span>
+                     <span className="font-semibold text-gray-900">
+                       Rp{" "}
+                       {products
+                         .reduce(
+                           (sum, p) =>
+                             sum + (p.subtotal || 0) * ((p.discount || 0) / 100),
+                           0
+                         )
+                         .toLocaleString("id-ID")}
+                     </span>
+                   </div>
+                   <div className="flex justify-between">
+                     <span className="font-medium text-gray-900">Promo</span>
+                     <span className="font-semibold text-gray-900">
+                       Rp{" "}
+                       {products
+                         .reduce((sum, p) => sum + (p.promo || 0), 0)
+                         .toLocaleString("id-ID")}
+                     </span>
+                   </div>
+
+                   <div className="border-t border-gray-300 pt-4 mt-4">
+                      <div className={`flex justify-between ${correctTotalAmount < 0 ? "bg-orange-50 p-3 rounded-lg border border-orange-200" : ""}`}>
+                        <span className={`text-lg font-bold ${correctTotalAmount < 0 ? "text-orange-900" : "text-gray-900"}`}>
+                          {correctTotalAmount < 0 ? "Refund Amount" : "Grand Total"}
+                        </span>
+                        <span className={`text-lg font-bold ${correctTotalAmount < 0 ? "text-orange-900" : "text-gray-900"}`}>
+                          {correctTotalAmount < 0 ? "- " : ""}Rp {Math.abs(correctTotalAmount).toLocaleString("id-ID")}
+                        </span>
                       </div>
-                    ))
-                  ) : (
-                    <div className="text-center text-gray-500 py-4">
-                      No items in transaction
-                    </div>
-                  )}
-                </div>
+                   </div>
+                 </div>
+               </div>
+             </div>
 
-                <div className="border-t border-gray-300 pt-4 space-y-3">
-                  <div className="flex justify-between">
-                    <span className="font-medium text-gray-900">Sub Total</span>
-                    <span className="font-semibold text-gray-900">
-                      Rp{" "}
-                      {products
-                        .reduce((sum, p) => sum + (p.subtotal || 0), 0)
-                        .toLocaleString("id-ID")}
-                    </span>
-                  </div>
-                  <div className="flex justify-between">
-                    <span className="font-medium text-gray-900">Misc</span>
-                    <span className="font-semibold text-gray-900">
-                      Rp{" "}
-                      {products
-                        .reduce((sum, p) => sum + (p.misc || 0), 0)
-                        .toLocaleString("id-ID")}
-                    </span>
-                  </div>
-                  <div className="flex justify-between">
-                    <span className="font-medium text-gray-900">SC</span>
-                    <span className="font-semibold text-gray-900">
-                      Rp{" "}
-                      {products
-                        .reduce((sum, p) => sum + (p.sc || 0), 0)
-                        .toLocaleString("id-ID")}
-                    </span>
-                  </div>
-                  <div className="flex justify-between">
-                    <span className="font-medium text-gray-900">Discount</span>
-                    <span className="font-semibold text-gray-900">
-                      Rp{" "}
-                      {products
-                        .reduce(
-                          (sum, p) =>
-                            sum + (p.subtotal || 0) * ((p.discount || 0) / 100),
-                          0
-                        )
-                        .toLocaleString("id-ID")}
-                    </span>
-                  </div>
-                  <div className="flex justify-between">
-                    <span className="font-medium text-gray-900">Promo</span>
-                    <span className="font-semibold text-gray-900">
-                      Rp{" "}
-                      {products
-                        .reduce((sum, p) => sum + (p.promo || 0), 0)
-                        .toLocaleString("id-ID")}
-                    </span>
-                  </div>
+             <div className="p-6 flex flex-col border-l border-gray-200">
+               <div className="flex-1 overflow-y-auto">{renderPaymentMethodContent()}</div>
+             </div>
+           </div>
+         </div>
 
-                  <div className="border-t border-gray-300 pt-4 mt-4">
-                    <div className="flex justify-between">
-                      <span className="text-lg font-bold text-gray-900">
-                        Grand Total
-                      </span>
-                      <span className="text-lg font-bold text-gray-900">
-                        Rp {correctTotalAmount.toLocaleString("id-ID")}
-                      </span>
-                    </div>
-                  </div>
-                </div>
-              </div>
-            </div>
-
-            <div className="p-6 flex flex-col">
-              <div className="flex-1">{renderPaymentMethodContent()}</div>
-
-              <div className="flex gap-3 mt-6 pt-4 border-t border-gray-200">
-                <Button
-                  variant="outline"
-                  onClick={handleClose}
-                  disabled={isProcessing}
-                  className="flex-1 py-3 border-gray-300 text-gray-700 hover:bg-gray-50 disabled:opacity-50"
-                >
-                  Cancel
-                </Button>
-                <Button
-                  onClick={handlePayment}
-                  disabled={isProcessing}
-                  className="flex-1 py-3 bg-blue-600 hover:bg-blue-700 text-white disabled:opacity-50"
-                >
-                  {isProcessing ? "Processing..." : "Pay Now"}
-                </Button>
-              </div>
-            </div>
-          </div>
-        </div>
-      </div>
-    </div>
-  );
+         <div className="flex gap-3 p-6 border-t border-gray-200 bg-white">
+           <Button
+             variant="outline"
+             onClick={handleClose}
+             disabled={isProcessing}
+             className="flex-1 py-3 border-gray-300 text-gray-700 hover:bg-gray-50 disabled:opacity-50"
+           >
+             Cancel
+           </Button>
+           <Button
+             onClick={handlePayment}
+             disabled={isProcessing}
+             className="flex-1 py-3 bg-blue-600 hover:bg-blue-700 text-white disabled:opacity-50"
+           >
+             {isProcessing ? "Processing..." : "Pay Now"}
+           </Button>
+         </div>
+       </div>
+     </div>
+   );
 }

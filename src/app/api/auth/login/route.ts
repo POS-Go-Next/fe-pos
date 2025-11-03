@@ -67,18 +67,22 @@ export async function POST(request: NextRequest) {
       email: apiUser.email,
     };
 
-    const session = await createSession(userData.id, userData);
+     const session = await createSession(userData.id, userData);
 
-    const cookieStore = cookies();
-    if (responseData.data.token) {
-      cookieStore.set("auth-token", responseData.data.token, {
-        httpOnly: true,
-        secure: process.env.NODE_ENV === "production",
-        sameSite: "lax",
-        maxAge: 60 * 60 * 24 * 7,
-        path: "/",
-      });
-    }
+     const cookieStore = cookies();
+     // Only set auth-token cookie for login types that should persist the session
+     // Do NOT set for return-confirmation type to preserve the current user's session
+     const shouldSetAuthCookie = body.type !== "return-confirmation";
+     
+     if (responseData.data.token && shouldSetAuthCookie) {
+       cookieStore.set("auth-token", responseData.data.token, {
+         httpOnly: true,
+         secure: process.env.NODE_ENV === "production",
+         sameSite: "lax",
+         maxAge: 60 * 60 * 24 * 7,
+         path: "/",
+       });
+     }
 
     return NextResponse.json({
       success: true,

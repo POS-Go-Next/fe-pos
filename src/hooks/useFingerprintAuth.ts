@@ -66,23 +66,29 @@ export const useFingerprintAuth = (): UseFingerprintAuthReturn => {
         };
       }
 
-      if (data.success && data.data) {
-        // Save user data and token to localStorage for client-side access
-        try {
-          localStorage.setItem("user-data", JSON.stringify(data.data.user));
-          localStorage.setItem("auth-token", data.data.token);} catch (storageError) {
-          console.error(
-            "❌ Failed to save user data to localStorage:",
-            storageError
-          );
-        }
+       if (data.success && data.data) {
+         // Only save user data and token to localStorage for login types that should persist the session
+         // Do NOT save for return_confirmation type to preserve the current user's session
+         const shouldPersistSession = data.data.user && !request.type?.includes("return");
+         
+         if (shouldPersistSession) {
+           try {
+             localStorage.setItem("user-data", JSON.stringify(data.data.user));
+             localStorage.setItem("auth-token", data.data.token);
+           } catch (storageError) {
+             console.error(
+               "❌ Failed to save user data to localStorage:",
+               storageError
+             );
+           }
+         }
 
-        return {
-          success: true,
-          message: data.message,
-          data: data.data,
-        };
-      }
+         return {
+           success: true,
+           message: data.message,
+           data: data.data,
+         };
+       }
 
       setError(data.message || "Fingerprint login failed");
       return {

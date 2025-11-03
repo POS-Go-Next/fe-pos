@@ -34,8 +34,10 @@ interface TransactionHistoryDialogProps {
 }
 
 interface TransactionDetailItem {
+  product_name: string;
   product_code: string;
   quantity: number;
+  transaction_action: string;
   prescription_code: string;
   sub_total: number;
   nominal_discount: number;
@@ -55,7 +57,9 @@ interface TransactionDetailData {
   id: string;
   invoice_number: string;
   customer_id: string;
+  customer_name?: string;
   doctor_id: number;
+  doctor_name?: string;
   corporate_code: string;
   transaction_type: string;
   transaction_action: string;
@@ -158,20 +162,20 @@ const TransactionHistoryDialog: React.FC<TransactionHistoryDialogProps> = ({
     sort_order: "desc",
   }, isHookEnabled);
 
-  const fetchTransactionDetail = async (invoiceNumber: string) => {
-    try {
-      setIsDetailLoading(true);
-      setDetailError(null);
+   const fetchTransactionDetail = async (transactionId: string) => {
+     try {
+       setIsDetailLoading(true);
+       setDetailError(null);
 
-      const response = await fetch(
-        `/api/transaction/invoice?invoice_number=${encodeURIComponent(
-          invoiceNumber.trim()
-        )}`,
-        {
-          method: "GET",
-          headers: { "Content-Type": "application/json" },
-        }
-      );
+       const response = await fetch(
+         `/api/transaction/one?id=${encodeURIComponent(
+           transactionId.trim()
+         )}`,
+         {
+           method: "GET",
+           headers: { "Content-Type": "application/json" },
+         }
+       );
 
       const data = await response.json();
 
@@ -296,14 +300,14 @@ const TransactionHistoryDialog: React.FC<TransactionHistoryDialogProps> = ({
     }
   }, [searchInput]);
 
-  useEffect(() => {
-    if (selectedTransaction) {
-      fetchTransactionDetail(selectedTransaction.invoice_number);
-      setProductCurrentPage(1);
-    } else {
-      setTransactionDetail(null);
-    }
-  }, [selectedTransaction]);
+   useEffect(() => {
+     if (selectedTransaction) {
+       fetchTransactionDetail(selectedTransaction.id);
+       setProductCurrentPage(1);
+     } else {
+       setTransactionDetail(null);
+     }
+   }, [selectedTransaction]);
 
   useEffect(() => {
     if (!isOpen) return;
@@ -354,18 +358,43 @@ const TransactionHistoryDialog: React.FC<TransactionHistoryDialogProps> = ({
     }
   };
 
-  const formatCurrency = (amount: number | null | undefined) => {
-    if (!amount || isNaN(Number(amount))) {
-      return "Rp 0";
-    }
-    return `Rp ${Number(amount).toLocaleString("id-ID")}`;
-  };
+   const formatCurrency = (amount: number | null | undefined) => {
+     if (!amount || isNaN(Number(amount))) {
+       return "Rp 0";
+     }
+     return `Rp ${Number(amount).toLocaleString("id-ID")}`;
+   };
 
-  const cleanString = (str: string | null | undefined): string => {
-    if (!str || typeof str !== "string") {
-      return "";
+   const cleanString = (str: string | null | undefined): string => {
+     if (!str || typeof str !== "string") {
+       return "";
+     }
+     return str.trim();
+   };
+
+   const getTransactionActionColor = (action: string | undefined) => {
+     // transaction_action: "1" = normal, "0" = full return, "2" = item-based return
+     switch (action) {
+       case "0":
+         return "bg-red-50 hover:bg-red-100 border-red-200";
+       case "1":
+         return "bg-blue-50 hover:bg-blue-100 border-blue-200";
+       case "2":
+       default:
+         return "bg-orange-50 hover:bg-orange-100 border-orange-200";
+     }
+   };
+
+  const getTransactionActionBadge = (action: string | undefined) => {
+    switch (action) {
+      case "0":
+        return <span className="px-2 py-1 bg-red-100 text-red-700 rounded text-xs font-medium">Full Return</span>;
+      case "2":
+        return <span className="px-2 py-1 bg-orange-100 text-orange-700 rounded text-xs font-medium">Item Return</span>;
+      case "1":
+      default:
+        return <span className="px-2 py-1 bg-blue-100 text-blue-700 rounded text-xs font-medium">Regular</span>;
     }
-    return str.trim();
   };
 
   const handleDateRangeChange = (range: DateRange | undefined) => {
@@ -528,21 +557,27 @@ const TransactionHistoryDialog: React.FC<TransactionHistoryDialogProps> = ({
                   <th className="text-left h-[48px] px-4 text-sm font-medium text-gray-600 w-[80px]">
                     Shift
                   </th>
-                  <th className="text-left h-[48px] px-4 text-sm font-medium text-gray-600 w-[100px]">
-                    Cashier
-                  </th>
-                  <th className="text-left h-[48px] px-4 text-sm font-medium text-gray-600 w-[80px]">
-                    Kassa
-                  </th>
-                  <th className="text-left h-[48px] px-4 text-sm font-medium text-gray-600 w-[120px]">
-                    Grand Total
-                  </th>
+                   <th className="text-left h-[48px] px-4 text-sm font-medium text-gray-600 w-[100px]">
+                     Cashier
+                   </th>
+                   <th className="text-left h-[48px] px-4 text-sm font-medium text-gray-600 w-[120px]">
+                     Customer
+                   </th>
+                   <th className="text-left h-[48px] px-4 text-sm font-medium text-gray-600 w-[120px]">
+                     Doctor
+                   </th>
+                   <th className="text-left h-[48px] px-4 text-sm font-medium text-gray-600 w-[80px]">
+                     Kassa
+                   </th>
+                   <th className="text-left h-[48px] px-4 text-sm font-medium text-gray-600 w-[120px]">
+                     Grand Total
+                   </th>
                 </tr>
               </thead>
               <tbody>
                 {isLoading ? (
-                  <tr>
-                    <td colSpan={7} className="text-center py-20">
+                   <tr>
+                     <td colSpan={9} className="text-center py-20">
                       <div className="flex items-center justify-center">
                         <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-500"></div>
                         <span className="ml-2 text-gray-600">
@@ -555,13 +590,13 @@ const TransactionHistoryDialog: React.FC<TransactionHistoryDialogProps> = ({
                   displayTransactions.map((transaction, index) => (
                     <tr
                       key={transaction.invoice_number}
-                      className={`border-b border-gray-100 hover:bg-blue-50 cursor-pointer transition-colors ${
+                      className={`border-b border-gray-100 cursor-pointer transition-colors ${
                         selectedTransaction?.invoice_number ===
                         transaction.invoice_number
-                          ? "bg-blue-50 border-2 border-blue-400"
+                          ? `${getTransactionActionColor(transaction.transaction_action)} border-2`
                           : focusedRowIndex === index
-                          ? "bg-gray-100 border-2 border-gray-300"
-                          : "border-2 border-transparent"
+                          ? `${getTransactionActionColor(transaction.transaction_action)} border-2`
+                          : `${getTransactionActionColor(transaction.transaction_action)} border-2 border-transparent`
                       }`}
                       onClick={() => handleRowClick(transaction)}
                       role="row"
@@ -581,20 +616,26 @@ const TransactionHistoryDialog: React.FC<TransactionHistoryDialogProps> = ({
                       <td className="h-[48px] px-4 text-sm text-gray-600">
                         {cleanString(transaction.shift)}
                       </td>
-                      <td className="h-[48px] px-4 text-sm text-gray-600">
-                        {cleanString(transaction.kd_kasir)}
-                      </td>
-                      <td className="h-[48px] px-4 text-sm text-gray-600">
-                        {cleanString(transaction.kd_kassa)}
-                      </td>
-                      <td className="h-[48px] px-4 text-sm font-semibold text-gray-900">
-                        {formatCurrency(transaction.grand_total)}
-                      </td>
+                       <td className="h-[48px] px-4 text-sm text-gray-600">
+                         {cleanString(transaction.kd_kasir)}
+                       </td>
+                       <td className="h-[48px] px-4 text-sm text-gray-600">
+                         {cleanString(transaction.customer_name)}
+                       </td>
+                       <td className="h-[48px] px-4 text-sm text-gray-600">
+                         {cleanString(transaction.doctor_name)}
+                       </td>
+                       <td className="h-[48px] px-4 text-sm text-gray-600">
+                         {cleanString(transaction.kd_kassa)}
+                       </td>
+                       <td className="h-[48px] px-4 text-sm font-semibold text-gray-900">
+                         {formatCurrency(transaction.grand_total)}
+                       </td>
                     </tr>
                   ))
-                ) : (
-                  <tr>
-                    <td colSpan={7} className="p-8 text-center text-gray-500">
+                 ) : (
+                   <tr>
+                     <td colSpan={9} className="p-8 text-center text-gray-500">
                       {searchTerm && searchInput.trim().length >= 3
                         ? "No transactions found for your search."
                         : searchTerm &&
@@ -663,24 +704,27 @@ const TransactionHistoryDialog: React.FC<TransactionHistoryDialogProps> = ({
             </div>
           )}
 
-          {selectedTransaction && (
-            <div className="rounded-lg border border-gray-200 overflow-hidden">
-              <div className="bg-gray-50 px-4 py-3 border-b border-gray-200 flex justify-between items-center">
-                <h3 className="text-lg font-semibold text-gray-900">
-                  Transaction Details -{" "}
-                  {cleanString(selectedTransaction.invoice_number)}
-                </h3>
-                 <div className="text-xs text-gray-500">
-                   Press{" "}
-                   <kbd className="px-2 py-1 bg-gray-200 rounded">Ctrl</kbd> +{" "}
-                   <kbd className="px-2 py-1 bg-gray-200 rounded">Shift</kbd> +{" "}
-                   <kbd className="px-2 py-1 bg-gray-200 rounded">P</kbd> to
-                   print or{" "}
-                   <kbd className="px-2 py-1 bg-gray-200 rounded">Ctrl</kbd> +{" "}
-                   <kbd className="px-2 py-1 bg-gray-200 rounded">R</kbd> to
-                   refresh
+           {selectedTransaction && (
+             <div className="rounded-lg border border-gray-200 overflow-hidden">
+               <div className={`px-4 py-3 border-b border-gray-200 flex justify-between items-center`}>
+                 <div className="flex items-center gap-3">
+                   <h3 className="text-lg font-semibold text-gray-900">
+                     Transaction Details -{" "}
+                     {cleanString(selectedTransaction.invoice_number)}
+                   </h3>
+                   {getTransactionActionBadge(selectedTransaction.transaction_action)}
                  </div>
-              </div>
+                  <div className="text-xs text-gray-500">
+                    Press{" "}
+                    <kbd className="px-2 py-1 bg-gray-200 rounded">Ctrl</kbd> +{" "}
+                    <kbd className="px-2 py-1 bg-gray-200 rounded">Shift</kbd> +{" "}
+                    <kbd className="px-2 py-1 bg-gray-200 rounded">P</kbd> to
+                    print or{" "}
+                    <kbd className="px-2 py-1 bg-gray-200 rounded">Ctrl</kbd> +{" "}
+                    <kbd className="px-2 py-1 bg-gray-200 rounded">R</kbd> to
+                    refresh
+                  </div>
+               </div>
 
               {isDetailLoading && (
                 <div className="p-8 text-center">
@@ -716,12 +760,18 @@ const TransactionHistoryDialog: React.FC<TransactionHistoryDialogProps> = ({
                           <th className="text-left h-[40px] px-4 text-sm font-medium text-gray-600 w-[60px]">
                             No
                           </th>
-                          <th className="text-left h-[40px] px-4 text-sm font-medium text-gray-600 w-[120px]">
-                            Product Code
-                          </th>
-                          <th className="text-left h-[40px] px-4 text-sm font-medium text-gray-600 w-[80px]">
-                            Qty
-                          </th>
+                           <th className="text-left h-[40px] px-4 text-sm font-medium text-gray-600 w-[120px]">
+                             Product Code
+                           </th>
+                           <th className="text-left h-[40px] px-4 text-sm font-medium text-gray-600 w-[120px]">
+                             Customer
+                           </th>
+                           <th className="text-left h-[40px] px-4 text-sm font-medium text-gray-600 w-[120px]">
+                             Doctor
+                           </th>
+                           <th className="text-left h-[40px] px-4 text-sm font-medium text-gray-600 w-[80px]">
+                             Qty
+                           </th>
                           <th className="text-left h-[40px] px-4 text-sm font-medium text-gray-600 w-[120px]">
                             Sub Total
                           </th>
@@ -744,13 +794,19 @@ const TransactionHistoryDialog: React.FC<TransactionHistoryDialogProps> = ({
                           (item: TransactionDetailItem, index: number) => (
                             <tr
                               key={`${item.product_code}-${index}`}
-                              className="border-b border-gray-100"
+                              className={`border-b border-gray-100 ${getTransactionActionColor(item.transaction_action)}`}
                             >
                               <td className="h-[40px] px-4 text-sm text-gray-600">
                                 {itemStartIndex + index + 1}
                               </td>
                               <td className="h-[40px] px-4 text-sm font-medium text-gray-900">
                                 {cleanString(item.product_code)}
+                              </td>
+                              <td className="h-[40px] px-4 text-sm text-gray-600">
+                                {cleanString(transactionDetail?.customer_name)}
+                              </td>
+                              <td className="h-[40px] px-4 text-sm text-gray-600">
+                                {cleanString(transactionDetail?.doctor_name)}
                               </td>
                               <td className="h-[40px] px-4 text-sm text-gray-600">
                                 {item.quantity}

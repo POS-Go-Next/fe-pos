@@ -57,23 +57,52 @@ export interface StockApiParams {
 }
 
 export interface ProductTableItem {
-    id: number;
-    name: string;
-    type?: "R/" | "RC" | "OTC" | string;
-    price: number;
-    quantity: number;
-    subtotal: number;
-    discount: number;
-    sc: number;
-    misc: number;
-    promo?: number;
-    promoPercent?: number;
-    up?: string;
-    noVoucher?: number;
-    total?: number;
-    stockData?: StockData;
-    isOriginalReturnItem?: boolean; // Indicates if this item is from the original transaction being returned
-    isDeleted?: boolean; // Indicates if this original return item has been marked as deleted
+     id: number;
+     name: string;
+     type?: "R/" | "RC" | "R-Commitment" | string;
+     price: number;
+     quantity: number;
+     subtotal: number;
+     
+     // Discount Fields (API: discount is PERCENTAGE, nominal_discount is FIXED)
+     /**
+      * @deprecated Use discountPercentage instead for clarity
+      */
+     discount?: number;
+     discountPercentage?: number;        // Percentage (0-100), maps to discount
+     nominalDiscount?: number;           // Fixed amount discount, maps to nominal_discount
+     
+     sc: number;
+     misc: number;
+     
+     // Promo Fields (API has: disc_promo, value_promo, no_promo, promo_type)
+     /**
+      * @deprecated Use discPromo instead for clarity
+      */
+     promo?: number;
+     discPromo?: number;                 // Promo discount amount, maps to disc_promo
+     valuePromo?: number;                // Promo value/amount, maps to value_promo
+     noPromo?: string;                   // Promo identifier, maps to no_promo
+     promoType?: string;                 // Promo type code, maps to promo_type
+     /**
+      * @deprecated This field conflicts with promo. Use discPromo or valuePromo instead
+      */
+     promoPercent?: number;
+     
+     // Item-level adjustments
+     roundUp?: number;                   // Per-item round-up, maps to round_up
+     
+     // Legacy fields (deprecated but kept for backward compatibility)
+     /**
+      * @deprecated Use noPromo instead
+      */
+     noVoucher?: number;
+     
+     total?: number;
+     stockData?: StockData;
+     isOriginalReturnItem?: boolean; // Indicates if this item is from the original transaction being returned
+     isDeleted?: boolean; // Indicates if this original return item has been marked as deleted
+     up?: string;
 }
 
 export const STOCK_CATEGORIES = {

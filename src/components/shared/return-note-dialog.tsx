@@ -26,15 +26,25 @@ export default function ReturnNoteDialog({
   transactionData,
 }: ReturnNoteDialogProps) {
   const [returnReason, setReturnReason] = useState("");
+  const [error, setError] = useState<string | null>(null);
 
   const handleConfirm = () => {
-    const reason = returnReason.trim() || "No reason provided";
+    const reason = returnReason.trim();
+    
+    // Validate that return reason is not empty
+    if (!reason) {
+      setError("Return reason is required and cannot be empty.");
+      return;
+    }
+    
+    setError(null);
     onConfirm(reason);
     setReturnReason("");
   };
 
   const handleClose = () => {
     setReturnReason("");
+    setError(null);
     onClose();
   };
 
@@ -80,14 +90,24 @@ export default function ReturnNoteDialog({
             <Input
               type="text"
               value={returnReason}
-              onChange={(e) => setReturnReason(e.target.value)}
+              onChange={(e) => {
+                setReturnReason(e.target.value);
+                setError(null);
+              }}
               placeholder="Enter reason for return..."
-              className="w-full bg-gray-50 border-gray-300 rounded-lg h-12"
+              className={`w-full bg-gray-50 border-gray-300 rounded-lg h-12 ${error ? 'border-red-500' : ''}`}
               autoFocus
               maxLength={100}
             />
-            <div className="text-xs text-gray-500 mt-1">
-              {returnReason.length}/100 characters
+            <div className="flex justify-between items-center mt-1">
+              <div className="text-xs text-gray-500">
+                {returnReason.length}/100 characters
+              </div>
+              {error && (
+                <div className="text-xs text-red-500 font-medium">
+                  {error}
+                </div>
+              )}
             </div>
           </div>
 
@@ -106,7 +126,8 @@ export default function ReturnNoteDialog({
           </Button>
           <Button
             onClick={handleConfirm}
-            className="flex-1 py-3 bg-blue-600 hover:bg-blue-700 text-white font-medium"
+            disabled={!returnReason.trim()}
+            className="flex-1 py-3 bg-blue-600 hover:bg-blue-700 text-white font-medium disabled:opacity-50 disabled:cursor-not-allowed"
           >
             Confirm Return
           </Button>

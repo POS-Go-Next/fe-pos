@@ -9,11 +9,38 @@ export interface TransactionApiParams {
   sort_order?: "asc" | "desc";
 }
 
+export interface CustomerData {
+  kd_cust?: number;
+  nm_cust?: string;
+  usia_cust?: number;
+  gender?: string;
+  telp_cust?: string;
+  al_cust?: string;
+  status?: boolean;
+  created_at?: string;
+  updated_at?: string;
+}
+
+export interface DoctorData {
+  id?: number;
+  fullname?: string;
+  phone?: string;
+  address?: string;
+  fee_consultation?: number;
+  sip?: string;
+  url_photo?: string;
+  email?: string;
+  created_at?: string;
+  updated_at?: string;
+}
+
 export interface TransactionData {
   id: string;
   invoice_number: string;
   customer_id: string;
+  customer?: CustomerData;
   doctor_id: number;
+  doctor?: DoctorData;
   corporate_code: string;
   transaction_type: string;
   transaction_action: string;
@@ -52,6 +79,9 @@ export interface TransactionData {
   doctor_name?: string;
   total_items?: number;
   payment_type?: string;
+  retur_reason?: string;
+  confirmation_retur_by?: string;
+  retur_information?: string;
 }
 
 export interface TransactionPaginationData {

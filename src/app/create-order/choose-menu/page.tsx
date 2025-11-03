@@ -19,6 +19,13 @@ import {
   clearTransactionStorage,
 } from "@/lib/transaction-utils";
 import { processTransaction } from "@/lib/transaction-processor";
+import {
+  saveCustomerToStorage,
+  saveDoctorToStorage,
+  clearCustomerAndDoctorFromStorage,
+  StoredCustomerData,
+  StoredDoctorData,
+} from "@/lib/customer-doctor-storage";
 import Swal from "sweetalert2";
 import type { StockData } from "@/types/stock";
 import { ProductTableItem } from "@/types/stock";
@@ -50,7 +57,7 @@ export default function ChooseMenuPage() {
   const [triggerPayNow, setTriggerPayNow] = useState(initialState.triggerPayNow);
   const [products, setProducts] = useState(initialState.products);
   const [nextId, setNextId] = useState(initialState.nextId);
-
+  const [transactionNotes, setTransactionNotes] = useState("");
 
   const payNowButtonRef = useRef<HTMLButtonElement>(null);
   const isClearingRef = useRef(false);
@@ -79,6 +86,8 @@ export default function ChooseMenuPage() {
         case "R/":
           return parameterData.service || 0;
         case "RC":
+          return parameterData.service_dokter || 0;
+        case "R-Commitment":
           return parameterData.service_dokter || 0;
         default:
           return 0;
@@ -168,6 +177,31 @@ export default function ChooseMenuPage() {
     );
   };
 
+  const handlePromoApply = (id: number, promoData: {
+    noPromo: string;
+    discPromo: number;
+    valuePromo: number;
+    promoType: string;
+  }) => {
+    if (!isClient) return;
+
+    setProducts((prevProducts) =>
+      prevProducts.map((product) =>
+        product.id === id
+          ? {
+              ...product,
+              discPromo: promoData.discPromo,
+              valuePromo: promoData.valuePromo,
+              noPromo: promoData.noPromo,
+              promoType: promoData.promoType,
+              promo: promoData.valuePromo,
+              promoPercent: promoData.discPromo,
+            }
+          : product
+      )
+    );
+  };
+
   useEffect(() => {
     if (shouldFocusSearch && isClient) {
       const timer = setTimeout(() => {
@@ -221,6 +255,7 @@ export default function ChooseMenuPage() {
     
     if (typeof window !== "undefined") {
       clearTransactionStorage(config);
+      clearCustomerAndDoctorFromStorage();
     }
 
     setTimeout(() => {
@@ -284,9 +319,9 @@ export default function ChooseMenuPage() {
   };
 
   // Calculate totals using shared utility
-  const totals = useMemo(() => {
-    return calculateTotals(products, getSCValueByType, isClient);
-  }, [products, isClient, getSCValueByType]);
+   const totals = useMemo(() => {
+     return calculateTotals(products, getSCValueByType, isClient, false);
+   }, [products, isClient, getSCValueByType]);
 
   const paymentProducts = useMemo(() => {
     return products
@@ -502,14 +537,14 @@ export default function ChooseMenuPage() {
         // Show loading while fetching transaction details
         showLoadingAlert("Loading transaction details...", "Please wait while we load the transaction items for return.");
 
-        // Fetch transaction details to get the items
-        const response = await fetch(
-          `/api/transaction/invoice?invoice_number=${encodeURIComponent(transactionData.invoice_number.trim())}`,
-          {
-            method: "GET",
-            headers: { "Content-Type": "application/json" },
-          }
-        );
+         // Fetch transaction details to get the items
+         const response = await fetch(
+           `/api/transaction/one?id=${encodeURIComponent(transactionData.id.trim())}`,
+           {
+             method: "GET",
+             headers: { "Content-Type": "application/json" },
+           }
+         );
 
         const data = await response.json();
 
@@ -517,36 +552,63 @@ export default function ChooseMenuPage() {
           throw new Error(data.message || `HTTP ${response.status}`);
         }
 
-        if (data.data && data.data.items) {
-          // Save return transaction data for return transaction page
-          const returnProducts: ProductTableItem[] = data.data.items.map((item: TransactionItem, index: number) => 
-            convertTransactionItemToProduct(item, index + 1)
-          );
-          
-          // Save to return transaction storage
-          if (typeof window !== "undefined") {
-            localStorage.setItem("return-pos-products", JSON.stringify(returnProducts));
-            localStorage.setItem("return-pos-next-id", (returnProducts.length + 1).toString());
-            
-            // Save return transaction info
-            localStorage.setItem("return-transaction-info", JSON.stringify({
-              customerName: data.data.customer_name || undefined,
-              doctorName: data.data.doctor_name || undefined,
-              isReturnTransaction: true,
-              invoiceNumber: transactionData.invoice_number,
-            }));
-          }
-          
-          // Close the correction dialog
-          setIsTransactionCorrectionOpen(false);
-          
-          Swal.close();
-          
-          // Redirect to return transaction page
-          window.location.href = "/create-order/return-transaction";
-        } else {
-          throw new Error("No items found in transaction");
-        }
+         if (data.data && data.data.items) {
+           // Save return transaction data for return transaction page
+           const returnProducts: ProductTableItem[] = data.data.items.map((item: TransactionItem, index: number) => 
+             convertTransactionItemToProduct(item, index + 1)
+           );
+           
+            // Save to return transaction storage
+            if (typeof window !== "undefined") {
+              localStorage.setItem("return-pos-products", JSON.stringify(returnProducts));
+              localStorage.setItem("return-pos-next-id", (returnProducts.length + 1).toString());
+              
+              // Save return transaction info with only metadata (no customer/doctor data)
+              localStorage.setItem("return-transaction-info", JSON.stringify({
+                isReturnTransaction: true,
+                invoiceNumber: transactionData.invoice_number,
+                confirmationReturBy: transactionData.confirmationReturBy,
+                originalTransactionType: data.data.transaction_type,
+                returnReason: transactionData.returnReason,
+              }));
+              
+              // Save customer data to dedicated storage if available
+              if (data.data.customer_id || data.data.customer_name) {
+                const customerData: StoredCustomerData = {
+                  id: Number(data.data.customer_id) || 0,
+                  name: data.data.customer_name || "",
+                  gender: "",
+                  age: "",
+                  phone: "",
+                  address: "",
+                  status: "",
+                };
+                saveCustomerToStorage(customerData);
+              }
+              
+              // Save doctor data to dedicated storage if available
+              if (data.data.doctor_id || data.data.doctor_name) {
+                const doctorData: StoredDoctorData = {
+                  id: Number(data.data.doctor_id) || 0,
+                  fullname: data.data.doctor_name || "",
+                  phone: "",
+                  address: "",
+                  sip: "",
+                };
+                saveDoctorToStorage(doctorData);
+              }
+            }
+           
+           // Close the correction dialog
+           setIsTransactionCorrectionOpen(false);
+           
+           Swal.close();
+           
+           // Redirect to return transaction page
+           window.location.href = "/create-order/return-transaction";
+         } else {
+           throw new Error("No items found in transaction");
+         }
       } catch (error) {
         console.error("Error loading transaction for return:", error);
         Swal.close();
@@ -560,14 +622,14 @@ export default function ChooseMenuPage() {
         // Show loading while fetching transaction details
         showLoadingAlert("Loading transaction details...", "Please wait while we load the transaction for full return.");
 
-        // Fetch transaction details to get the items for full return
-        const response = await fetch(
-          `/api/transaction/invoice?invoice_number=${encodeURIComponent(transactionData.invoice_number.trim())}`,
-          {
-            method: "GET",
-            headers: { "Content-Type": "application/json" },
-          }
-        );
+         // Fetch transaction details to get the items for full return
+         const response = await fetch(
+           `/api/transaction/one?id=${encodeURIComponent(transactionData.id.trim())}`,
+           {
+             method: "GET",
+             headers: { "Content-Type": "application/json" },
+           }
+         );
 
         const data = await response.json();
 
@@ -575,15 +637,16 @@ export default function ChooseMenuPage() {
           throw new Error(data.message || `HTTP ${response.status}`);
         }
 
-        if (data.data && data.data.items) {
-          showLoadingAlert("Processing return...", "Please wait while we process the full transaction return.");
-          
-          const result = await processTransaction({
-            type: "full-return",
-            originalTransactionData: data.data,
-            originalProducts: [],
-            returnReason: transactionData.returnReason || "Customer request",
-          });
+         if (data.data && data.data.items) {
+           showLoadingAlert("Processing return...", "Please wait while we process the full transaction return.");
+           
+           const result = await processTransaction({
+             type: "full-return",
+             originalTransactionData: data.data,
+             originalProducts: [],
+             returnReason: transactionData.returnReason || "Customer request",
+             confirmationReturBy: transactionData.confirmationReturBy,
+           });
 
           if (!result.success) {
             throw new Error(result.message || "Failed to process return");
@@ -704,25 +767,33 @@ export default function ChooseMenuPage() {
             onMiscChange={handleMiscChange}
             onUpsellingChange={handleUpsellingChange}
             onTransactionReturn={handleTransactionReturn}
+            onPromoApply={handlePromoApply}
             className="mb-6"
           />
         </div>
 
-        <div className="w-1/5">
-          <div className="p-5 bg-white shadow-md overflow-auto w-full rounded-2xl">
-            <TransactionInfo useRealTimeData={true} className="mb-6" />
+         <div className="w-1/5">
+           <div className="p-5 bg-white shadow-md overflow-auto w-full rounded-2xl">
+             <TransactionInfo 
+               useRealTimeData={true} 
+               className="mb-6" 
+               onNotesChange={setTransactionNotes}
+               currentNotes={transactionNotes}
+             />
 
-            <OrderSummary
-              subtotal={totals.subtotal}
-              misc={totals.misc}
-              serviceCharge={totals.serviceCharge}
-              discount={totals.discount}
-              promo={totals.promo}
-              products={paymentProducts}
-              onPendingBill={handlePendingBill}
-              onPaymentComplete={handlePaymentComplete}
-              payNowButtonRef={payNowButtonRef}
-            />
+             <OrderSummary
+               subtotal={totals.subtotal}
+               misc={totals.misc}
+               serviceCharge={totals.serviceCharge}
+               discount={totals.discount}
+               promo={totals.promo}
+               totRetJu={totals.totRetJu}
+               products={paymentProducts}
+               onPendingBill={handlePendingBill}
+               onPaymentComplete={handlePaymentComplete}
+               payNowButtonRef={payNowButtonRef}
+               transactionNotes={transactionNotes}
+              />
           </div>
         </div>
       </div>

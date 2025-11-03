@@ -1,4 +1,4 @@
-import { buildTransactionPayload } from "./transaction-utils";
+import { buildTransactionPayload, buildTransactionItems } from "./transaction-utils";
 import type { ProductTableItem } from "@/types/stock";
 import type { TransactionData, TransactionItem } from "@/types/transaction";
 
@@ -37,6 +37,7 @@ export interface TransactionProcessorTotals {
   totalDiscount: number;
   totalPromo: number;
   correctTotalAmount: number;
+  totRetJu?: number; // Total return jual: for return transactions, this is the net amount to be paid/refunded
 }
 
 export interface TransactionProcessorTransactionTypeData {
@@ -67,6 +68,7 @@ export interface ItemBasedReturnTransactionOptions {
   totals: TransactionProcessorTotals;
   transactionTypeData?: TransactionProcessorTransactionTypeData | null;
   returnReason?: string;
+  confirmationReturBy?: string;
   originalInvoiceNumber: string; // Use existing invoice number for item-based returns
   notes?: string;
 }
@@ -77,6 +79,8 @@ export interface FullReturnTransactionOptions {
   originalTransactionData: TransactionData;
   originalProducts?: ProductTableItem[];
   returnReason?: string;
+  confirmationReturBy?: string;
+  notes?: string;
 }
 
 export type TransactionProcessorOptions = 
@@ -146,16 +150,16 @@ export const processTransaction = async (
 
     let invoiceNumber = "";
     
-    if (options.type === "regular") {
-      invoiceNumber = await getNextInvoice(transactionType);
-    }// For full-return, invoice number comes from original transaction data
+     if (options.type === "regular") {
+       invoiceNumber = await getNextInvoice(transactionType);
+     }// For full-return, invoice number comes from original transaction data
 
-    // Build payload based on transaction type
-    let payload;
+      // Build payload based on transaction type
+     let payload;
 
-    if (options.type === "regular") {
-      payload = buildTransactionPayload({
-        deviceId,
+     if (options.type === "regular") {
+       payload = buildTransactionPayload({
+         deviceId,
         invoiceNumber,
         customerData: { id: options.customerData.id },
         doctorData: options.doctorData ? { id: options.doctorData.id } : null,
@@ -183,7 +187,7 @@ export const processTransaction = async (
         returnInfo: {
           isReturnTransaction: true,
           returnReason: options.returnReason || "Item-based return",
-          confirmationBy: "cashier",
+          confirmationReturBy: options.confirmationReturBy || "cashier",
         },
         notes: options.notes,
         needPrintInvoice: false,
@@ -216,52 +220,84 @@ export const processTransaction = async (
           creditCardType: null,
           debitCardType: null,
         },
-        totals: {
-          subTotal: 0,
-          totalMisc: 0,
-          totalServiceFee: 0,
-          totalDiscount: 0,
-          totalPromo: 0,
-          correctTotalAmount: 0,
-        },
+         totals: {
+            subTotal: 0,
+            totalMisc: 0,
+            totalServiceFee: 0,
+            totalDiscount: 0,
+            totalPromo: 0,
+            correctTotalAmount: 0,
+            totRetJu: Math.abs(originalData.grand_total), // For full returns, positive grand total
+          },
         transactionTypeData: {
           medicineType: originalData.compounded ? "Compounded" : "Ready to Use",
           transactionType: originalData.full_prescription ? "Full Prescription" : "Partial Prescription",
           availability: originalData.availability ? "Available" : "Patient Credit",
         },
-        returnInfo: {
-          isReturnTransaction: true,
-          returnReason: options.returnReason || "Customer request",
-          confirmationBy: "2",
-        },
+         returnInfo: {
+           isReturnTransaction: true,
+           returnReason: options.returnReason || "Customer request",
+           confirmationReturBy: options.confirmationReturBy || "2",
+         },
         notes: originalData.notes,
         needPrintInvoice: false,
       });
 
-      // Override the items with original transaction items but with zero quantities
-      payload.items = originalData.items.map((item: TransactionItem) => ({
-        transaction_action: "0",
-        product_code: item.product_code,
-        quantity: -item.quantity, // Zero quantity for full return
-        sub_total: 0,
-        nominal_discount: 0,
-        discount: 0,
-        service_fee: 0,
-        misc: 0,
-        disc_promo: 0,
-        value_promo: 0,
-        no_promo: "",
-        promo_type: item.promo_type || "",
-        up_selling: item.up_selling,
-        total: 0,
-        round_up: 0,
-        prescription_code: item.prescription_code || "",
-      }));
+       // For full returns, convert original products to items with negative quantities
+       // Use buildTransactionItems instead of manually mapping to ensure consistency
+       if (options.originalProducts && options.originalProducts.length > 0) {
+         payload.items = buildTransactionItems(
+           options.originalProducts.map(p => ({
+             ...p,
+             quantity: -Math.abs(p.quantity), // Ensure negative quantities for return
+           })),
+           originalData.transaction_type,
+           "0", // transaction_action for full return
+           {
+             medicineType: originalData.compounded ? "Compounded" : "Ready to Use",
+             transactionType: originalData.full_prescription ? "Full Prescription" : "Partial Prescription",
+             availability: originalData.availability ? "Available" : "Patient Credit",
+           }
+         );
+        } else if (originalData.items && Array.isArray(originalData.items) && originalData.items.length > 0) {
+          // Fallback: convert API items to ProductTableItem format and use buildTransactionItems for consistency
+          payload.items = buildTransactionItems(
+            originalData.items.map((item: TransactionItem) => ({
+              id: 0,
+              name: "",
+              quantity: -Math.abs(item.quantity),
+              price: 0,
+              subtotal: -Math.abs(item.sub_total || 0),
+              discount: item.discount || 0,
+              sc: item.service_fee || 0,
+              misc: item.misc || 0,
+              promo: item.disc_promo || 0,
+              total: -Math.abs(item.total || 0),
+              stockData: { kode_brg: item.product_code },
+              up: item.up_selling === "Y" ? "Y" : "N",
+              discountPercentage: item.discount || 0,
+              nominalDiscount: item.nominal_discount || 0,
+              discPromo: item.disc_promo || 0,
+              valuePromo: item.value_promo || 0,
+              noPromo: item.no_promo || "",
+              promoType: item.promo_type || "1",
+              roundUp: item.round_up || 0,
+            })) as ProductTableItem[],
+            originalData.transaction_type,
+            "0",
+            {
+              medicineType: originalData.compounded ? "Compounded" : "Ready to Use",
+              transactionType: originalData.full_prescription ? "Full Prescription" : "Partial Prescription",
+              availability: originalData.availability ? "Available" : "Patient Credit",
+            }
+          );
+        }
     } else {
       // This should never happen with proper TypeScript types
       throw new Error("Unknown transaction type provided");
     }
 
+    // Debug: Log payload items count
     // Make API call
     const response = await fetch("/api/transaction", {
       method: "POST",

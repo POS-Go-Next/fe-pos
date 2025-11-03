@@ -23,6 +23,13 @@ import type { StockData } from "@/types/stock";
 import { ProductTableItem } from "@/types/stock";
 import type { TransactionItem } from "@/types/transaction";
 import { ArrowLeft, Search, Undo } from "lucide-react";
+import {
+  saveCustomerToStorage,
+  saveDoctorToStorage,
+  clearCustomerAndDoctorFromStorage,
+  StoredCustomerData,
+  StoredDoctorData,
+} from "@/lib/customer-doctor-storage";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import type { KeyboardEvent as ReactKeyboardEvent } from "react";
 import { ProductTableSection } from "../choose-menu/_components";
@@ -50,6 +57,7 @@ export default function ReturnTransactionPage() {
   const [products, setProducts] = useState(initialState.products);
   const [nextId, setNextId] = useState(initialState.nextId);
   const [returnTransactionInfo, setReturnTransactionInfo] = useState(initialState.returnTransactionInfo);
+  const [transactionNotes, setTransactionNotes] = useState("");
 
   const payNowButtonRef = useRef<HTMLButtonElement>(null);
   const isClearingRef = useRef(false);
@@ -77,6 +85,8 @@ export default function ReturnTransactionPage() {
         case "R/":
           return parameterData.service || 0;
         case "RC":
+          return parameterData.service_dokter || 0;
+        case "R-Commitment":
           return parameterData.service_dokter || 0;
         default:
           return 0;
@@ -151,22 +161,47 @@ export default function ReturnTransactionPage() {
     );
   };
 
-  const handleUpsellingChange = (productId: number) => {
-    if (!isClient) return;
+   const handleUpsellingChange = (productId: number) => {
+     if (!isClient) return;
 
-    setProducts((prevProducts) =>
-      prevProducts.map((product) =>
-        product.id === productId
-          ? {
-              ...product,
-              up: product.up === "Y" ? "N" : "Y",
-            }
-          : product
-      )
-    );
-  };
+     setProducts((prevProducts) =>
+       prevProducts.map((product) =>
+         product.id === productId
+           ? {
+               ...product,
+               up: product.up === "Y" ? "N" : "Y",
+             }
+           : product
+       )
+     );
+   };
 
-  useEffect(() => {
+   const handlePromoApply = (id: number, promoData: {
+     noPromo: string;
+     discPromo: number;
+     valuePromo: number;
+     promoType: string;
+   }) => {
+     if (!isClient) return;
+
+     setProducts((prevProducts) =>
+       prevProducts.map((product) =>
+         product.id === id
+           ? {
+               ...product,
+               discPromo: promoData.discPromo,
+               valuePromo: promoData.valuePromo,
+               noPromo: promoData.noPromo,
+               promoType: promoData.promoType,
+               promo: promoData.valuePromo,
+               promoPercent: promoData.discPromo,
+             }
+           : product
+       )
+     );
+   };
+
+   useEffect(() => {
     if (shouldFocusSearch && isClient) {
       const timer = setTimeout(() => {
         const productSearchInput = document.querySelector(
@@ -224,6 +259,7 @@ export default function ReturnTransactionPage() {
 
     if (typeof window !== "undefined") {
       clearTransactionStorage(config);
+      clearCustomerAndDoctorFromStorage();
     }
 
     setTimeout(() => {
@@ -293,33 +329,69 @@ export default function ReturnTransactionPage() {
     }
   }, [products, nextId, isClient, config]);
 
+  // Save return transaction info to localStorage
+  useEffect(() => {
+    if (isClient && returnTransactionInfo.isReturnTransaction) {
+      localStorage.setItem("return-transaction-info", JSON.stringify(returnTransactionInfo));
+    }
+  }, [returnTransactionInfo, isClient]);
+
   const handleBackNavigation = () => {
     router.push('/create-order/choose-menu');
   };
 
-  // Calculate totals using shared utility
-  const totals = useMemo(() => {
-    return calculateTotals(products, getSCValueByType, isClient);
-  }, [products, isClient, getSCValueByType]);
+   // Calculate totals using shared utility
+   const totals = useMemo(() => {
+     return calculateTotals(products, getSCValueByType, isClient, true); // Pass true for isReturnTransaction
+   }, [products, isClient, getSCValueByType]);
 
-  const paymentProducts = useMemo(() => {
-    return products
-      .filter((p) => p.name && p.quantity > 0 && !(p.isOriginalReturnItem && p.isDeleted))
-      .map((product) => ({
-        id: product.id,
-        name: product.name,
-        quantity: product.quantity,
-        price: product.price || 0,
-        subtotal: product.subtotal || 0,
-        discount: product.discount || 0,
-        sc: getSCValueByType(product.type || ""),
-        misc: product.misc || 0,
-        promo: product.promo || 0,
-        total: product.total || 0,
-        stockData: product.stockData,
-        up: product.up,
-      }));
-  }, [products, getSCValueByType]);
+    const paymentProducts = useMemo(() => {
+      // For return transactions, include ALL items (both returned with negative quantities and non-returned with positive quantities)
+      // This ensures the payment dialog has the complete item list needed to build the correct transaction payload
+      const result = products
+        .filter((p) => p.name) // Only filter by name, not by quantity or deleted status
+        .map((product) => ({
+          id: product.id,
+          name: product.name,
+          quantity: product.quantity, // Will be negative for deleted items, positive for active items
+          price: product.price || 0,
+          subtotal: product.subtotal || 0,
+          discount: product.discount || 0,
+          sc: getSCValueByType(product.type || ""),
+          misc: product.misc || 0,
+          promo: product.promo || 0,
+          total: product.total || 0,
+          stockData: product.stockData,
+          up: product.up,
+          // CRITICAL: Preserve return-specific properties for transaction building
+          isDeleted: product.isDeleted,
+          isOriginalReturnItem: product.isOriginalReturnItem,
+        }));
+      
+      // Debug logging
+      if (products.length > 0) {
+        console.log("DEBUG: paymentProducts created from products:", {
+          productsCount: products.length,
+          paymentProductsCount: result.length,
+          products: products.map(p => ({
+            id: p.id,
+            name: p.name,
+            quantity: p.quantity,
+            isDeleted: p.isDeleted,
+            isOriginalReturnItem: p.isOriginalReturnItem,
+          })),
+          paymentProducts: result.map(p => ({
+            id: p.id,
+            name: p.name,
+            quantity: p.quantity,
+            isDeleted: p.isDeleted,
+            isOriginalReturnItem: p.isOriginalReturnItem,
+          }))
+        });
+      }
+      
+      return result;
+    }, [products, getSCValueByType]);
 
   const debouncedStockValidation = useCallback((productToValidate: ProductTableItem, newQuantity: number, productId: number) => {
     const isValidStock = validateStock(productToValidate, newQuantity);
@@ -487,13 +559,21 @@ export default function ReturnTransactionPage() {
       
       for (const product of prevProducts) {
         if (product.id === id) {
-          // If it's an original return item, mark as deleted instead of removing
-          if (product.isOriginalReturnItem) {
-            updatedProducts.push({
-              ...product,
-              isDeleted: true,
-            });
-          }
+           // If it's an original return item, mark as deleted and negate quantities
+           if (product.isOriginalReturnItem) {
+             updatedProducts.push({
+               ...product,
+               isDeleted: true,
+               // Convert to negative quantities (return item)
+                quantity: -Math.abs(product.quantity || 0),
+                subtotal: -Math.abs(product.subtotal || 0),
+                discount: -Math.abs(product.discount || 0),
+                sc: -Math.abs(product.sc || 0),
+                misc: -Math.abs(product.misc || 0),
+                promo: -Math.abs(product.promo || 0),
+                total: -Math.abs(product.total || 0),
+              });
+           }
           // For non-original items, don't add to the array (effectively removing)
         } else {
           // Keep all other products
@@ -513,7 +593,18 @@ export default function ReturnTransactionPage() {
     setProducts((prevProducts) => 
       prevProducts.map((product) => 
         product.id === id && product.isOriginalReturnItem
-          ? { ...product, isDeleted: false }
+          ? { 
+              ...product, 
+               isDeleted: false,
+               // Restore positive quantities (undo return)
+                quantity: Math.abs(product.quantity),
+                subtotal: Math.abs(product.subtotal),
+                discount: Math.abs(product.discount || 0),
+                sc: Math.abs(product.sc || 0),
+                misc: Math.abs(product.misc || 0),
+                promo: Math.abs(product.promo || 0),
+                total: Math.abs(product.total || 0),
+             }
           : product
       )
     );
@@ -554,13 +645,13 @@ export default function ReturnTransactionPage() {
       try {
         showLoadingAlert("Loading transaction details...", "Please wait while we load the transaction items for return.");
 
-        const response = await fetch(
-          `/api/transaction/invoice?invoice_number=${encodeURIComponent(transactionData.invoice_number.trim())}`,
-          {
-            method: "GET",
-            headers: { "Content-Type": "application/json" },
-          }
-        );
+         const response = await fetch(
+           `/api/transaction/one?id=${encodeURIComponent(transactionData.id.trim())}`,
+           {
+             method: "GET",
+             headers: { "Content-Type": "application/json" },
+           }
+         );
 
         const data = await response.json();
 
@@ -584,23 +675,79 @@ export default function ReturnTransactionPage() {
             return product;
           });
           
-          setProducts(returnProducts);
-          setNextId(returnProducts.length + 1);
-          
-          setReturnTransactionInfo({
-            customerName: data.data.customer_name || undefined,
-            doctorName: data.data.doctor_name || undefined,
-            isReturnTransaction: true,
-            invoiceNumber: transactionData.invoice_number, // Store original invoice number
-          });
-          
-          setIsTransactionCorrectionOpen(false);
-          
-          Swal.close();
-          showSuccessAlert(
-            "Return Items Loaded",
-            `Transaction ${transactionData.invoice_number} items have been loaded for return processing. Customer: ${data.data.customer_name || 'N/A'}${data.data.doctor_name ? `, Doctor: ${data.data.doctor_name}` : ''}`
-          );
+           setProducts(returnProducts);
+           setNextId(returnProducts.length + 1);
+           
+           // Fetch customer and doctor data if IDs are present
+           let customerName = data.data.customer_name;
+           let doctorName = data.data.doctor_name;
+           const customerID = data.data.customer_id ? Number(data.data.customer_id) : undefined;
+           const doctorID = data.data.doctor_id ? Number(data.data.doctor_id) : undefined;
+
+            // Fetch customer data if customer ID exists
+            if (customerID) {
+              try {
+                const { fetchCustomerById } = await import("@/lib/client-utils");
+                const customerData = await fetchCustomerById(customerID);
+                if (customerData) {
+                  customerName = customerData.nm_cust;
+                  // Save full customer data to dedicated storage
+                  const storedCustomer: StoredCustomerData = {
+                    id: customerID,
+                    name: customerData.nm_cust || "",
+                    gender: customerData.gender || "",
+                    age: customerData.usia_cust?.toString() || "",
+                    phone: customerData.telp_cust || "",
+                    address: customerData.al_cust || "",
+                    status: customerData.status ? "active" : "inactive",
+                  };
+                  saveCustomerToStorage(storedCustomer);
+                }
+              } catch (error) {
+                console.error("Error fetching customer data:", error);
+                // Continue with existing customer_name
+              }
+            }
+
+            // Fetch doctor data if doctor ID exists
+            if (doctorID) {
+              try {
+                const { fetchDoctorById } = await import("@/lib/client-utils");
+                const doctorData = await fetchDoctorById(doctorID);
+                if (doctorData) {
+                  doctorName = doctorData.fullname;
+                  // Save full doctor data to dedicated storage
+                  const storedDoctor: StoredDoctorData = {
+                    id: doctorID,
+                    fullname: doctorData.fullname || "",
+                    phone: String(doctorData.phone || ""),
+                    address: doctorData.address || "",
+                    fee_consultation: doctorData.fee_consultation,
+                    sip: doctorData.sip || "",
+                  };
+                  saveDoctorToStorage(storedDoctor);
+                }
+              } catch (error) {
+                console.error("Error fetching doctor data:", error);
+                // Continue with existing doctor_name
+              }
+            }
+            
+             setReturnTransactionInfo({
+               isReturnTransaction: true,
+               invoiceNumber: transactionData.invoice_number, // Store original invoice number
+               originalTransactionType: data.data.transaction_type || undefined,
+               returnReason: transactionData.returnReason,
+               confirmationReturBy: transactionData.confirmationReturBy,
+             });
+           
+           setIsTransactionCorrectionOpen(false);
+           
+           Swal.close();
+           showSuccessAlert(
+             "Return Items Loaded",
+             `Transaction ${transactionData.invoice_number} items have been loaded for return processing. Customer: ${customerName || 'N/A'}${doctorName ? `, Doctor: ${doctorName}` : ''}`
+           );
         } else {
           throw new Error("No items found in transaction");
         }
@@ -617,14 +764,14 @@ export default function ReturnTransactionPage() {
         // Show loading while fetching transaction details
         showLoadingAlert("Loading transaction details...", "Please wait while we load the transaction for full return.");
 
-        // Fetch transaction details to get the items for full return
-        const response = await fetch(
-          `/api/transaction/invoice?invoice_number=${encodeURIComponent(transactionData.invoice_number.trim())}`,
-          {
-            method: "GET",
-            headers: { "Content-Type": "application/json" },
-          }
-        );
+         // Fetch transaction details to get the items for full return
+         const response = await fetch(
+           `/api/transaction/one?id=${encodeURIComponent(transactionData.id.trim())}`,
+           {
+             method: "GET",
+             headers: { "Content-Type": "application/json" },
+           }
+         );
 
         const data = await response.json();
 
@@ -641,12 +788,13 @@ export default function ReturnTransactionPage() {
           // Update loading message
           showLoadingAlert("Processing return...", "Please wait while we process the full transaction return.");
           
-          const result = await processTransaction({
-            type: "full-return",
-            originalTransactionData: transactionData,
-            originalProducts: originalProducts,
-            returnReason: transactionData.returnReason || "Customer request",
-          });
+           const result = await processTransaction({
+             type: "full-return",
+             originalTransactionData: transactionData,
+             originalProducts: originalProducts,
+             returnReason: transactionData.returnReason || "Customer request",
+             confirmationReturBy: transactionData.confirmationReturBy || undefined,
+           });
 
           if (!result.success) {
             throw new Error(result.message || "Failed to process return");
@@ -758,42 +906,47 @@ export default function ReturnTransactionPage() {
           </div>
 
           <ProductTableSection
-            products={products}
-            onQuantityChange={handleQuantityChange}
-            onQuantityBlur={handleQuantityBlur}
-            onQuantityKeyPress={handleQuantityKeyPress}
-            onRemoveProduct={handleRemoveProduct}
-            onUndeleteProduct={handleUndeleteProduct}
-            onProductSelect={handleProductSelect}
-            onTypeChange={handleTypeChange}
-            onDiscountChange={handleDiscountChange}
-            onMiscChange={handleMiscChange}
-            onUpsellingChange={handleUpsellingChange}
-            onTransactionReturn={handleTransactionReturn}
-            className="mb-6"
+             products={products}
+             onQuantityChange={handleQuantityChange}
+             onQuantityBlur={handleQuantityBlur}
+             onQuantityKeyPress={handleQuantityKeyPress}
+             onRemoveProduct={handleRemoveProduct}
+             onUndeleteProduct={handleUndeleteProduct}
+             onProductSelect={handleProductSelect}
+             onTypeChange={handleTypeChange}
+             onDiscountChange={handleDiscountChange}
+             onMiscChange={handleMiscChange}
+             onUpsellingChange={handleUpsellingChange}
+             onTransactionReturn={handleTransactionReturn}
+             onPromoApply={handlePromoApply}
+             className="mb-6"
           />
         </div>
 
-        <div className="w-1/5">
-          <div className="p-5 bg-white shadow-md overflow-auto w-full rounded-2xl border border-orange-200">
-            <TransactionInfo 
-              useRealTimeData={true} 
-              className="mb-6" 
-              returnTransactionInfo={returnTransactionInfo}
-            />
+         <div className="w-1/5">
+           <div className="p-5 bg-white shadow-md overflow-auto w-full rounded-2xl border border-orange-200">
+             <TransactionInfo 
+               useRealTimeData={true} 
+               className="mb-6" 
+               returnTransactionInfo={returnTransactionInfo}
+               onNotesChange={setTransactionNotes}
+               currentNotes={transactionNotes}
+             />
 
-            <OrderSummary
-              subtotal={totals.subtotal}
-              misc={totals.misc}
-              serviceCharge={totals.serviceCharge}
-              discount={totals.discount}
-              promo={totals.promo}
-              products={paymentProducts}
-              onPendingBill={handlePendingBill}
-              onPaymentComplete={handlePaymentComplete}
-              payNowButtonRef={payNowButtonRef}
-              returnTransactionInfo={returnTransactionInfo}
-            />
+             <OrderSummary
+               subtotal={totals.subtotal}
+               misc={totals.misc}
+               serviceCharge={totals.serviceCharge}
+               discount={totals.discount}
+               promo={totals.promo}
+               totRetJu={totals.totRetJu}
+               products={paymentProducts}
+               onPendingBill={handlePendingBill}
+               onPaymentComplete={handlePaymentComplete}
+               payNowButtonRef={payNowButtonRef}
+               returnTransactionInfo={returnTransactionInfo}
+               transactionNotes={transactionNotes}
+             />
           </div>
         </div>
       </div>

@@ -72,31 +72,35 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    if (
-      responseData.message === "Fingerprint login successful" &&
-      responseData.data
-    ) {
-      const apiUser = responseData.data.user;
-      const userData: AppUser = {
-        id: apiUser.id.toString(),
-        username: apiUser.username,
-        name: apiUser.fullname,
-        role: apiUser.role_id?.toString(),
-        email: apiUser.email,
-      };
+     if (
+       responseData.message === "Fingerprint login successful" &&
+       responseData.data
+     ) {
+       const apiUser = responseData.data.user;
+       const userData: AppUser = {
+         id: apiUser.id.toString(),
+         username: apiUser.username,
+         name: apiUser.fullname,
+         role: apiUser.role_id?.toString(),
+         email: apiUser.email,
+       };
 
-      const session = await createSession(userData.id, userData);
+       const session = await createSession(userData.id, userData);
 
-      const cookieStore = cookies();
-      if (responseData.data.token) {
-        cookieStore.set("auth-token", responseData.data.token, {
-          httpOnly: true,
-          secure: process.env.NODE_ENV === "production",
-          sameSite: "lax",
-          maxAge: 60 * 60 * 24 * 7,
-          path: "/",
-        });
-      }
+       const cookieStore = cookies();
+       // Only set auth-token cookie for login types that should persist the session
+       // Do NOT set for return_confirmation type to preserve the current user's session
+       const shouldSetAuthCookie = body.type !== "return_confirmation";
+       
+       if (responseData.data.token && shouldSetAuthCookie) {
+         cookieStore.set("auth-token", responseData.data.token, {
+           httpOnly: true,
+           secure: process.env.NODE_ENV === "production",
+           sameSite: "lax",
+           maxAge: 60 * 60 * 24 * 7,
+           path: "/",
+         });
+       }
 
       return NextResponse.json(
         {
@@ -121,28 +125,32 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    if (responseData.message === "Login successful" && responseData.data) {
-      const apiUser = responseData.data.user;
-      const userData: AppUser = {
-        id: apiUser.id.toString(),
-        username: apiUser.username,
-        name: apiUser.fullname,
-        role: apiUser.role_id?.toString(),
-        email: apiUser.email,
-      };
+     if (responseData.message === "Login successful" && responseData.data) {
+       const apiUser = responseData.data.user;
+       const userData: AppUser = {
+         id: apiUser.id.toString(),
+         username: apiUser.username,
+         name: apiUser.fullname,
+         role: apiUser.role_id?.toString(),
+         email: apiUser.email,
+       };
 
-      const session = await createSession(userData.id, userData);
+       const session = await createSession(userData.id, userData);
 
-      const cookieStore = cookies();
-      if (responseData.data.token) {
-        cookieStore.set("auth-token", responseData.data.token, {
-          httpOnly: true,
-          secure: process.env.NODE_ENV === "production",
-          sameSite: "lax",
-          maxAge: 60 * 60 * 24 * 7,
-          path: "/",
-        });
-      }
+       const cookieStore = cookies();
+       // Only set auth-token cookie for login types that should persist the session
+       // Do NOT set for return_confirmation type to preserve the current user's session
+       const shouldSetAuthCookie = body.type !== "return_confirmation";
+       
+       if (responseData.data.token && shouldSetAuthCookie) {
+         cookieStore.set("auth-token", responseData.data.token, {
+           httpOnly: true,
+           secure: process.env.NODE_ENV === "production",
+           sameSite: "lax",
+           maxAge: 60 * 60 * 24 * 7,
+           path: "/",
+         });
+       }
 
       return NextResponse.json(
         {
